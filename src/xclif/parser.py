@@ -1,10 +1,65 @@
-import sys
+# import shlex
+from collections import defaultdict
 from typing import TYPE_CHECKING, Callable
 
 from xclif.definition import Argument, Option
 
 if TYPE_CHECKING:
     from xclif.command import Command
+
+
+def flatten_dict_values[T](d: dict[str, list[T]]) -> dict[str, T | list[T]]:
+    return {k: v if len(v) > 1 else v[0] for k, v in d.items()}
+
+
+# def parse_option(options: dict[str, Option], arg: str):
+#     if arg.startswith("-"):
+#         # TODO: Parse options
+#         if arg == "--":
+#             msg = "We have not implemented the -- thing yet"
+#             raise NotImplementedError(msg)
+#             # SECURITY: or shlex.join????
+#             # parsed_arguments.append(" ".join(args[i + 1 :]))
+#             # break
+#         if arg.startswith("--"):
+#             snake_case = arg.removeprefix("--").replace("-", "_")
+#             return options[snake_case].converter(arg)
+#         else:
+#             # TODO: get alias
+#             msg = "Short options are not implemented yet"
+#             raise NotImplementedError(msg)
+#     else:
+#         # Error: unexpected argument
+#         msg = f"Unexpected argument {arg}"
+#         raise RuntimeError(msg)
+
+
+def parse_options[T](options: dict[str, Option], args: list[str]) -> dict[str, list[T]]:
+    parsed_options = defaultdict(list)
+    i = 0  # instead of a for loop since we may have like options with n items
+    while i < len(args):
+        arg = args[i]
+        if arg.startswith("-"):
+            # TODO: Parse options
+            if arg == "--":
+                msg = "We have not implemented the -- thing yet"
+                raise NotImplementedError(msg)
+                # SECURITY: or shlex.join????
+                # parsed_arguments.append(" ".join(args[i + 1 :]))
+                break
+            if arg.startswith("--"):
+                snake_case = arg.removeprefix("--").replace("-", "_")
+                parsed_options[snake_case].append(options[snake_case].converter(arg))
+            else:
+                # TODO: get alias
+                msg = "Short options are not implemented yet"
+                raise NotImplementedError(msg)
+        else:
+            # Error: unexpected argument
+            msg = f"Unexpected argument {arg}"
+            raise RuntimeError(msg)
+        i += 1
+    return parsed_options
 
 
 # TODO: Finish and refactor this to be recursive on the Command
@@ -19,84 +74,52 @@ def parse_and_execute_impl(
     # Parsing CLI subcommands are really easy: it's recursive.
     # Dependency injection can be done very easily as well.
 
-    # There are 4 different types of incantations:
+    # There are 2 different types of incantations:
     # 1. The command takes no arguments and no options
-    # 2. The command is a namespace with arguments and options
-    # 3. The command is a namespace with options only
-    # 4. The command has subcommands (cannot have arguments, options are "global" and
+    # 2. The command has subcommands (cannot have arguments, options are "global" and
     #    are passed to the subcommand, unless configured otherwise)
 
-    # Case 1: No arguments and no options
-    # TODO: Exclude default options
-    if not arguments and not options:
-        # Assert that no extra arguments are passed
-        if args:
-            msg = f"Unexpected arguments: {args}"
-            raise ValueError(msg)
-        return run()
-    # REFACTOR: The option parsing logic is repeated
-    # Case 2: Namespace command
-    # Parse arguments first, and then options, unless
-    # the user uses `--` to separate them
-    if arguments:
-        # TODO: Special case arguments (e.g. variadic)
-        arguments = [
+    if not subcommands:
+        # TODO: implement "--"
+        parsed_arguments = [
             arg.converter(raw) for raw, arg in zip(args, arguments, strict=False)
         ]
-        options = {}
-        # now we start parsing options
-        i = len(arguments)  # starting from the first non-argument
-        while i < len(args):
-            arg = args[i]
-            if arg.startswith("-"):
-                # TODO: Parse options
-                if arg == "--":
-                    # XXX: Should it be this or should we use shlex.join?
-                    arguments.extend(args[i + 1 :])
-                if arg.startswith("--"):
-                    snake_case = arg.removeprefix("--").replace("-", "_")
-                    options[snake_case] = options[snake_case].converter(arg)
-                else:
-                    # TODO: get alias
-                    ...
-                i += 1
-            else:
-                # Error: unexpected argument
-                msg = "Unexpected argument"
-                raise RuntimeError(msg)
+        parsed_options = parse_options(options, args[len(arguments) :])
         # TODO: Handle default options
-        return run(*arguments, **options)
-    # Case 4: Subcommands
+        return run(*parsed_arguments, **flatten_dict_values(parsed_options))
+    # Case 2: Subcommands
     # Parse global options before subcommands
-    options = {}
+    parsed_options = defaultdict(list)
+    # Copy+pasted from the function definition with a very minor change
+    # can't think of a more elegant way to do it lol
     i = 0
     while i < len(args):
         arg = args[i]
-        # Parse global args
-        if args[i].startswith("-"):
+        if arg.startswith("-"):
             # TODO: Parse options
-            # TODO: What about boolean options
             if arg == "--":
-                ...
+                msg = "We have not implemented the -- thing yet"
+                raise NotImplementedError(msg)
+                # SECURITY: or shlex.join????
+                # parsed_arguments.append(" ".join(args[i + 1 :]))
+                break
             if arg.startswith("--"):
                 snake_case = arg.removeprefix("--").replace("-", "_")
-                options[snake_case] = options[snake_case].converter(
-                    args[i + 1],
-                )
-                # TODO: Configure the amount to eat
-                i += 2  # Skipped eaten parameter
-                continue
+                parsed_options[snake_case].append(options[snake_case].converter(arg))
             else:
                 # TODO: get alias
-                ...
-            i += 1
-        else:  # Break at the first non-option (becomes case 4)
-            break
+                msg = "Short options are not implemented yet"
+                raise NotImplementedError(msg)
+        else:
+            break  # Prob a subcommand
+        i += 1
     else:
-        # Actually, it's a Case 3: Only options (no subcommands detected)
-        return run(**options)
+        # No subcommands detected
+        return run(**flatten_dict_values(parsed_options))
     # TODO: Figure cascading options
     if args[i] in subcommands:
         return subcommands[args[i]].execute(args[i + 1 :])
-    # Fuzzy match and raise error about unknown command
-    raise RuntimeError
+    if subcommands:
+        # Fuzzy match and raise error about unknown command
+        raise RuntimeError("Unknown subcommand")
+    raise RuntimeError("unexpected argument")

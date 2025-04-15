@@ -2,7 +2,7 @@ import inspect
 import sys
 import types
 from dataclasses import dataclass
-from typing import NoReturn
+from typing import NoReturn, Self
 
 from xclif.command import Command
 from xclif.importer import get_modules
@@ -16,7 +16,7 @@ class Cli:
 
     def __post_init__(self) -> None:
         def completion_func():
-            return print("TODO: completions")
+            return print("TODO: completions") or 0
 
         completion_func.__doc__ = "Install completions for your shell"
         self.add_command(["completions"], Command("completions", completion_func))
@@ -30,13 +30,18 @@ class Cli:
         for part in path[:-1]:
             if cursor.arguments:
                 # TODO: But what if they used `--`?
+                # Well we don't have support for that yet
                 msg = "Cannot add subcommands to a command with arguments"
                 raise ValueError(msg)
-            cursor = cursor.subcommands.setdefault(part, NamespaceCommand(part))
+            # I can't guarantee a certain order of "a.a" coming before "a.a.a"
+            # so what I'm going to do for now is this
+            cursor = cursor.subcommands.setdefault(
+                part, Command(part, lambda self: self.print_short_help() or 0)
+            )
         cursor.subcommands[command.name] = command
 
     @classmethod
-    def from_routes(cls, routes: types.ModuleType) -> None:
+    def from_routes(cls, routes: types.ModuleType) -> Self:
         members = inspect.getmembers(routes, lambda x: isinstance(x, Command))
 
         if len(members) > 1:
@@ -66,8 +71,8 @@ class Cli:
             if len(members) > 1:
                 msg = f"Multiple commands found in {path!r}"
                 raise ValueError(msg)
-            member = members[0]
-            output.add_command(path.removeprefix(root_path).split("."), member[1])
+            _name, function = members[0]
+            output.add_command(path.removeprefix(root_path).split("."), function)
         # if root_command.arguments and root_command.subcommands:
         #     raise ValueError(
         #         "Commands cannot have arguments and subcommands at the same time."

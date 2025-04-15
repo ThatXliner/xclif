@@ -43,10 +43,10 @@ IMPLICIT_OPTIONS = {
 }
 
 
-def command(name: None | str = None, empty=False) -> None:
+def command(name: None | str = None) -> Callable[[Callable], Command]:
     """Convert a function into an `xclif.Command`."""
 
-    def _decorator(func) -> Command:
+    def _decorator(func: Callable) -> Command:
         if name is not None:
             command_name = name
         elif func.__name__ == "_":
@@ -55,14 +55,14 @@ def command(name: None | str = None, empty=False) -> None:
         else:
             command_name = func.__name__
         arguments, options = extract_parameters(func)
-        if empty:
-            if arguments or options:
-                msg = "Empty commands cannot have arguments or options"
-                raise ValueError(msg)
-            return NamespaceCommand(
-                command_name,
-                description=inspect.getdoc(func) or "",
-            )
+        # if empty:
+        #     if arguments or options:
+        #         msg = "Empty commands cannot have arguments or options"
+        #         raise ValueError(msg)
+        #     return NamespaceCommand(
+        #         command_name,
+        #         description=inspect.getdoc(func) or "",
+        # )
         return Command(command_name, func, arguments, options)
 
     return _decorator
