@@ -128,13 +128,7 @@ class Command:
     # TODO: Finish and refactor this to be recursive on the Command
     # class lol. We still need to have a crisis over the `--` being a thing
     def execute(self, args: list[str] | None = None) -> int:
-        return parse_and_execute_impl(
-            args or sys.argv[1:],
-            self.arguments,
-            self.options,
-            self.run,
-            self.subcommands,
-        )
+        return parse_and_execute_impl(args or sys.argv[1:], self)
 
     @property
     def description(self) -> str:

@@ -1,4 +1,5 @@
 # import shlex
+
 from collections import defaultdict
 from typing import TYPE_CHECKING, Callable
 
@@ -32,9 +33,10 @@ def flatten_dict_values[T](d: dict[str, list[T]]) -> dict[str, T | list[T]]:
 #         # Error: unexpected argument
 #         msg = f"Unexpected argument {arg}"
 #         raise RuntimeError(msg)
+type _ParsedOptions[T] = dict[str, list[T]]
 
 
-def parse_options[T](options: dict[str, Option], args: list[str]) -> dict[str, list[T]]:
+def parse_options[T](options: dict[str, Option], args: list[str]) -> _ParsedOptions[T]:
     parsed_options = defaultdict(list)
     i = 0  # instead of a for loop since we may have like options with n items
     while i < len(args):
@@ -66,10 +68,7 @@ def parse_options[T](options: dict[str, Option], args: list[str]) -> dict[str, l
 # class lol. We still need to have a crisis over the `--` being a thing
 def parse_and_execute_impl(
     args: list[str],
-    arguments: list[Argument],
-    options: dict[str, Option],
-    run: Callable[..., int],
-    subcommands: dict[str, "Command"],
+    command: "Command",
 ) -> int:
     # Parsing CLI subcommands are really easy: it's recursive.
     # Dependency injection can be done very easily as well.
@@ -78,6 +77,11 @@ def parse_and_execute_impl(
     # 1. The command takes no arguments and no options
     # 2. The command has subcommands (cannot have arguments, options are "global" and
     #    are passed to the subcommand, unless configured otherwise)
+    arguments = command.arguments
+    subcommands = command.subcommands
+    options = command.options
+    run = command.run
+    subcommands = command.subcommands
 
     if not subcommands:
         # TODO: implement "--"
@@ -85,8 +89,9 @@ def parse_and_execute_impl(
             arg.converter(raw) for raw, arg in zip(args, arguments, strict=False)
         ]
         parsed_options = parse_options(options, args[len(arguments) :])
-        # TODO: Handle default options
-        return run(*parsed_arguments, **flatten_dict_values(parsed_options))
+        return with_implicit_options(run)(
+            *parsed_arguments, **flatten_dict_values(parsed_options)
+        )
     # Case 2: Subcommands
     # Parse global options before subcommands
     parsed_options = defaultdict(list)
@@ -115,7 +120,7 @@ def parse_and_execute_impl(
         i += 1
     else:
         # No subcommands detected
-        return run(**flatten_dict_values(parsed_options))
+        return with_implicit_options(run)(**flatten_dict_values(parsed_options))
     # TODO: Figure cascading options
     if args[i] in subcommands:
         return subcommands[args[i]].execute(args[i + 1 :])
@@ -123,3 +128,16 @@ def parse_and_execute_impl(
         # Fuzzy match and raise error about unknown command
         raise RuntimeError("Unknown subcommand")
     raise RuntimeError("unexpected argument")
+
+
+type _Runnable = Callable[..., int]
+
+
+def with_implicit_options(run: _Runnable) -> _Runnable:
+    def wrapper(*args, **kwargs) -> int:
+        if kwargs.get("help") or kwargs.get("h"):
+            print("Help lol")
+            return 0
+        return run(*args, **kwargs)
+
+    return wrapper
