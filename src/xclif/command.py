@@ -4,6 +4,8 @@ import textwrap
 from dataclasses import dataclass, field
 from typing import Callable
 
+import rich
+
 from xclif.annotations import annotation2converter
 from xclif.constants import INITIAL_LEFT_PADDING, NAME_DESC_PADDING, NO_DESC
 from xclif.definition import IMPLICIT_OPTIONS, Argument, Option
@@ -84,7 +86,7 @@ class Command:
             )
             + "\n\n"
         )
-        print(help_text)
+        rich.print(help_text)
 
     def print_long_help(self) -> None:
         help_text = (
@@ -123,7 +125,7 @@ class Command:
             )
             + "\n\n"
         )
-        print(help_text)
+        rich.print(help_text)
 
     # TODO: Finish and refactor this to be recursive on the Command
     # class lol. We still need to have a crisis over the `--` being a thing
