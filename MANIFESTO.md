@@ -6,6 +6,8 @@ Click and Typer are excellent tools. If you're building a script with a handful 
 
 But CLIs have gotten more ambitious. `git`, `cargo`, `poetry`, `kubectl`, `gh` — these aren't scripts. They're structured command hierarchies, sometimes dozens of subcommands deep, each with their own arguments and options. Building something at that scale with Click or Typer reveals a different class of problem: not the API itself, but the organizational model underneath it.
 
+Additionally, users expect DX features that used to be luxuries: beautiful help, man pages, shell completion, color toggling, configuration files, auto-discovering plugins. In other libraries, this means either installing various different plugins or gluing together code which may become easily outdated if not integrated well into your CLI.
+
 ## The problem at scale
 
 When your CLI grows, these frameworks ask you to do the same thing a web developer did before routing frameworks existed: manually assemble the structure.
@@ -18,7 +20,7 @@ This is exactly the problem web frameworks solved with routing.
 
 When FastAPI or Next.js or Rails arrived, they didn't just give you a better API for writing handlers. They changed the organizational model: **the directory structure is the route map**. A file at `routes/users/settings.py` *is* the `/users/settings` handler. You don't register it. The framework discovers it.
 
-That's what CLIs have been missing.
+That's what CLIs have been missing. Xclif brings that same insight:
 
 ```
 myapp/
@@ -31,23 +33,22 @@ myapp/
         └── set.py        →  myapp config set
 ```
 
-No registration. No boilerplate assembly. Drop a file in the right folder and the command exists.
+No registration. No boilerplate assembly. Drop a file in the right folder and the command exists. A developer reading the filesystem immediately understands the CLI's surface area.
 
-## The API
+## The contract is the function
 
-The other half is what goes *inside* those files. You write a function, annotate it, and Xclif builds the command from the signature.
+The other half is what goes *inside* those files. You write a function, annotate it, and Xclif builds the command from the signature:
 
 ```python
-# routes/greet.py
-from xclif import command
-
 @command()
 def _(name: str, template: str = "Hello, {}!") -> None:
     """Greet someone by name."""
     print(template.format(name))
 ```
 
-That's it. `name` has no default → it's a positional argument. `template` has a default → it's a `--template` option. The docstring becomes the help text. The type annotation determines how the value is parsed. No separate `help=` strings scattered through decorator arguments. The function signature *is* the CLI contract.
+`name` has no default → it's a positional argument. `template` has a default → it's a `--template` option. The docstring becomes the help text. The type annotation determines how the value is parsed. No separate `help=` strings scattered through decorator arguments. The function signature *is* the CLI contract.
+
+Your `__main__.py` is three lines. `Cli.from_routes(routes)` and you're done.
 
 ## The Principles
 
@@ -69,19 +70,27 @@ Python CLI startup time is a real problem — Typer can add hundreds of millisec
 **6. Escape hatches exist.**
 The filesystem convention is the happy path, not a prison. The lower-level `Command` and `Cli` objects are always available when you need to go off-script.
 
-## The integrated framework
+## Where others stop, Xclif keeps going
 
-Xclif's ambition goes beyond routing. The goal is to be the integrated framework for serious Python CLIs — the thing you reach for when you want a complete, professional-grade tool without assembling twenty libraries yourself.
+There are several CLI libraries for Python: [argparse](https://docs.python.org/3/library/argparse.html), [Plac](https://plac.readthedocs.io/en/latest/), [Cleo](https://github.com/python-poetry/cleo), [Click](https://click.palletsprojects.com/), [Typer](https://typer.tiangolo.com/). Typer in particular is great — for small projects we'd still recommend it. But these tools solve the *parsing* problem. Xclif solves the *framework* problem.
 
-That means batteries included, but not batteries bloated. Xclif ships with:
+The difference is analogous to Flask vs Django, or React vs Next.js. A library gives you components; a framework gives you a system. When you outgrow the library, you end up building the framework yourself — badly, one piece at a time, with none of the pieces designed to work together.
+
+Xclif's goal is to be the integrated framework for serious Python CLIs. That means batteries included, but not batteries bloated:
 
 - **Rich output** — beautiful help text, formatted errors, progress indicators, all built in
 - **Config management** — the `WithConfig[T]` annotation lets any parameter read from a config file or environment variable, with a clear priority order: CLI flag > env var > config file > default
-- **Logging** — `--verbose` / `-v` is wired up automatically; your commands get a structured logger with verbosity levels for free
+- **Logging** — `--verbose` / `-v` is wired up automatically; your commands get structured verbosity levels for free
 
 These aren't afterthoughts bolted on. They're designed as part of the same system, so they compose correctly and don't fight each other.
 
 The architecture is plugin-based under the hood — so the core stays lean, startup stays fast, and the framework stays extensible. You can swap implementations or add your own. But you shouldn't have to for the common cases.
+
+## Fast by default
+
+Python CLI startup time is a real problem. Typer can add hundreds of milliseconds before your command even runs — it inherits Click's import chain and layered abstractions. For a tool you invoke dozens of times a day, that latency is felt.
+
+Xclif was written from scratch, not built on argparse or Click. The parser is custom-built for performance, not based on [getopt](https://pubs.opengroup.org/onlinepubs/9699919799/utilities/getopts.html) or any existing library — while still adhering to [POSIX guidelines](https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap12.html#tag_12_02) where possible to keep with convention. Starting from zero means we don't inherit anyone else's quirks or overhead.
 
 ## What Xclif is not for
 

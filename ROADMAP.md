@@ -11,12 +11,12 @@ The current state of the codebase is **pre-alpha**: the core ideas work, but the
 Before any new features, the existing code needs to be honest about what it does.
 
 - [ ] Remove all dead/commented-out code
-- [ ] Remove or quarantine unimplemented stubs (`WithConfig`, `print_long_help`, completions)
+- [ ] Remove or quarantine unimplemented stubs (`WithConfig` in `__init__.py:16`, `print_long_help`, completions stub in `__init__.py:42`)
 - [ ] Fix `parse_options`: currently passes the raw `arg` string (e.g. `"--verbose"`) into `converter(arg)` instead of the *value* that follows it — this is a bug
 - [ ] Fix `print_short_help`: crashes when `arguments`, `subcommands`, and `options` are all empty (passes empty sequences to `max()`)
 - [ ] Fix `poetry-clone` experiment: uses `cli.run()` which doesn't exist (should be `cli()`)
 - [ ] Clean up `definition.py`: `Option.default` typed as `None | str` but options can have non-string defaults
-- [ ] Audit all TODOs and decide: implement now, defer to a milestone, or delete
+- [x] Audit all TODOs and decide: implement now, defer to a milestone, or delete
 - [ ] Write basic tests for the greeter experiment end-to-end
 
 ---
@@ -26,7 +26,7 @@ Before any new features, the existing code needs to be honest about what it does
 The minimum the world needs to try Xclif.
 
 **Parsing**
-- [ ] Fix option value parsing: `--name Bryan` and `--name=Bryan` both work
+- [ ] Fix option value parsing: `--name Bryan` and `--name=Bryan` both work (`option-system-design.md:14`)
 - [ ] Boolean flags: `--verbose` (no value) sets to `True`
 - [ ] Short aliases: `-v` for `--verbose` (auto-generated or explicitly declared)
 - [ ] Proper error messages: unknown option, missing required argument, wrong type — all with clear, friendly output
@@ -38,6 +38,7 @@ The minimum the world needs to try Xclif.
 **Help**
 - [ ] `--help` / `-h` work correctly on every command and subcommand
 - [ ] Help text is well-formatted and aligned with `rich`
+- [ ] Help text displays option aliases alongside primary names (`command.py:84`)
 - [ ] Long description (from full docstring) vs. short description (first line) used correctly
 
 **Routing**
@@ -54,7 +55,7 @@ The minimum the world needs to try Xclif.
 
 The things that make Xclif feel polished to use.
 
-**`WithConfig[T]`**
+**`WithConfig[T]`** (`__init__.py:15-17`)
 - [ ] Arguments and options can read from a config file (TOML/JSON in OS data dir)
 - [ ] Same parameters can be overridden by environment variables
 - [ ] Priority order: CLI flag > env var > config file > default
@@ -68,7 +69,7 @@ The things that make Xclif feel polished to use.
 - [ ] Exit codes are correct and documented
 
 **Completions**
-- [ ] Shell completion generation for bash, zsh, fish
+- [ ] Shell completion generation for bash, zsh, fish (stub at `__init__.py:42`)
 
 ---
 
@@ -88,7 +89,7 @@ For teams building serious CLIs.
 - [ ] Pre/post command hooks (for auth checks, logging, etc.)
 
 **Plugin system**
-- [ ] Third-party type converters via entry points
+- [ ] Third-party type converters via entry points (`annotations.py:8`)
 - [ ] Custom implicit options
 
 ---
