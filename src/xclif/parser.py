@@ -1,138 +1,166 @@
-# import shlex
+from __future__ import annotations
 
 from collections import defaultdict
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
-from xclif.definition import Argument, Option
+from xclif.definition import Option
 
 if TYPE_CHECKING:
     from xclif.command import Command
 
 
-def flatten_dict_values[T](d: dict[str, list[T]]) -> dict[str, T | list[T]]:
-    return {k: v if len(v) > 1 else v[0] for k, v in d.items()}
+def _parse_token_stream(
+    options: dict[str, Option],
+    subcommands: dict[str, "Command"],
+    args: list[str],
+) -> tuple[list[str], dict[str, list], int | None]:
+    """Scan a token stream at a single command level.
 
+    Tokens are consumed left to right. Options (--name) are recognised and
+    collected regardless of their position relative to positional tokens
+    (interspersed options are supported). Scanning stops as soon as a token
+    is identified as a subcommand name — that token's index is returned so
+    the caller can hand off the tail to the subcommand parser.
 
-type _ParsedOptions[T] = dict[str, list[T]]
-
-
-def parse_options[T](options: dict[str, Option], args: list[str]) -> _ParsedOptions[T]:
-    parsed_options = defaultdict(list)
-    i = 0  # instead of a for loop since we may have like options with n items
+    Returns:
+        positionals  - raw positional tokens collected in order
+        parsed_opts  - dict[name, [value, ...]] for all options seen
+        subcmd_index - index into `args` of the subcommand token, or None
+    """
+    positionals: list[str] = []
+    parsed_opts: dict[str, list] = defaultdict(list)
+    i = 0
     while i < len(args):
-        arg = args[i]
-        if arg.startswith("-"):
-            if arg == "--":
-                msg = "We have not implemented the -- thing yet"
-                raise NotImplementedError(msg)
-            if arg.startswith("--"):
-                snake_case = arg.removeprefix("--").replace("-", "_")
-                try:
-                    option = options[snake_case]
-                except KeyError as err:
-                    msg = f"Unknown option {arg}"
-                    raise RuntimeError(msg) from err
-                if option.converter is bool:
-                    parsed_options[snake_case].append(True)
-                else:
-                    if i + 1 >= len(args):
-                        msg = f"Option {arg} requires a value"
-                        raise RuntimeError(msg)
-                    i += 1
-                    parsed_options[snake_case].append(option.converter(args[i]))
+        token = args[i]
+
+        if token == "--":
+            # Everything after -- is positional (raw passthrough — planned)
+            raise NotImplementedError("The -- separator is not yet implemented")
+
+        if token.startswith("--"):
+            name = token.removeprefix("--").replace("-", "_")
+            try:
+                option = options[name]
+            except KeyError as err:
+                msg = f"Unknown option {token!r}"
+                raise RuntimeError(msg) from err
+            if option.converter is bool:
+                parsed_opts[name].append(True)
             else:
-                # TODO: get alias
-                msg = "Short options are not implemented yet"
-                raise NotImplementedError(msg)
+                if i + 1 >= len(args):
+                    msg = f"Option {token!r} requires a value"
+                    raise RuntimeError(msg)
+                i += 1
+                parsed_opts[name].append(option.converter(args[i]))
+
+        elif token.startswith("-"):
+            # TODO: short option aliases
+            msg = "Short options are not yet implemented"
+            raise NotImplementedError(msg)
+
+        elif token in subcommands:
+            # Subcommand name — stop scanning, hand off tail
+            return positionals, parsed_opts, i
+
         else:
-            # Error: unexpected argument
-            msg = f"Unexpected argument {arg}"
-            raise RuntimeError(msg)
+            positionals.append(token)
+
         i += 1
-    return parsed_options
+
+    return positionals, parsed_opts, None
 
 
-# TODO: Finish and refactor this to be recursive on the Command
-# class lol. We still need to have a crisis over the `--` being a thing
 def parse_and_execute_impl(
     args: list[str],
     command: "Command",
+    context: dict | None = None,
 ) -> int:
-    # Parsing CLI subcommands are really easy: it's recursive.
-    # Dependency injection can be done very easily as well.
+    """Parse `args` in the context of `command` and execute.
 
-    # There are 2 different types of incantations:
-    # 1. The command takes no arguments and no options
-    # 2. The command has subcommands (cannot have arguments, options are "global" and
-    #    are passed to the subcommand, unless configured otherwise)
-    arguments = command.arguments
-    subcommands = command.subcommands
-    options = command.options
-    subcommands = command.subcommands
+    `context` carries cascading option values resolved by ancestor commands.
+    It is never passed as kwargs to command.run() — it is a separate concern.
+    """
+    if context is None:
+        context = {}
 
-    if not subcommands:
-        # TODO: implement "--"
-        parsed_arguments = [
-            arg.converter(raw) for raw, arg in zip(args, arguments, strict=False)
-        ]
-        parsed_options = parse_options(options, args[len(arguments) :])
-        return with_implicit_options(command)(
-            *parsed_arguments, **flatten_dict_values(parsed_options)
-        )
-    # Case 2: Subcommands
-    # Parse global options before subcommands
-    parsed_options = defaultdict(list)
-    # Copy+pasted from the function definition with a very minor change
-    # can't think of a more elegant way to do it lol
-    i = 0
-    while i < len(args):
-        arg = args[i]
-        if arg.startswith("-"):
-            if arg == "--":
-                msg = "We have not implemented the -- thing yet"
-                raise NotImplementedError(msg)
-            if arg.startswith("--"):
-                snake_case = arg.removeprefix("--").replace("-", "_")
-                try:
-                    option = options[snake_case]
-                except KeyError as err:
-                    msg = f"Unknown option {arg}"
-                    raise RuntimeError(msg) from err
-                if option.converter is bool:
-                    parsed_options[snake_case].append(True)
-                else:
-                    if i + 1 >= len(args):
-                        msg = f"Option {arg} requires a value"
-                        raise RuntimeError(msg)
-                    i += 1
-                    parsed_options[snake_case].append(option.converter(args[i]))
-            else:
-                # TODO: get alias
-                msg = "Short options are not implemented yet"
-                raise NotImplementedError(msg)
+    # Merge all option namespaces for scanning: user options + implicit options.
+    # We keep them logically separate (implicit_options vs options on Command)
+    # but the scanner needs to see both so it knows the arity of every token.
+    all_options = {**command.implicit_options, **command.options}
+
+    positionals, parsed_opts, subcmd_index = _parse_token_stream(
+        all_options, command.subcommands, args
+    )
+
+    # --- Act on implicit options first, before any dispatch ---
+
+    # --help: print help and exit immediately
+    if parsed_opts.get("help"):
+        if subcmd_index is not None:
+            # --help before a subcommand name: show help for the subcommand
+            subcommand = command.subcommands[args[subcmd_index]]
+            subcommand.print_long_help()
         else:
-            break  # Prob a subcommand
-        i += 1
-    else:
-        # No subcommands detected
-        return with_implicit_options(command)(**flatten_dict_values(parsed_options))
-    # TODO: Figure cascading options
-    if args[i] in subcommands:
-        return subcommands[args[i]].execute(args[i + 1 :])
-    if subcommands:
-        # Fuzzy match and raise error about unknown command
-        raise RuntimeError("Unknown subcommand")
-    raise RuntimeError("unexpected argument")
-
-
-def with_implicit_options(command: "Command") -> Callable[..., int]:
-    def wrapper(*args, **kwargs) -> int:
-        if kwargs.get("help"):
             command.print_long_help()
-            return 0
-        if kwargs.get("h"):
-            command.print_short_help()
-            return 0
-        return command.run(*args, **kwargs) or 0
+        return 0
 
-    return wrapper
+    # --version: only meaningful at root; upper layers handle it (TODO)
+    if parsed_opts.get("version"):
+        # TODO: plumb version string from Cli down here
+        raise NotImplementedError("--version is not yet implemented")
+
+    # Build updated cascading context for children
+    new_context = dict(context)
+    for name, option in command.implicit_options.items():
+        if option.cascading and name in parsed_opts:
+            values = parsed_opts[name]
+            # For bool cascading flags (e.g. --verbose), count occurrences
+            if option.converter is bool:
+                existing = new_context.get(name, 0)
+                new_context[name] = existing + len(values)
+            else:
+                new_context[name] = values[-1]  # last wins
+
+    # --- Dispatch ---
+
+    if subcmd_index is not None:
+        # A subcommand token was found — recurse into it
+        subcommand = command.subcommands[args[subcmd_index]]
+        return parse_and_execute_impl(args[subcmd_index + 1:], subcommand, new_context)
+
+    if command.subcommands and not positionals and not _user_opts(parsed_opts, command):
+        # Namespace command invoked with no subcommand and no user args:
+        # default action is short help
+        command.print_short_help()
+        return 0
+
+    if command.subcommands and positionals:
+        # The first positional-looking token wasn't a known subcommand
+        raise RuntimeError(f"Unknown subcommand {positionals[0]!r}")
+
+    # Leaf command: assign positionals and call run()
+    declared_args = command.arguments
+    if len(positionals) < sum(1 for a in declared_args):
+        missing = [a.name for a in declared_args[len(positionals):]]
+        msg = f"Missing required argument(s): {', '.join(missing)}"
+        raise RuntimeError(msg)
+
+    converted_args = [
+        arg.converter(raw) for raw, arg in zip(positionals, declared_args)
+    ]
+
+    # Only user-defined option values go to run()
+    user_kwargs: dict = {}
+    for name, option in command.options.items():
+        if name in parsed_opts:
+            values = parsed_opts[name]
+            user_kwargs[name] = values if len(values) > 1 else values[0]
+        elif option.default is not None:
+            user_kwargs[name] = option.default
+
+    return command.run(*converted_args, **user_kwargs) or 0
+
+
+def _user_opts(parsed_opts: dict, command: "Command") -> bool:
+    """Return True if any user-defined options were parsed."""
+    return any(k in command.options for k in parsed_opts)

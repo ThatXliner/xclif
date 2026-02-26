@@ -1,8 +1,6 @@
-# TODO: Figure better API
 from __future__ import annotations
 
-import inspect
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Callable
 
 
@@ -19,22 +17,28 @@ class Argument[T]:
         return self.description.splitlines()[0]
 
 
-# XXX: Inheritance of dataclasses? A parameter super class?
 @dataclass
 class Option[T]:
     name: str
     converter: Callable[[Any], T]
     description: str
     default: Any = None
+    cascading: bool = False
 
     @property
     def short_description(self) -> str:
         return self.description.splitlines()[0]
 
 
-IMPLICIT_OPTIONS = {
-    "help": Option("help", bool, "Show this help message and exit"),
-    "verbose": Option("verbose", list, "Change verbosity levels"),
-    "colors": Option("colors", str, "Control color output"),
-    "version": Option("version", str, "Print program version"),
+# Implicit options are added to every command automatically.
+# They live in a separate namespace from user-defined options so they are
+# never forwarded as kwargs to command.run().
+#
+# cascading=True means the parsed value is carried into child commands as
+# context, even when those children don't declare the option themselves.
+IMPLICIT_OPTIONS: dict[str, Option] = {
+    "help": Option("help", bool, "Show this help message and exit", cascading=False),
+    "verbose": Option("verbose", bool, "Increase log verbosity (repeatable)", cascading=True),
+    "colors": Option("colors", str, "Control color output (always|never|auto)", cascading=True),
+    "version": Option("version", bool, "Print program version and exit", cascading=False),
 }

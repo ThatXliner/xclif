@@ -112,9 +112,12 @@ def test_command_function_name_used():
 
 def test_command_has_implicit_options():
     cmd = Command("test", lambda: 0)
-    assert "help" in cmd.options
-    assert "verbose" in cmd.options
-    assert "version" in cmd.options
+    assert "help" in cmd.implicit_options
+    assert "verbose" in cmd.implicit_options
+    assert "version" in cmd.implicit_options
+    # implicit options must NOT bleed into user-defined options
+    assert "help" not in cmd.options
+    assert "verbose" not in cmd.options
 
 
 def test_command_description_from_docstring():
