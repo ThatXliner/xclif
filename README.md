@@ -38,6 +38,8 @@ Your directory structure *is* your command tree:
 
 ```
 myapp/
+├── __init__.py
+├── __main__.py
 └── routes/
     ├── __init__.py       →  myapp
     ├── greet.py          →  myapp greet
