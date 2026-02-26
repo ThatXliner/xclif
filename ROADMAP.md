@@ -1,4 +1,4 @@
-# XClif Roadmap
+# Xclif Roadmap
 
 This roadmap is organized by milestone. Each milestone is a shippable, coherent state of the library — not just a list of features.
 
@@ -23,7 +23,7 @@ Before any new features, the existing code needs to be honest about what it does
 
 ## Milestone 1: `0.1.0` — Usable Core
 
-The minimum the world needs to try XClif.
+The minimum the world needs to try Xclif.
 
 **Parsing**
 - [ ] Fix option value parsing: `--name Bryan` and `--name=Bryan` both work
@@ -52,7 +52,7 @@ The minimum the world needs to try XClif.
 
 ## Milestone 2: `0.2.0` — Developer Experience
 
-The things that make XClif feel polished to use.
+The things that make Xclif feel polished to use.
 
 **`WithConfig[T]`**
 - [ ] Arguments and options can read from a config file (TOML/JSON in OS data dir)
@@ -95,9 +95,9 @@ For teams building serious CLIs.
 
 ## Non-goals (explicitly out of scope)
 
-- Bundled logging, config management, or database access — use the ecosystem
+- Database access or application-level business logic
 - Supporting Python < 3.12 (we use `type` statement, `TypeVarTuple`, etc.)
-- A GUI or TUI framework — XClif is strictly for text CLIs
+- A GUI or TUI framework — Xclif is strictly for text CLIs
 - Automatic retry, rate limiting, or async execution of commands
 
 ---
