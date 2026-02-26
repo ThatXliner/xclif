@@ -18,10 +18,6 @@ build-backend = "hatchling.build"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
-
-[tool.poetry.group.dev.dependencies]
-pytest = "^9.0.2"
-
 [dependency-groups]
 dev = [
     "pytest>=8.0",
