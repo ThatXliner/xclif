@@ -133,6 +133,6 @@ def with_implicit_options(command: "Command") -> Callable[..., int]:
         if kwargs.get("h"):
             command.print_short_help()
             return 0
-        return command.run(*args, **kwargs)
+        return command.run(*args, **kwargs) or 0
 
     return wrapper
