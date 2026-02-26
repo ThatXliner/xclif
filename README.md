@@ -110,15 +110,15 @@ ExtendedIO is Xclif's approach to transparent resource access. Instead of limiti
 - [x] `--version` on root command (auto-detected from package metadata)
 - [x] Rich-formatted help text with alignment
 - [x] `Cli.from_routes()` stable and tested
-- [ ] `list[str]` for repeated options: `--tag foo --tag bar`
-- [ ] Proper error messages with friendly, formatted output
+- [x] `list[str]` for repeated options: `--tag foo --tag bar`
+- [x] Proper error messages with friendly, formatted output (includes edit-distance suggestions)
 - [ ] `pyproject.toml` finalized and published to PyPI
 
 ### Milestone 2: `0.2.0` — Developer Experience
 
-- [ ] `WithConfig[T]` — read from config files (TOML/JSON) and env vars
+- [ ] `WithConfig[T]` — read from config files (TOML/JSON) and env vars (stub exists, not yet functional)
 - [ ] `Annotated[str, Arg(description="...")]` for per-parameter metadata
-- [ ] Shell completion generation (bash, zsh, fish)
+- [ ] Shell completion generation for bash, zsh, fish (stub exists)
 - [ ] Distinct user errors vs developer errors with different output styles
 - [ ] Documented exit codes
 
