@@ -29,6 +29,32 @@ Short aliases are either auto-generated (first char of the long name, falling ba
 
 Positional arguments are matched by position against the command's declared parameters. Their order matches the order of parameters in the function signature.
 
+### Variadic positional arguments (planned)
+
+The last positional parameter may be variadic — consuming all remaining non-option tokens. In Python this maps to `*args`:
+
+```python
+@command()
+def add(*files: str) -> None:
+    """Stage files for commit."""
+    for f in files:
+        stage(f)
+```
+
+```
+myapp add file1.py file2.py file3.py   # files = ("file1.py", "file2.py", "file3.py")
+```
+
+**Variadic positionals and subcommands are mutually exclusive.** A command that declares a variadic positional would swallow any subcommand name as a positional value — there is no way to disambiguate. Xclif enforces this at definition time (`Cli.from_routes` / `add_command`), not at parse time:
+
+- If a command declares a variadic positional parameter, it **cannot** have subcommands.
+- If a route module has child modules (subcommands), its command **cannot** declare a variadic positional.
+- Violation of either rule is a definition-time error with a clear message.
+
+This is the same constraint Xclif already enforces for regular positional arguments + subcommands, extended to the variadic case.
+
+Fixed-arity positional arguments on a leaf command are fine — they consume exactly N tokens and stop.
+
 ### Interspersed options
 
 Xclif **does** support interspersed options — options and positional arguments may appear in any order relative to each other at the same command level:
@@ -61,7 +87,21 @@ myapp config --format json json   # json is the value of --format; the second js
 
 This is unambiguous because the parser knows the arity of every option before it starts reading. There is no lookahead needed — if `--format` takes a value, the next token is the value, full stop.
 
-The same rule applies to interspersed positional arguments: tokens are greedily assigned to positional slots in order, and any token that looks like an option (`--`) is always treated as an option.
+### Why not `nargs='*'` / `nargs='+'` on options?
+
+argparse supports variadic options — `--files` consuming an unbounded number of following tokens. Xclif does **not** support this on options, by design.
+
+**The problem:** variadic options introduce genuine ambiguity. `--files a b c --verbose` — where does the list end? argparse uses heuristics (anything starting with `-` terminates the list), which means `--files -1 2 3` breaks because `-1` looks like a flag. It's a footgun that gets worse in structured CLIs where subcommand names are also valid tokens.
+
+**The alternatives cover every real-world case:**
+
+1. **Repeated options:** `--tag foo --tag bar` → `["foo", "bar"]`. Unambiguous, composable, already implemented.
+2. **Comma-separated values:** `--tags foo,bar` → single token, split by the converter. Zero ambiguity.
+3. **Variadic positional args:** `myapp add file1 file2 file3` → the `*args` pattern on the last positional. Fine because by the time you're in a leaf command, subcommand names aren't in play.
+
+Well-designed modern CLIs use these patterns exclusively. `docker run -e FOO=bar -e BAZ=qux` (repeated), `cargo build --features feat1,feat2` (comma-sep), `git add file1 file2` (variadic positional). None of them use argparse-style variadic options.
+
+Variadic options are a historic artifact from single-command scripts. In structured CLIs with subcommand hierarchies, they break the left-to-right unambiguous parsing model that Xclif depends on.
 
 ### The `--` separator (planned)
 
@@ -95,7 +135,7 @@ Cascading options are options whose effect is meaningful at every level below wh
 - Cascading is **opt-in per option**, not automatic.
 - The implicit options `--verbose` and `--colors` cascade by default.
 - User-defined options can be marked cascading via `Annotated` metadata (planned).
-- Cascading values are passed as an explicit `cascading: dict` argument down the recursion — no shared state, no thread-locals.
+- Cascading values are passed as an explicit `context: dict` argument down the recursion — no shared state, no thread-locals.
 
 ### Default action of parent commands
 
@@ -106,32 +146,19 @@ A parent command (one that has subcommands) can have its own `run` function. Thi
 
 If no explicit `run` is defined on a namespace command (i.e. the `__init__.py` defines `@command()` with an empty body), the default action is to **print short help**. This is the most useful default — the user typed a partial command and needs to know what to do next.
 
-This means the lambda `lambda self: self.print_short_help() or 0` used internally as a placeholder for auto-generated namespace nodes is the correct default behavior, not a stub.
-
-A parent command **may** have positional arguments — this is valid as long as the positional arguments are consumed before the subcommand name is seen. In practice this is unusual and confusing; the constraint is enforced by Xclif: **a command cannot declare both positional arguments and subcommands.** The user who needs this pattern should restructure their CLI.
+A parent command **cannot** declare both positional arguments and subcommands. This is enforced at definition time.
 
 ---
 
 ## The implicit/cascading option architecture
 
-### The problem with the current implementation
+Implicit options (`--help`, `--verbose`, `--colors`, `--version`) live in a **separate namespace** (`Command.implicit_options`) from user-defined options (`Command.options`). They are never forwarded as kwargs to `run()`.
 
-Currently, implicit options (`--help`, `--verbose`, `--colors`, `--version`) are merged directly into `command.options` at `Command.__post_init__` time. This has several problems:
+The parser handles them in a single scan alongside user options (since `_parse_token_stream` needs to know the arity of every option), but the dispatch logic separates them:
 
-1. They are indistinguishable from user-defined options at parse time.
-2. `with_implicit_options` has to intercept them *after* parsing by inspecting `kwargs` — a post-hoc filter rather than a structural separation.
-3. They get passed into `command.run()` if the filter doesn't catch them, which breaks user-defined functions that don't expect those kwargs.
-4. Cascading is impossible — there's no way to separate "options I parsed for myself" from "options I need to forward."
-5. `--version` ends up on every subcommand, not just root.
-
-### The correct model
-
-Implicit and cascading options must be a **separate namespace** from a command's own options. The parser handles them in two passes at each level:
-
-1. **Pre-dispatch pass**: scan for implicit/cascading options at the current level. Act on them immediately (`--help` → print and exit) or store them in the cascading context.
-2. **Dispatch pass**: identify and consume positional arguments and user-defined options, then invoke `run()` or recurse into a subcommand — passing only the user-defined kwargs to `run()`.
-
-This means `Command` needs to carry two option dicts:
+1. **Pre-dispatch:** act on `--help` and `--version` immediately (print and return 0).
+2. **Cascading:** merge cascading implicit values into a `context: dict` passed down the recursion.
+3. **Dispatch:** call `run()` with only user-defined kwargs, or recurse into a subcommand with the updated context.
 
 ```python
 @dataclass
@@ -140,26 +167,9 @@ class Command:
     run: Callable[..., int]
     arguments: list[Argument]
     options: dict[str, Option]          # user-defined options only
-    implicit_options: dict[str, Option] # help, verbose, colors, version (+ cascading)
+    implicit_options: dict[str, Option] # help, verbose, colors, version
     subcommands: dict[str, Command]
 ```
-
-And `parse_and_execute_impl` receives a `context: dict` of already-resolved cascading values from parent levels:
-
-```python
-def parse_and_execute_impl(
-    args: list[str],
-    command: Command,
-    context: dict,        # cascading values resolved by ancestors
-) -> int:
-    ...
-    # 1. Scan for implicit options in args
-    # 2. Act on help/version immediately
-    # 3. Merge new cascading values into context copy
-    # 4. Dispatch: leaf → call run(); namespace → recurse with updated context
-```
-
-`run()` only ever receives its own declared kwargs. The context is a separate concern.
 
 ---
 
@@ -167,18 +177,20 @@ def parse_and_execute_impl(
 
 | Feature | Status |
 |---|---|
-| `--flag` boolean | ✅ Implemented |
-| `--name value` (space form) | ✅ Implemented |
-| `--name=value` (equals form) | ❌ Not implemented |
-| Interspersed options | ❌ Not implemented (options must currently follow positional args) |
-| Short options `-v` | ❌ Not implemented |
-| `--` separator | ❌ Not implemented |
-| Cascading options forwarded to subcommands | ❌ Parsed but silently dropped |
-| Implicit options in separate namespace | ❌ Currently merged into `command.options` |
-| `--help` triggering help | ✅ Works (via `with_implicit_options` intercept) |
-| `-h` triggering short help | ❌ Dead code — short options not parsed |
-| `--version` root-only | ❌ Added to every command |
-| Repeatable options (`--tag a --tag b` → list) | ✅ Implemented |
+| `--flag` boolean | ✅ |
+| `--name value` (space form) | ✅ |
+| `--name=value` (equals form) | ❌ |
+| Interspersed options | ✅ |
+| Short options `-v` | ❌ |
+| `--` separator | ❌ |
+| Implicit options in separate namespace | ✅ |
+| `--help` triggering help | ✅ |
+| Cascading context passed to subcommands | ✅ |
+| Cascading values not leaked to `run()` | ✅ |
+| Repeatable options (`--tag a --tag b` → list) | ✅ |
+| Variadic positional `*args` | ❌ |
+| `--version` root-only | ❌ (added to every command) |
+| Variadic options (`nargs='*'`/`'+'`) | ✗ Explicitly out of scope |
 | Option bundling (`-abc`) | ✗ Explicitly out of scope |
 
 ---
@@ -186,7 +198,7 @@ def parse_and_execute_impl(
 ## Open design questions
 
 **Q1: `--version` scoping**
-`--version` is in `IMPLICIT_OPTIONS` so it appears on every command. Should it be root-only? **Proposed: yes — strip from subcommands, or make it a `Cli`-level concern rather than a `Command`-level one.**
+`--version` is in `IMPLICIT_OPTIONS` so it appears on every command. Should it be root-only? **Proposed: yes — make it a `Cli`-level concern rather than a `Command`-level one.**
 
 **Q2: Cascading user options**
 Should users be able to declare their own cascading options (e.g. `--dry-run` at root that every subcommand respects)? **Proposed: yes, via `Annotated` metadata in a future milestone. Out of scope for 0.1.0.**
