@@ -99,6 +99,47 @@ The ``__init__.py`` should define the group's help text and any group-level opti
    A group command cannot declare positional arguments. Positional arguments and subcommands
    are mutually exclusive — Xclif enforces this at definition time.
 
+Best practices
+--------------
+
+**Keep routes lean.** ``from_routes`` uses ``pkgutil.walk_packages`` to discover commands, which
+*imports every module* it finds in the package. Every file in your routes tree is executed at
+startup — including files that define no command. Put business logic, helpers, and shared
+utilities in a sibling module *outside* the routes package and import from there:
+
+.. code-block:: text
+
+   myapp/
+   ├── __init__.py
+   ├── __main__.py
+   ├── utils.py          ← helpers live here, imported only when needed
+   ├── db.py             ← same — not walked by from_routes
+   └── routes/
+       ├── __init__.py
+       ├── greet.py      ← imports from myapp.utils as needed
+       └── config/
+           ├── __init__.py
+           ├── get.py
+           └── set.py
+
+.. code-block:: python
+
+   # routes/greet.py
+   from xclif import command
+   from myapp.utils import format_greeting   # imported only when greet.py is loaded
+
+   @command()
+   def _(name: str) -> None:
+       """Greet someone."""
+       print(format_greeting(name))
+
+If you put a utility module *inside* the routes package, it will be imported on every invocation
+even when the user runs a completely unrelated command.
+
+**Prefix private modules with ``_`` (future support).** Xclif does not yet filter private modules,
+but following the convention now means your code will benefit automatically once support is added.
+Until then, keep helper code outside the routes package entirely.
+
 Plugin discovery
 ----------------
 

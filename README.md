@@ -159,6 +159,7 @@ ExtendedIO is Xclif's approach to transparent resource access. Instead of limiti
 - [ ] Shell completion generation for bash, zsh, fish (stub exists)
 - [ ] Distinct user errors vs developer errors with different output styles
 - [ ] Documented exit codes
+- [ ] Skip `_`-prefixed modules in `from_routes` (private helpers inside the routes package)
 
 ### Milestone 3: `0.3.0` — Power Features
 
