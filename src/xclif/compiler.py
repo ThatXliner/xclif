@@ -31,12 +31,20 @@ from xclif.command import Command
 
 
 def _find_command_attr(module: types.ModuleType) -> str | None:
-    """Return the attribute name of the single Command in *module*, or None."""
-    for name, _ in inspect.getmembers(module, lambda x: isinstance(x, Command)):
-        return name
-    return None
+    """Return the attribute name of the single Command in *module*, or None.
 
-
+    Raises
+    ------
+    ValueError
+        If more than one Command is found in the module.
+    """
+    members = [(name, obj) for name, obj in inspect.getmembers(module, lambda x: isinstance(x, Command))]
+    if not members:
+        return None
+    if len(members) > 1:
+        raise ValueError(f"Multiple commands found in module {module.__name__!r}")
+    name, _ = members[0]
+    return name
 def compile_routes(routes: types.ModuleType, output_dir: Path | None = None) -> Path:
     """Walk *routes* and write a manifest file.
 
