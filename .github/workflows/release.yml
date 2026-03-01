@@ -3,6 +3,9 @@ on:
   release:
     types:
       - created
+permissions:
+  contents: write
+  id-token: write
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -17,3 +20,5 @@ jobs:
         with:
           upload_url: ${{ github.event.release.upload_url }}
           asset_path: dist/*
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
