@@ -1,4 +1,3 @@
-import importlib.metadata
 import inspect
 import sys
 import types
@@ -30,6 +29,7 @@ class WithConfig[T]:
 
 def _detect_version(package_name: str) -> str | None:
     """Try to auto-detect the version from installed package metadata."""
+    import importlib.metadata
     try:
         return importlib.metadata.version(package_name)
     except importlib.metadata.PackageNotFoundError:
