@@ -1,12 +1,15 @@
 import importlib
 from pathlib import Path
 
-from xclif import Cli, command
+from xclif import Cli
 from xclif.command import Command
 from xclif.errors import UsageError
 
-root = Command("xclif", lambda: 0)
-root.__doc__ = "Xclif developer tools."
+def _root() -> None:
+    """Xclif developer tools."""
+
+
+root = Command("xclif", _root)
 
 
 @root.command()
