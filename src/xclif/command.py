@@ -178,12 +178,6 @@ class Command:
             return cmd
         return _decorator
 
-    def group(self, name: str) -> "Command":
-        self._assert_no_arguments(adding=name)
-        cmd = Command(name, lambda: 0)
-        self.subcommands[name] = cmd
-        return cmd
-
     def execute(self, args: list[str] | None = None) -> int:
         try:
             return parse_and_execute_impl(sys.argv[1:] if args is None else args, self)

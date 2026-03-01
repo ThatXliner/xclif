@@ -2,6 +2,7 @@
 
 import pytest
 
+from xclif import Cli
 from xclif.command import Command, command, extract_parameters
 from xclif.constants import NO_DESC
 from xclif.definition import Argument, Option
@@ -366,32 +367,42 @@ def test_command_method_returns_command():
     assert isinstance(greet, Command)
 
 
-def test_group_creates_namespace_subcommand():
+def test_add_command_creates_namespace_subcommand():
     root = Command("root", lambda: 0)
-    grp = root.group("config")
+    cli = Cli(root_command=root)
 
-    assert "config" in root.subcommands
-    assert isinstance(grp, Command)
-    assert grp.name == "config"
-
-
-def test_group_returns_command_for_chaining():
-    root = Command("root", lambda: 0)
-    config = root.group("config")
-
-    @config.command()
+    @command()
     def set(key: str, value: str) -> None: ...
 
-    assert "set" in config.subcommands
+    cli.add_command(["config", "set"], set)
+
+    assert "config" in root.subcommands
+    config = root.subcommands["config"]
+    assert isinstance(config, Command)
+    assert config.name == "config"
+
+
+def test_add_command_registers_nested_subcommand():
+    root = Command("root", lambda: 0)
+    cli = Cli(root_command=root)
+
+    @command()
+    def set(key: str, value: str) -> None: ...
+
+    cli.add_command(["config", "set"], set)
+
+    assert "set" in root.subcommands["config"].subcommands
     assert "config" in root.subcommands
 
 
-def test_chained_group_command_nesting():
+def test_add_command_deep_nesting():
     root = Command("root", lambda: 0)
-    config = root.group("config")
+    cli = Cli(root_command=root)
 
-    @config.command("get")
+    @command("get")
     def get_cmd(key: str) -> None: ...
+
+    cli.add_command(["config", "get"], get_cmd)
 
     assert "config" in root.subcommands
     assert "get" in root.subcommands["config"].subcommands
