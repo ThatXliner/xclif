@@ -34,14 +34,12 @@ using :class:`~xclif.command.Command` methods directly.
        """Greet someone."""
        print(f"{greeting}, {name}!")
 
-   config = root.group("config")
-
-   @config.command()
+   @root.command(["config", "set"])
    def set(key: str, value: str) -> None:
        """Set a config value."""
        print(f"Set {key}={value}")
 
-   @config.command("get")
+   @root.command(["config", "get"])
    def get_cmd(key: str) -> None:
        """Get a config value."""
        print(f"Get {key}")
@@ -52,7 +50,9 @@ using :class:`~xclif.command.Command` methods directly.
 ``Command.command()``
 ---------------------
 
-A decorator that registers a function as a subcommand of the parent command:
+A decorator that registers a function as a subcommand of the parent command.
+
+**Direct subcommand** — pass a string or nothing:
 
 .. code-block:: python
 
@@ -62,20 +62,19 @@ A decorator that registers a function as a subcommand of the parent command:
    @parent.command("hi")      # explicit name
    def greet(...): ...
 
-The decorated function is converted to a :class:`~xclif.command.Command` and attached to
-``parent.subcommands``. The return value is the :class:`~xclif.command.Command` object.
-
-``Command.group()``
--------------------
-
-Creates an empty intermediate command (a *group*) and attaches it as a subcommand:
+**Nested subcommand** — pass a list of strings. Intermediate group commands are
+created automatically:
 
 .. code-block:: python
 
-   config = root.group("config")
-
-   @config.command()
+   @root.command(["config", "set"])
    def set(key: str, value: str) -> None: ...
 
-Groups have no run logic of their own — invoking them without a subcommand prints help.
+   @root.command(["config", "get"])
+   def get(key: str) -> None: ...
+
+The last element of the list is the command name. Any intermediate segments become
+empty group commands (no run logic — invoking them without a subcommand prints help).
 A group cannot have positional arguments.
+
+The decorated function is converted to a :class:`~xclif.command.Command` and returned.
