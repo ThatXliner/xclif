@@ -1,14 +1,15 @@
-"""Integration tests using the greeter experiment.
+"""Integration tests for the greeter example.
 
 These tests exercise the full stack: routing, parsing, and execution.
 The greeter CLI has:
-  - greeter          (root — prints "this is the main command")
-  - greeter greet    (name: str, template: str = "Hello, {}!")
-  - greeter config   (namespace)
-  - greeter config set
+  - greeter               (root — prints help when called with no args)
+  - greeter greet         (--name: str, --template: str = "Hello, {}!")
+  - greeter config        (namespace)
+  - greeter config set    (--name: str, --template: str)
   - greeter config get
 """
 
+import json
 import pytest
 
 from greeter import routes
@@ -31,8 +32,7 @@ def root(cli):
 
 
 def test_root_executes(root, capsys):
-    # The root has subcommands, so invoking it with no args triggers the
-    # default action: print short help.
+    # The root has subcommands, so invoking it with no args triggers short help.
     result = root.execute([])
     assert result == 0
     assert capsys.readouterr().out != ""
@@ -48,22 +48,35 @@ def test_root_help_returns_zero(root, capsys):
 # ---------------------------------------------------------------------------
 
 
-def test_greet_with_name(root, capsys):
-    result = root.execute(["greet", "Alice"])
+def test_greet_with_name_option(root, capsys, tmp_path, monkeypatch):
+    import greeter.routes.greet as greet_mod
+    monkeypatch.setattr(greet_mod, "_CONFIG_PATH", str(tmp_path / "no_config.json"))
+    result = root.execute(["greet", "--name", "Alice"])
     assert result == 0
-    out = capsys.readouterr().out
-    assert "Alice" in out
+    assert "Alice" in capsys.readouterr().out
 
 
-def test_greet_default_template(root, capsys):
-    root.execute(["greet", "Alice"])
-    out = capsys.readouterr().out
-    assert "Hello, Alice!" in out
+def test_greet_default_template(root, capsys, tmp_path, monkeypatch):
+    import greeter.routes.greet as greet_mod
+    monkeypatch.setattr(greet_mod, "_CONFIG_PATH", str(tmp_path / "no_config.json"))
+    root.execute(["greet", "--name", "Alice"])
+    assert "Hello, Alice!" in capsys.readouterr().out
 
 
-def test_greet_custom_template(root, capsys):
-    root.execute(["greet", "Alice", "--template", "Hi, {}!"])
+def test_greet_custom_template(root, capsys, tmp_path, monkeypatch):
+    import greeter.routes.greet as greet_mod
+    monkeypatch.setattr(greet_mod, "_CONFIG_PATH", str(tmp_path / "no_config.json"))
+    root.execute(["greet", "--name", "Alice", "--template", "Hi, {}!"])
     assert "Hi, Alice!" in capsys.readouterr().out
+
+
+def test_greet_no_name_prints_error(root, capsys, tmp_path, monkeypatch):
+    # Patch config path to a non-existent file so no stored name is found.
+    import greeter.routes.greet as greet_mod
+    monkeypatch.setattr(greet_mod, "_CONFIG_PATH", str(tmp_path / "no_config.json"))
+    result = root.execute(["greet"])
+    assert result == 0
+    assert "Error" in capsys.readouterr().out
 
 
 def test_greet_help_returns_zero(root, capsys):
@@ -72,7 +85,7 @@ def test_greet_help_returns_zero(root, capsys):
 
 
 def test_greet_unknown_option_returns_error(root, capsys):
-    result = root.execute(["greet", "Alice", "--nonexistent"])
+    result = root.execute(["greet", "--nonexistent"])
     assert result == 2
     assert "Unknown option" in capsys.readouterr().err
 
@@ -87,14 +100,48 @@ def test_config_namespace_help_returns_zero(root, capsys):
     assert result == 0
 
 
-def test_config_set_executes(root):
-    result = root.execute(["config", "set"])
+def test_config_set_executes(root, tmp_path, monkeypatch):
+    import greeter.routes.config.set as set_mod
+    monkeypatch.setattr(set_mod, "_CONFIG_PATH", str(tmp_path / "config.json"))
+    result = root.execute(["config", "set", "--name", "Bob"])
     assert result == 0
+    assert json.loads((tmp_path / "config.json").read_text())["name"] == "Bob"
 
 
-def test_config_get_executes(root):
+def test_config_get_executes(root, capsys, tmp_path, monkeypatch):
+    import greeter.routes.config.read as read_mod
+    monkeypatch.setattr(read_mod, "_CONFIG_PATH", str(tmp_path / "no_config.json"))
     result = root.execute(["config", "get"])
     assert result == 0
+    out = capsys.readouterr().out
+    assert "No config file found" in out
+
+
+def test_config_set_then_get_roundtrip(root, capsys, tmp_path, monkeypatch):
+    import greeter.routes.config.set as set_mod
+    import greeter.routes.config.read as read_mod
+    cfg_path = str(tmp_path / "config.json")
+    monkeypatch.setattr(set_mod, "_CONFIG_PATH", cfg_path)
+    monkeypatch.setattr(read_mod, "_CONFIG_PATH", cfg_path)
+
+    root.execute(["config", "set", "--name", "Alice", "--template", "Hey, {}!"])
+    root.execute(["config", "get"])
+    out = capsys.readouterr().out
+    assert "Alice" in out
+    assert "Hey, {}!" in out
+
+
+def test_greet_uses_stored_config(root, capsys, tmp_path, monkeypatch):
+    import greeter.routes.config.set as set_mod
+    import greeter.routes.greet as greet_mod
+    cfg_path = str(tmp_path / "config.json")
+    monkeypatch.setattr(set_mod, "_CONFIG_PATH", cfg_path)
+    monkeypatch.setattr(greet_mod, "_CONFIG_PATH", cfg_path)
+
+    root.execute(["config", "set", "--name", "Carol", "--template", "Howdy, {}!"])
+    capsys.readouterr()  # discard "Config saved" output
+    root.execute(["greet"])
+    assert "Howdy, Carol!" in capsys.readouterr().out
 
 
 def test_unknown_subcommand_returns_error(root, capsys):
@@ -118,13 +165,8 @@ def test_completions_executes(cli, capsys):
 
 
 # ---------------------------------------------------------------------------
-# New feature integration tests
+# Misc / regression
 # ---------------------------------------------------------------------------
-
-
-def test_greet_equals_form(root, capsys):
-    root.execute(["greet", "--template=Hi, {}!", "Alice"])
-    assert "Hi, Alice!" in capsys.readouterr().out
 
 
 def test_root_help_short_flag(root, capsys):
@@ -138,16 +180,12 @@ def test_greet_help_short_flag(root, capsys):
     assert result == 0
 
 
-def test_verbose_before_subcommand(root, capsys):
-    result = root.execute(["-v", "greet", "Alice"])
+def test_verbose_before_subcommand(root, capsys, tmp_path, monkeypatch):
+    import greeter.routes.greet as greet_mod
+    monkeypatch.setattr(greet_mod, "_CONFIG_PATH", str(tmp_path / "no_config.json"))
+    result = root.execute(["-v", "greet", "--name", "Alice"])
     assert result == 0
     assert "Alice" in capsys.readouterr().out
-
-
-def test_double_dash_in_greet(root, capsys):
-    root.execute(["greet", "--", "--not-a-flag"])
-    out = capsys.readouterr().out
-    assert "--not-a-flag" in out
 
 
 def test_version_on_root(cli, capsys):
@@ -157,6 +195,6 @@ def test_version_on_root(cli, capsys):
 
 def test_version_not_on_subcommand(root, capsys):
     """--version should not be recognized on subcommands."""
-    result = root.execute(["greet", "--version", "Alice"])
+    result = root.execute(["greet", "--version"])
     assert result == 2
     assert "Unknown option" in capsys.readouterr().err
