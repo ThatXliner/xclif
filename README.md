@@ -84,29 +84,48 @@ No default → positional argument. Has default → `--template` option. Docstri
 
 > Performance is not a primary focus of Xclif. If startup latency is a hard constraint, Python is probably the wrong tool for the job. These numbers are here for fun.
 
-Benchmarked on macOS (Apple Silicon, Python 3.12, 30 iterations + 3 warmup, measured as wall-clock subprocess time).
+### Startup time
 
-**Command execution** (ms — lower is better):
+Benchmarked on macOS (Apple Silicon, Python 3.12, 30 iterations + 3 warmup, wall-clock subprocess time via hyperfine):
 
 | Scenario | Click | Typer | Xclif (`from_routes`) | Xclif (flat) |
 |---|---|---|---|---|
-| `greet World` | 30.3 | 37.6 | 41.4 | **27.4** ✅ |
-| `greet` + options | 30.4 | 37.9 | 44.0 | **26.4** ✅ |
-| `config set` | 28.8 | 38.0 | 47.1 | **27.4** ✅ |
-| `config get` | 28.5 | 37.7 | 41.1 | **26.5** ✅ |
-| `--help` | **31.3** ✅ | 82.2 | 65.8 | 47.7 |
-| `greet --help` | **30.6** ✅ | 84.6 | 67.8 | 48.9 |
+| `greet World` | 26.9 | 40.0 | 52.9 | **25.8** ✅ |
+| `greet` + options | 27.9 | 39.5 | 51.4 | **27.8** ✅ |
+| `config set` | 26.5 | 36.7 | 51.0 | **25.3** ✅ |
+| `config get` | 27.0 | 38.0 | 51.6 | **25.3** ✅ |
+| `--help` | **28.0** ✅ | 80.7 | 69.7 | 48.2 |
+| `greet --help` | **28.1** ✅ | 81.6 | 70.1 | 49.5 |
 
-**Xclif (flat)** uses the decorator API (`Command.command()` / `Command.group()`) instead of `from_routes`, and is the fastest framework for command execution — edging out Click by ~3 ms. The `--help` gap (~17–18 ms vs Click) is Rich's lazy-import cost.
+**Xclif (flat)** uses the decorator API (`Command.command()` / `Command.group()`) instead of `from_routes`, and is the fastest framework for command execution — edging out Click by ~1–2 ms. The `--help` gap (~20 ms vs Click) is Rich's lazy-import cost.
 
-**Typer** is the slowest overall: it wraps Click with extra overhead, and its Rich-based help rendering adds ~50 ms on `--help` scenarios.
+**Typer** is the slowest overall: it wraps Click with extra overhead, and its Rich-based help rendering adds ~52–53 ms on `--help` scenarios.
 
-**`from_routes`** adds ~12 ms for the package walker on top of Xclif (flat), making it slower than Click — the trade-off for zero-registration file-based routing.
+**`from_routes`** adds ~24–26 ms for the package walker on top of Xclif (flat), making it slower than Click — the trade-off for zero-registration file-based routing.
 
-To reproduce:
+To reproduce (requires [hyperfine](https://github.com/sharkdp/hyperfine) — `brew install hyperfine` on macOS):
 
 ```bash
-uv run python benchmarks/bench_frameworks.py --iterations 30
+bash benchmarks/bench_frameworks.sh
+```
+
+### Parse and dispatch latency
+
+Measured in-process (no subprocess, no import cost) on the same machine, 5 000 iterations:
+
+| Scenario | Click | Typer | Xclif |
+|---|---|---|---|
+| `greet World` | 72 µs | 496 µs | **2.7 µs** ✅ |
+| `greet` + options | 77 µs | 490 µs | **4.0 µs** ✅ |
+| `config set` | 82 µs | 578 µs | **3.4 µs** ✅ |
+| `config get` | 79 µs | 553 µs | **3.2 µs** ✅ |
+| `--help` | **131 µs** ✅ | 1 879 µs | 483 µs |
+| `greet --help` | **142 µs** ✅ | 2 281 µs | 553 µs |
+
+Xclif's custom parser is **~25× faster than Click** and **~170× faster than Typer** for command dispatch. The `--help` cases are slower than Click because Rich is doing real formatting work; Typer is dramatically slower there due to its reflective help generation.
+
+```bash
+uv run python benchmarks/bench_parsing.py
 ```
 
 ## ExtendedIO
