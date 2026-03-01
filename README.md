@@ -82,6 +82,8 @@ No default → positional argument. Has default → `--template` option. Docstri
 
 ## Performance
 
+> Performance is not a primary focus of Xclif. If startup latency is a hard constraint, Python is probably the wrong tool for the job. These numbers are here for fun.
+
 Benchmarked on macOS (Apple Silicon, Python 3.12, 30 iterations + 3 warmup, measured as wall-clock subprocess time).
 
 **Command execution** (ms — lower is better):

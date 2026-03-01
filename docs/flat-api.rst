@@ -11,7 +11,9 @@ Flat (Imperative) API
 
    * **migrating from Click or Typer** and want to port an existing app incrementally, or
    * **optimising cold-start performance** and can accept the stability trade-off (~12 ms
-     saved vs ``from_routes`` by skipping the package walker).
+     saved vs ``from_routes`` by skipping the package walker). Note that performance is not
+     a primary focus of Xclif — and frankly, if startup latency is a hard constraint,
+     Python is probably the wrong tool for the job.
 
 Overview
 --------
