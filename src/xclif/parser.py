@@ -11,13 +11,14 @@ stream left to right. Parsing happens in two cooperating layers:
 
 Token scanning
 --------------
-At each command level the scanner classifies every token:
 
-    --name value   → long option (space form)
-    --name=value   → long option (equals form)
-    -x             → short alias (looked up in the alias map)
-    --             → sentinel; everything after is a raw positional
-    <subcommand>   → stops scanning; returns the index so the caller can recurse
+At each command level the scanner classifies every token::
+
+    --name value    → long option (space form)
+    --name=value    → long option (equals form)
+    -x              → short alias (looked up in the alias map)
+    --              → sentinel; everything after is a raw positional
+    <subcommand>    → stops scanning; returns the index so the caller can recurse
     <anything else> → positional argument
 
 Options and positionals may be **interspersed** — options are collected
@@ -36,12 +37,9 @@ Recursive dispatch
    prints version and exits).
 4. Build the **cascading context** — implicit options marked ``cascading=True``
    propagate their values down the command tree.
-5. **Dispatch:**
-   - If a subcommand was found, recurse into it with the remaining tokens.
-   - If no subcommand and no positionals/user-opts, print short help (namespace
-     default).
-   - Otherwise, bind positionals to declared arguments (fixed + variadic),
-     resolve option defaults, and call ``command.run()``.
+5. **Dispatch:** recurse into the found subcommand, print short help if there
+   are no subcommand/positionals/user-opts, or bind positionals to declared
+   arguments and call ``command.run()``.
 
 Error handling
 --------------
