@@ -132,8 +132,8 @@ def compile_routes(routes: types.ModuleType, output_dir: Path | None = None) -> 
         alias = "_" + mod_name.replace(".", "_")
         sub_entries.append((path, alias))
 
-    # Sort by depth so namespaces are created before their children
-    sub_entries.sort(key=lambda x: len(x[0]))
+    # Sort by depth then path so namespaces are created before their children
+    sub_entries.sort(key=lambda x: (len(x[0]), x[0]))
 
     lines.append("")
     lines.append("    cli = Cli(root_command=root, version=version)")
