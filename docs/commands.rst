@@ -110,10 +110,8 @@ Subcommands (decorator API)
        """Greet someone."""
        print(f"Hello, {name}!")
 
-   # Nested group
-   config = root.group("config")
-
-   @config.command()
+   # Nested subcommand — intermediate group created automatically
+   @root.command(["config", "get"])
    def get(key: str) -> None:
        """Get a config value."""
        ...

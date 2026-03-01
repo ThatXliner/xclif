@@ -170,11 +170,20 @@ class Command:
         )
         _rprint(help_text)
 
-    def command(self, name: str | None = None) -> "Callable[[Callable], Command]":
+    def command(self, name: str | list[str] | None = None) -> "Callable[[Callable], Command]":
         def _decorator(func: Callable) -> "Command":
-            cmd = command(name)(func)
-            self._assert_no_arguments(adding=cmd.name)
-            self.subcommands[cmd.name] = cmd
+            if isinstance(name, list):
+                cmd = command(name[-1] if len(name) > 1 else None)(func)
+                cursor = self
+                for part in name[:-1]:
+                    cursor._assert_no_arguments(adding=part)
+                    cursor = cursor.subcommands.setdefault(part, Command(part, lambda: 0))
+                cursor._assert_no_arguments(adding=cmd.name)
+                cursor.subcommands[cmd.name] = cmd
+            else:
+                cmd = command(name)(func)
+                self._assert_no_arguments(adding=cmd.name)
+                self.subcommands[cmd.name] = cmd
             return cmd
         return _decorator
 

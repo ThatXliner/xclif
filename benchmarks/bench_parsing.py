@@ -147,27 +147,22 @@ def typer_results(n: int) -> list[Result]:
 # ---------------------------------------------------------------------------
 
 def xclif_results(n: int) -> list[Result]:
-    from xclif import Cli
-    from xclif.command import Command, command
+    from xclif.command import Command
 
     root = Command("greeter", lambda: None)
-    cli = Cli(root_command=root)
 
     @root.command()
     def greet(name: str, greeting: str = "Hello", count: int = 1) -> None:
         for _ in range(count):
             print(f"{greeting}, {name}!")
 
-    @command()
+    @root.command(["config", "set"])
     def set(key: str, value: str) -> None:
         print(f"Set {key}={value}")
 
-    @command("get")
+    @root.command(["config", "get"])
     def get_cmd(key: str) -> None:
         print(f"Get {key}")
-
-    cli.add_command(["config", "set"], set)
-    cli.add_command(["config", "get"], get_cmd)
 
     results = []
     for label, args in SCENARIOS:

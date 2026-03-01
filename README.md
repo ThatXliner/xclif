@@ -97,7 +97,7 @@ Benchmarked on macOS (Apple Silicon, Python 3.12, 30 iterations + 3 warmup, wall
 | `--help` | **28.0** ✅ | 80.7 | 69.7 | 48.2 |
 | `greet --help` | **28.1** ✅ | 81.6 | 70.1 | 49.5 |
 
-**Xclif (flat)** uses the decorator API (`Command.command()` / `Command.group()`) instead of `from_routes`, and is the fastest framework for command execution — edging out Click by ~1–2 ms. The `--help` gap (~20 ms vs Click) is Rich's lazy-import cost.
+**Xclif (flat)** uses the decorator API (`Command.command()`) instead of `from_routes`, and is the fastest framework for command execution — edging out Click by ~1–2 ms. The `--help` gap (~20 ms vs Click) is Rich's lazy-import cost.
 
 **Typer** is the slowest overall: it wraps Click with extra overhead, and its Rich-based help rendering adds ~52–53 ms on `--help` scenarios.
 

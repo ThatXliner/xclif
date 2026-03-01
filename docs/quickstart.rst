@@ -85,9 +85,7 @@ For smaller CLIs, you can build the command tree directly without file-based rou
        """Greet someone."""
        print(f"Hello, {name}!")
 
-   config = root.group("config")   # groups always take an explicit name
-
-   @config.command()
+   @root.command(["config", "get"])   # list = path; intermediate groups created automatically
    def get(key: str) -> None:
        """Read a config value."""
        ...

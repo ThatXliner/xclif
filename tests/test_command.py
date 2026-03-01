@@ -2,7 +2,6 @@
 
 import pytest
 
-from xclif import Cli
 from xclif.command import Command, command, extract_parameters
 from xclif.constants import NO_DESC
 from xclif.definition import Argument, Option
@@ -325,7 +324,7 @@ def test_non_list_option_is_not_list():
 
 
 # ---------------------------------------------------------------------------
-# Command.command() and Command.group()
+# Command.command()
 # ---------------------------------------------------------------------------
 
 
@@ -367,14 +366,11 @@ def test_command_method_returns_command():
     assert isinstance(greet, Command)
 
 
-def test_add_command_creates_namespace_subcommand():
+def test_command_list_creates_namespace_subcommand():
     root = Command("root", lambda: 0)
-    cli = Cli(root_command=root)
 
-    @command()
+    @root.command(["config", "set"])
     def set(key: str, value: str) -> None: ...
-
-    cli.add_command(["config", "set"], set)
 
     assert "config" in root.subcommands
     config = root.subcommands["config"]
@@ -382,27 +378,21 @@ def test_add_command_creates_namespace_subcommand():
     assert config.name == "config"
 
 
-def test_add_command_registers_nested_subcommand():
+def test_command_list_registers_nested_subcommand():
     root = Command("root", lambda: 0)
-    cli = Cli(root_command=root)
 
-    @command()
+    @root.command(["config", "set"])
     def set(key: str, value: str) -> None: ...
-
-    cli.add_command(["config", "set"], set)
 
     assert "set" in root.subcommands["config"].subcommands
     assert "config" in root.subcommands
 
 
-def test_add_command_deep_nesting():
+def test_command_list_deep_nesting():
     root = Command("root", lambda: 0)
-    cli = Cli(root_command=root)
 
-    @command("get")
+    @root.command(["config", "get"])
     def get_cmd(key: str) -> None: ...
-
-    cli.add_command(["config", "get"], get_cmd)
 
     assert "config" in root.subcommands
     assert "get" in root.subcommands["config"].subcommands
