@@ -74,6 +74,27 @@ class Cli:
         cursor.subcommands[command.name] = command
 
     @classmethod
+    def from_manifest(cls, manifest: types.ModuleType) -> Self:
+        """Load a pre-compiled manifest produced by ``xclif compile``.
+
+        This is a faster alternative to :meth:`from_routes` — it skips the
+        ``pkgutil.walk_packages`` + ``inspect.getmembers`` filesystem scan at
+        the cost of a one-time ``xclif compile`` build step.
+
+        Parameters
+        ----------
+        manifest:
+            The generated manifest module (typically ``myapp._xclif_manifest``).
+        """
+        build_fn = getattr(manifest, "_build_cli", None)
+        if build_fn is None:
+            raise ImportError(
+                f"Manifest module {manifest.__name__!r} has no '_build_cli' function. "
+                "Re-run `python -m xclif compile <routes_module>` to regenerate it."
+            )
+        return build_fn()
+
+    @classmethod
     def from_routes(cls, routes: types.ModuleType, *, version: str | None = None) -> Self:
         members = inspect.getmembers(routes, lambda x: isinstance(x, Command))
 
