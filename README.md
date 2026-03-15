@@ -11,6 +11,8 @@
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/xclif)](https://pypi.org/project/xclif)
 [![PyPI](https://img.shields.io/pypi/v/xclif)](https://pypi.org/project/xclif)
 [![PyPI - License](https://img.shields.io/pypi/l/xclif)](#license)
+[![Read the Docs](https://img.shields.io/readthedocs/xclif)](https://xclif.readthedocs.io/en/latest/)
+
 
 > Xliner's CLI Framework
 
