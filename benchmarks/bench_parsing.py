@@ -156,13 +156,11 @@ def xclif_results(n: int) -> list[Result]:
         for _ in range(count):
             print(f"{greeting}, {name}!")
 
-    config = root.group("config")
-
-    @config.command()
+    @root.command(["config", "set"])
     def set(key: str, value: str) -> None:
         print(f"Set {key}={value}")
 
-    @config.command("get")
+    @root.command(["config", "get"])
     def get_cmd(key: str) -> None:
         print(f"Get {key}")
 

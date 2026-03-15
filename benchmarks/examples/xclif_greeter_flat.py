@@ -10,14 +10,12 @@ def greet(name: str, greeting: str = "Hello", count: int = 1) -> None:
     for _ in range(count):
         print(f"{greeting}, {name}!")
 
-config = root.group("config")
-
-@config.command()
+@root.command(["config", "set"])
 def set(key: str, value: str) -> None:
     """Set a config value."""
     print(f"Set {key}={value}")
 
-@config.command("get")
+@root.command(["config", "get"])
 def get_cmd(key: str) -> None:
     """Get a config value."""
     print(f"Get {key}")

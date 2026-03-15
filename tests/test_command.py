@@ -324,7 +324,7 @@ def test_non_list_option_is_not_list():
 
 
 # ---------------------------------------------------------------------------
-# Command.command() and Command.group()
+# Command.command()
 # ---------------------------------------------------------------------------
 
 
@@ -366,31 +366,32 @@ def test_command_method_returns_command():
     assert isinstance(greet, Command)
 
 
-def test_group_creates_namespace_subcommand():
+def test_command_list_creates_namespace_subcommand():
     root = Command("root", lambda: 0)
-    grp = root.group("config")
 
-    assert "config" in root.subcommands
-    assert isinstance(grp, Command)
-    assert grp.name == "config"
-
-
-def test_group_returns_command_for_chaining():
-    root = Command("root", lambda: 0)
-    config = root.group("config")
-
-    @config.command()
+    @root.command(["config", "set"])
     def set(key: str, value: str) -> None: ...
 
-    assert "set" in config.subcommands
+    assert "config" in root.subcommands
+    config = root.subcommands["config"]
+    assert isinstance(config, Command)
+    assert config.name == "config"
+
+
+def test_command_list_registers_nested_subcommand():
+    root = Command("root", lambda: 0)
+
+    @root.command(["config", "set"])
+    def set(key: str, value: str) -> None: ...
+
+    assert "set" in root.subcommands["config"].subcommands
     assert "config" in root.subcommands
 
 
-def test_chained_group_command_nesting():
+def test_command_list_deep_nesting():
     root = Command("root", lambda: 0)
-    config = root.group("config")
 
-    @config.command("get")
+    @root.command(["config", "get"])
     def get_cmd(key: str) -> None: ...
 
     assert "config" in root.subcommands
