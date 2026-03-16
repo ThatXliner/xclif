@@ -156,14 +156,14 @@ def test_command_execute_returns_int(capsys):
 
     cmd = Command("test", run)
     result = cmd.execute([])
-    assert result == 0
+    assert result == EXIT_OK
     assert "ran" in capsys.readouterr().out
 
 
 def test_command_execute_returns_usage_error_code_on_bad_args(capsys):
     cmd = Command("test", lambda: 0)
     result = cmd.execute(["--unknown-flag"])
-    assert result == 2
+    assert result == EXIT_USAGE_ERROR
     captured = capsys.readouterr()
     assert "Error" in captured.err
 
