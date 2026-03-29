@@ -38,13 +38,18 @@ def _find_command_attr(module: types.ModuleType) -> str | None:
     ValueError
         If more than one Command is found in the module.
     """
-    members = [(name, obj) for name, obj in inspect.getmembers(module, lambda x: isinstance(x, Command))]
+    members = [
+        (name, obj)
+        for name, obj in inspect.getmembers(module, lambda x: isinstance(x, Command))
+    ]
     if not members:
         return None
     if len(members) > 1:
         raise ValueError(f"Multiple commands found in module {module.__name__!r}")
     name, _ = members[0]
     return name
+
+
 def compile_routes(routes: types.ModuleType, output_dir: Path | None = None) -> Path:
     """Walk *routes* and write a manifest file.
 
@@ -62,7 +67,9 @@ def compile_routes(routes: types.ModuleType, output_dir: Path | None = None) -> 
         The path of the written manifest file.
     """
     if routes.__package__ is None:
-        raise ImportError(f"Routes module {routes.__name__!r} must be part of a package")
+        raise ImportError(
+            f"Routes module {routes.__name__!r} must be part of a package"
+        )
 
     # Validate root has exactly one Command
     root_members = inspect.getmembers(routes, lambda x: isinstance(x, Command))
@@ -86,10 +93,12 @@ def compile_routes(routes: types.ModuleType, output_dir: Path | None = None) -> 
             entries.append((mod_name, attr))
 
     # Determine output location
-    if routes.__file__ is None:
-        raise ImportError(f"Cannot determine location of routes package {routes.__name__!r}")
-    routes_package_path = Path(routes.__file__).parent  # .../routes/
     if output_dir is None:
+        if routes.__file__ is None:
+            raise ImportError(
+                f"Cannot determine location of routes package {routes.__name__!r}"
+            )
+        routes_package_path = Path(routes.__file__).parent  # .../routes/
         output_dir = routes_package_path.parent  # next to routes/
 
     output_path = output_dir / "_xclif_manifest.py"
@@ -119,7 +128,9 @@ def compile_routes(routes: types.ModuleType, output_dir: Path | None = None) -> 
     lines.append("")
 
     # Build root command
-    lines.append("    root = Command(_root.name, _root.run, _root.arguments, _root.options)")
+    lines.append(
+        "    root = Command(_root.name, _root.run, _root.arguments, _root.options)"
+    )
 
     # Build each sub-command, grouping by path segments
     # We need to emit add_command calls in depth-first order so parent
