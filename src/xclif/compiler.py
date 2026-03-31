@@ -111,7 +111,6 @@ def compile_routes(routes: types.ModuleType, output_dir: Path | None = None) -> 
         "from __future__ import annotations",
         "",
         "from xclif import Cli",
-        "from xclif.command import Command",
         "",
         "",
         "def _build_cli(version: str | None = None) -> Cli:",
@@ -127,10 +126,9 @@ def compile_routes(routes: types.ModuleType, output_dir: Path | None = None) -> 
 
     lines.append("")
 
-    # Build root command
-    lines.append(
-        "    root = Command(_root.name, _root.run, _root.arguments, _root.options)"
-    )
+    # Reuse the imported Command objects directly so all fields
+    # (subcommands, implicit_options, version, etc.) are preserved.
+    lines.append("    root = _root")
 
     # Build each sub-command, grouping by path segments
     # We need to emit add_command calls in depth-first order so parent
@@ -150,10 +148,7 @@ def compile_routes(routes: types.ModuleType, output_dir: Path | None = None) -> 
     lines.append("    cli = Cli(root_command=root, version=version)")
     for path, alias in sub_entries:
         path_repr = repr(path)
-        lines.append(
-            f"    cli.add_command({path_repr}, "
-            f"Command({alias}.name, {alias}.run, {alias}.arguments, {alias}.options))"
-        )
+        lines.append(f"    cli.add_command({path_repr}, {alias})")
 
     lines.append("    return cli")
     lines.append("")
