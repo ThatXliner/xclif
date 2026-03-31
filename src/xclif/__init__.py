@@ -74,7 +74,7 @@ class Cli:
         cursor.subcommands[command.name] = command
 
     @classmethod
-    def from_manifest(cls, manifest: types.ModuleType) -> Self:
+    def from_manifest(cls, manifest: types.ModuleType, *, version: str | None = None) -> Self:
         """Load a pre-compiled manifest produced by ``xclif compile``.
 
         This is a faster alternative to :meth:`from_routes` — it skips the
@@ -85,6 +85,10 @@ class Cli:
         ----------
         manifest:
             The generated manifest module (typically ``myapp._xclif_manifest``).
+        version:
+            Explicit version string.  When *None*, auto-detected from the
+            top-level package of *manifest* (same behaviour as
+            :meth:`from_routes`).
         """
         build_fn = getattr(manifest, "_build_cli", None)
         if build_fn is None:
@@ -92,7 +96,10 @@ class Cli:
                 f"Manifest module {manifest.__name__!r} has no '_build_cli' function. "
                 "Re-run `python -m xclif compile <routes_module>` to regenerate it."
             )
-        return build_fn()
+        if version is None and manifest.__package__:
+            package_name = manifest.__package__.split(".")[0]
+            version = _detect_version(package_name)
+        return build_fn(version=version)
 
     @classmethod
     def from_routes(cls, routes: types.ModuleType, *, version: str | None = None) -> Self:
