@@ -235,6 +235,33 @@ def test_from_manifest_preserves_imperative_subcommands(tmp_path):
 # ---------------------------------------------------------------------------
 
 
+def test_from_manifest_version_explicit(tmp_path, capsys):
+    """from_manifest(version=...) passes the version through to the CLI."""
+    from greeter import routes
+
+    manifest_path = compile_routes(routes, output_dir=tmp_path)
+    manifest = _load_manifest_from_path(manifest_path)
+    cli = Cli.from_manifest(manifest, version="4.5.6")
+    assert cli.version == "4.5.6"
+    result = cli.root_command.execute(["--version"])
+    assert result == 0
+    assert "4.5.6" in capsys.readouterr().out
+
+
+def test_from_manifest_version_autodetect(tmp_path):
+    """from_manifest() auto-detects version when none is provided."""
+    from greeter import routes
+
+    manifest_path = compile_routes(routes, output_dir=tmp_path)
+    manifest = _load_manifest_from_path(manifest_path)
+
+    cli_manifest = Cli.from_manifest(manifest)
+    cli_routes = Cli.from_routes(routes)
+
+    # Both paths should resolve the same version (or both None)
+    assert cli_manifest.version == cli_routes.version
+
+
 def test_from_manifest_missing_build_fn_raises(tmp_path):
     import types
 
