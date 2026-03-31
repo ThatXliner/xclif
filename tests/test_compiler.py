@@ -159,6 +159,77 @@ def test_from_manifest_subcommand_signatures_match(tmp_path):
     assert list(greet_r.options.keys()) == list(greet_m.options.keys())
 
 
+def test_from_manifest_preserves_all_command_fields(tmp_path):
+    """Manifest round-trip must preserve every field on Command objects,
+    not just name/run/arguments/options.  Regression test: the compiler
+    previously reconstructed Command(...) from only four fields, dropping
+    subcommands, implicit_options, version, and any future fields."""
+    from greeter import routes
+
+    manifest_path = compile_routes(routes, output_dir=tmp_path)
+    manifest = _load_manifest_from_path(manifest_path)
+
+    cli_routes = Cli.from_routes(routes)
+    cli_manifest = Cli.from_manifest(manifest)
+
+    def _assert_commands_equal(cmd_r: Command, cmd_m: Command, path: str = "root"):
+        assert cmd_r.name == cmd_m.name, f"{path}: name mismatch"
+        assert cmd_r.run is cmd_m.run, f"{path}: run callable differs"
+        assert cmd_r.arguments == cmd_m.arguments, f"{path}: arguments differ"
+        assert cmd_r.options == cmd_m.options, f"{path}: options differ"
+        assert cmd_r.implicit_options == cmd_m.implicit_options, (
+            f"{path}: implicit_options differ"
+        )
+        assert cmd_r.version == cmd_m.version, f"{path}: version differs"
+        assert set(cmd_r.subcommands) == set(cmd_m.subcommands), (
+            f"{path}: subcommand names differ"
+        )
+        for name in cmd_r.subcommands:
+            _assert_commands_equal(
+                cmd_r.subcommands[name],
+                cmd_m.subcommands[name],
+                f"{path}.{name}",
+            )
+
+    _assert_commands_equal(cli_routes.root_command, cli_manifest.root_command)
+
+
+def test_from_manifest_preserves_imperative_subcommands(tmp_path):
+    """Commands built via the imperative Command.command() API should
+    survive the manifest round-trip."""
+    import types
+
+    root = Command("myapp", lambda: 0)
+
+    @root.command("sub")
+    def _(x: str) -> int:
+        return 0
+
+    # Build a minimal routes package with this root command
+    routes = types.ModuleType("fake_routes")
+    routes.__package__ = "fake_routes"
+    routes.__path__ = [str(tmp_path / "fake_routes")]  # type: ignore[attr-defined]
+    routes.__file__ = str(tmp_path / "fake_routes" / "__init__.py")
+    routes.app = root  # type: ignore[attr-defined]
+
+    # Create the package dir and register the module so the generated
+    # manifest can import it
+    pkg_dir = tmp_path / "fake_routes"
+    pkg_dir.mkdir()
+    (pkg_dir / "__init__.py").touch()
+    sys.modules["fake_routes"] = routes
+
+    try:
+        manifest_path = compile_routes(routes, output_dir=tmp_path)
+        manifest = _load_manifest_from_path(manifest_path)
+        cli = Cli.from_manifest(manifest)
+
+        # The imperative subcommand "sub" should be present on the root
+        assert "sub" in cli.root_command.subcommands
+    finally:
+        del sys.modules["fake_routes"]
+
+
 # ---------------------------------------------------------------------------
 # Cli.from_manifest — bad manifest
 # ---------------------------------------------------------------------------
