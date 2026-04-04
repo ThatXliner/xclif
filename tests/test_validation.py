@@ -36,10 +36,10 @@ def test_conflict_different_types_config_key():
 def test_conflict_different_types_env_var():
     """Same env var + different types raises."""
     cmd1 = Command("greet", lambda: None, options={
-        "name": Option("name", str, "desc", config=WithConfig()),
+        "name": Option("name", str, "desc", config=WithConfig(env="APP_NAME", key="greet_name")),
     })
     cmd2 = Command("farewell", lambda: None, options={
-        "name": Option("name", int, "desc", config=WithConfig()),
+        "alias": Option("alias", int, "desc", config=WithConfig(env="APP_NAME", key="farewell_alias")),
     })
     root = Command("app", lambda: 0, subcommands={"greet": cmd1, "farewell": cmd2})
     with pytest.raises(ValueError, match="WithConfig conflict.*env var 'APP_NAME'"):

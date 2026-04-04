@@ -60,9 +60,8 @@ def _walk_commands(
 ) -> None:
     """Recursively collect WithConfig metadata from the command tree.
 
-    Arguments always go into config_key_map.
-    Options with a custom key go into config_key_map.
-    Options without a custom key go into env_var_map.
+    Every WithConfig param is recorded in config_key_map.
+    Options (not Arguments) are also recorded in env_var_map.
     """
     from xclif.definition import Argument
 
@@ -73,12 +72,12 @@ def _walk_commands(
 
         entry = (param.converter, command.name, param.name)
 
-        if isinstance(param, Argument) or cfg.key is not None:
-            # Arguments and options with an explicit custom key → config key check
-            config_key = cfg.key if cfg.key else param.name
-            config_key_map.setdefault(config_key, []).append(entry)
-        else:
-            # Options without a custom key → env var check
+        # Every WithConfig param resolves both a config key and an env var
+        # at runtime, so check both for conflicts.
+        config_key = cfg.key if cfg.key else param.name
+        config_key_map.setdefault(config_key, []).append(entry)
+
+        if not isinstance(param, Argument):
             env_var = cfg.env if cfg.env else f"{env_prefix}_{param.name.upper()}"
             env_var_map.setdefault(env_var, []).append(entry)
 
