@@ -1,7 +1,7 @@
 import inspect
 import sys
 import types
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import NoReturn, Self
 
 from xclif.command import Command, command
@@ -45,9 +45,27 @@ class Cli:
 
     root_command: Command
     version: str | None = None
+    env_prefix: str | None = None
+    config_name: str | None = None
+    _config_data: dict = field(default_factory=dict, init=False, repr=False)
 
     def __post_init__(self) -> None:
+        from pathlib import Path
+
+        import platformdirs
+
         from xclif.completions import make_completions_command
+        from xclif.config import load_config
+
+        # Derive defaults from root command name
+        if self.env_prefix is None:
+            self.env_prefix = self.root_command.name.upper()
+        if self.config_name is None:
+            self.config_name = self.root_command.name
+
+        # Load config file
+        config_dir = Path(platformdirs.user_config_dir(self.config_name))
+        self._config_data = load_config(config_dir)
 
         # Add completions subcommand
         self.root_command._assert_no_arguments(adding="completions")
@@ -62,7 +80,8 @@ class Cli:
         self.root_command.version = self.version
 
     def __call__(self) -> NoReturn:
-        sys.exit(self.root_command.execute())
+        context = {"env_prefix": self.env_prefix, "config_data": self._config_data}
+        sys.exit(self.root_command.execute(context=context))
 
     def add_command(self, path: list[str], command: Command) -> None:
         cursor = self.root_command

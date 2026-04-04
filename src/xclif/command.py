@@ -184,9 +184,9 @@ class Command:
         self.subcommands[name] = cmd
         return cmd
 
-    def execute(self, args: list[str] | None = None) -> int:
+    def execute(self, args: list[str] | None = None, context: dict | None = None) -> int:
         try:
-            return parse_and_execute_impl(sys.argv[1:] if args is None else args, self)
+            return parse_and_execute_impl(sys.argv[1:] if args is None else args, self, context)
         except UsageError as exc:
             _rprint(f"[bold red]Error:[/bold red] {exc}", file=sys.stderr)
             if exc.hint:
