@@ -154,5 +154,13 @@ def compile_routes(routes: types.ModuleType, output_dir: Path | None = None) -> 
     lines.append("")
 
     source = "\n".join(lines) + "\n"
+
+    # Validate WithConfig conflicts at compile time
+    from xclif.validation import check_with_config_conflicts
+
+    root_cmd = getattr(routes, root_attr)
+    if root_cmd.name:
+        check_with_config_conflicts(root_cmd, root_cmd.name.upper())
+
     output_path.write_text(source, encoding="utf-8")
     return output_path
