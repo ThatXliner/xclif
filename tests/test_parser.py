@@ -2,6 +2,7 @@
 
 import pytest
 
+from xclif import WithConfig
 from xclif.command import Command
 from xclif.definition import Argument, Option
 from xclif.errors import UsageError
@@ -587,3 +588,203 @@ def test_execute_catches_usage_error(capsys):
     err = capsys.readouterr().err
     assert "Error" in err
     assert "Missing required argument" in err
+
+
+# ---------------------------------------------------------------------------
+# parse_and_execute_impl — WithConfig resolution
+# ---------------------------------------------------------------------------
+
+
+def test_option_resolved_from_env(monkeypatch):
+    """When CLI doesn't provide a value, env var is used."""
+    monkeypatch.setenv("MYAPP_GREETING", "howdy")
+
+    received = {}
+
+    def run(greeting: str = "hi") -> None:
+        received["greeting"] = greeting
+
+    cmd = Command(
+        "test", run,
+        options={"greeting": Option("greeting", str, "desc", "hi", config=WithConfig())},
+    )
+    context = {"env_prefix": "MYAPP", "config_data": {}}
+    parse_and_execute_impl([], cmd, context)
+    assert received["greeting"] == "howdy"
+
+
+def test_option_cli_overrides_env(monkeypatch):
+    """CLI flag takes priority over env var."""
+    monkeypatch.setenv("MYAPP_GREETING", "from_env")
+
+    received = {}
+
+    def run(greeting: str = "hi") -> None:
+        received["greeting"] = greeting
+
+    cmd = Command(
+        "test", run,
+        options={"greeting": Option("greeting", str, "desc", "hi", config=WithConfig())},
+    )
+    context = {"env_prefix": "MYAPP", "config_data": {}}
+    parse_and_execute_impl(["--greeting", "from_cli"], cmd, context)
+    assert received["greeting"] == "from_cli"
+
+
+def test_option_resolved_from_config():
+    """When CLI and env are absent, config file value is used."""
+    received = {}
+
+    def run(greeting: str = "hi") -> None:
+        received["greeting"] = greeting
+
+    cmd = Command(
+        "test", run,
+        options={"greeting": Option("greeting", str, "desc", "hi", config=WithConfig())},
+    )
+    context = {"env_prefix": "MYAPP", "config_data": {"greeting": "from_config"}}
+    parse_and_execute_impl([], cmd, context)
+    assert received["greeting"] == "from_config"
+
+
+def test_option_env_overrides_config(monkeypatch):
+    """Env var takes priority over config file."""
+    monkeypatch.setenv("MYAPP_GREETING", "from_env")
+
+    received = {}
+
+    def run(greeting: str = "hi") -> None:
+        received["greeting"] = greeting
+
+    cmd = Command(
+        "test", run,
+        options={"greeting": Option("greeting", str, "desc", "hi", config=WithConfig())},
+    )
+    context = {"env_prefix": "MYAPP", "config_data": {"greeting": "from_config"}}
+    parse_and_execute_impl([], cmd, context)
+    assert received["greeting"] == "from_env"
+
+
+def test_option_falls_back_to_default():
+    """When no CLI, env, or config, default is used."""
+    received = {}
+
+    def run(greeting: str = "hi") -> None:
+        received["greeting"] = greeting
+
+    cmd = Command(
+        "test", run,
+        options={"greeting": Option("greeting", str, "desc", "hi", config=WithConfig())},
+    )
+    context = {"env_prefix": "MYAPP", "config_data": {}}
+    parse_and_execute_impl([], cmd, context)
+    assert received["greeting"] == "hi"
+
+
+def test_argument_resolved_from_env(monkeypatch):
+    """WithConfig argument resolved from env when not on CLI."""
+    monkeypatch.setenv("MYAPP_NAME", "EnvAlice")
+
+    received = []
+
+    def run(name: str) -> None:
+        received.append(name)
+
+    cmd = Command(
+        "test", run,
+        arguments=[Argument("name", str, "desc", config=WithConfig())],
+    )
+    context = {"env_prefix": "MYAPP", "config_data": {}}
+    parse_and_execute_impl([], cmd, context)
+    assert received == ["EnvAlice"]
+
+
+def test_argument_resolved_from_config():
+    """WithConfig argument resolved from config when not on CLI or env."""
+    received = []
+
+    def run(name: str) -> None:
+        received.append(name)
+
+    cmd = Command(
+        "test", run,
+        arguments=[Argument("name", str, "desc", config=WithConfig())],
+    )
+    context = {"env_prefix": "MYAPP", "config_data": {"name": "ConfigAlice"}}
+    parse_and_execute_impl([], cmd, context)
+    assert received == ["ConfigAlice"]
+
+
+def test_argument_missing_without_config_raises():
+    """Required argument without WithConfig still raises."""
+    cmd = Command("test", lambda name: None, arguments=[Argument("name", str, "desc")])
+    context = {"env_prefix": "MYAPP", "config_data": {"name": "ConfigAlice"}}
+    with pytest.raises(UsageError, match="Missing required argument"):
+        parse_and_execute_impl([], cmd, context)
+
+
+def test_option_custom_env_name(monkeypatch):
+    """WithConfig(env='CUSTOM') uses that exact env var name."""
+    monkeypatch.setenv("CUSTOM", "custom_val")
+
+    received = {}
+
+    def run(greeting: str = "hi") -> None:
+        received["greeting"] = greeting
+
+    cmd = Command(
+        "test", run,
+        options={"greeting": Option("greeting", str, "desc", "hi", config=WithConfig(env="CUSTOM"))},
+    )
+    context = {"env_prefix": "MYAPP", "config_data": {}}
+    parse_and_execute_impl([], cmd, context)
+    assert received["greeting"] == "custom_val"
+
+
+def test_option_custom_config_key():
+    """WithConfig(key='greet.msg') resolves a dotted path in config."""
+    received = {}
+
+    def run(greeting: str = "hi") -> None:
+        received["greeting"] = greeting
+
+    cmd = Command(
+        "test", run,
+        options={"greeting": Option("greeting", str, "desc", "hi", config=WithConfig(key="greet.msg"))},
+    )
+    context = {"env_prefix": "MYAPP", "config_data": {"greet": {"msg": "nested_val"}}}
+    parse_and_execute_impl([], cmd, context)
+    assert received["greeting"] == "nested_val"
+
+
+def test_option_int_from_env(monkeypatch):
+    """Env var value is converted using the option's converter."""
+    monkeypatch.setenv("MYAPP_COUNT", "42")
+
+    received = {}
+
+    def run(count: int = 0) -> None:
+        received["count"] = count
+
+    cmd = Command(
+        "test", run,
+        options={"count": Option("count", int, "desc", 0, config=WithConfig())},
+    )
+    context = {"env_prefix": "MYAPP", "config_data": {}}
+    parse_and_execute_impl([], cmd, context)
+    assert received["count"] == 42
+
+
+def test_no_config_context_skips_resolution():
+    """When no config context is passed, WithConfig params use defaults normally."""
+    received = {}
+
+    def run(greeting: str = "hi") -> None:
+        received["greeting"] = greeting
+
+    cmd = Command(
+        "test", run,
+        options={"greeting": Option("greeting", str, "desc", "hi", config=WithConfig())},
+    )
+    parse_and_execute_impl([], cmd)
+    assert received["greeting"] == "hi"

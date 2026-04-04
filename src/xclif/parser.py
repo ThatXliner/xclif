@@ -56,11 +56,13 @@ Single occurrences still produce a one-element list (never unwrapped).
 """
 from __future__ import annotations
 
+import os
 from collections import defaultdict
 from difflib import get_close_matches
 from typing import TYPE_CHECKING
 
-from xclif.definition import Option
+from xclif.config import resolve_key
+from xclif.definition import Argument, Option
 from xclif.errors import UsageError
 
 if TYPE_CHECKING:
@@ -258,6 +260,15 @@ def parse_and_execute_impl(
     variadic_arg = declared_args[-1] if declared_args and declared_args[-1].variadic else None
     fixed_args = declared_args[:-1] if variadic_arg else declared_args
 
+    # Fill missing positionals from WithConfig (env/config) before checking
+    for i in range(len(positionals), len(fixed_args)):
+        arg = fixed_args[i]
+        resolved = _resolve_with_config(arg.name, arg, new_context)
+        if resolved is not _CONFIG_MISSING:
+            positionals.append(str(resolved))
+        else:
+            break
+
     # Check required fixed args are present
     if len(positionals) < len(fixed_args):
         missing = [a.name for a in fixed_args[len(positionals) :]]
@@ -293,8 +304,13 @@ def parse_and_execute_impl(
                 user_kwargs[name] = values
             else:
                 user_kwargs[name] = values if len(values) > 1 else values[0]
-        elif option.default is not None:
-            user_kwargs[name] = option.default
+        else:
+            # Try WithConfig resolution: env var > config file > default
+            resolved = _resolve_with_config(name, option, new_context)
+            if resolved is not _CONFIG_MISSING:
+                user_kwargs[name] = resolved
+            elif option.default is not None:
+                user_kwargs[name] = option.default
 
     return command.run(*converted_args, **user_kwargs) or 0
 
@@ -302,3 +318,38 @@ def parse_and_execute_impl(
 def _user_opts(parsed_opts: dict, command: "Command") -> bool:
     """Return True if any user-defined options were parsed."""
     return any(k in command.options for k in parsed_opts)
+
+
+_CONFIG_MISSING = object()
+
+
+def _resolve_with_config(
+    name: str,
+    option_or_arg: "Option | Argument",
+    context: dict,
+) -> object:
+    """Try to resolve a WithConfig parameter from env var or config file.
+
+    Returns _CONFIG_MISSING if no value is found.
+    """
+    cfg = option_or_arg.config
+    if cfg is None:
+        return _CONFIG_MISSING
+
+    env_prefix = context.get("env_prefix")
+    config_data = context.get("config_data", {})
+
+    # Try env var
+    env_var = cfg.env if cfg.env else (f"{env_prefix}_{name.upper()}" if env_prefix else None)
+    if env_var:
+        raw = os.environ.get(env_var)
+        if raw is not None:
+            return option_or_arg.converter(raw)
+
+    # Try config file
+    config_key = cfg.key if cfg.key else name
+    value = resolve_key(config_data, config_key, _CONFIG_MISSING)
+    if value is not _CONFIG_MISSING:
+        return option_or_arg.converter(value)
+
+    return _CONFIG_MISSING
