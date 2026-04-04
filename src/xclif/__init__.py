@@ -79,6 +79,16 @@ class Cli:
         )
         self.root_command.version = self.version
 
+        # Auto-inject config subcommand if any WithConfig params exist
+        from xclif.config_commands import _has_with_config, make_config_command
+
+        if "config" not in self.root_command.subcommands and _has_with_config(self.root_command):
+            self.root_command.subcommands["config"] = make_config_command(config_dir)
+
+        # Validate WithConfig conflicts
+        from xclif.validation import check_with_config_conflicts
+        check_with_config_conflicts(self.root_command, self.env_prefix)
+
     def __call__(self) -> NoReturn:
         context = {"env_prefix": self.env_prefix, "config_data": self._config_data}
         sys.exit(self.root_command.execute(context=context))
