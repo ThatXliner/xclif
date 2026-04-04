@@ -1,8 +1,11 @@
 """Unit tests for WithConfig annotation."""
 
 from typing import Annotated, get_args, get_origin, get_type_hints
+from unittest.mock import patch
 
-from xclif import WithConfig
+from xclif import Cli, WithConfig
+from xclif.command import Command, command, extract_parameters
+from xclif.definition import Argument, Option
 
 
 def test_with_config_getitem_returns_annotated():
@@ -57,3 +60,74 @@ def test_with_config_is_frozen():
         assert False, "Should have raised"
     except AttributeError:
         pass
+
+
+def test_full_priority_cli_over_env_over_config_over_default(tmp_path, monkeypatch):
+    """End-to-end: CLI > env > config > default."""
+    (tmp_path / "config.toml").write_text('greeting = "from_config"\n')
+    monkeypatch.setenv("MYAPP_GREETING", "from_env")
+
+    received = {}
+
+    @command("myapp")
+    def root() -> None:
+        """Test app."""
+
+    greet_cmd = Command(
+        "greet",
+        lambda greeting="default": received.update(greeting=greeting) or 0,
+        options={"greeting": Option("greeting", str, "desc", "default", config=WithConfig())},
+    )
+    root.subcommands["greet"] = greet_cmd
+
+    with patch("platformdirs.user_config_dir", return_value=str(tmp_path)):
+        cli = Cli(root_command=root)
+
+    context = {"env_prefix": cli.env_prefix, "config_data": cli._config_data}
+
+    # CLI wins
+    received.clear()
+    root.execute(["greet", "--greeting", "from_cli"], context)
+    assert received["greeting"] == "from_cli"
+
+    # Env wins over config
+    received.clear()
+    root.execute(["greet"], context)
+    assert received["greeting"] == "from_env"
+
+    # Config wins over default (unset env)
+    monkeypatch.delenv("MYAPP_GREETING")
+    received.clear()
+    root.execute(["greet"], context)
+    assert received["greeting"] == "from_config"
+
+    # Default when no env or config
+    received.clear()
+    empty_context = {"env_prefix": "MYAPP", "config_data": {}}
+    root.execute(["greet"], empty_context)
+    assert received["greeting"] == "default"
+
+
+def test_with_config_argument_from_config(tmp_path):
+    """WithConfig on a required argument resolves from config file."""
+    (tmp_path / "config.toml").write_text('name = "ConfigAlice"\n')
+
+    received = []
+
+    @command("myapp")
+    def root() -> None:
+        """Test app."""
+
+    greet_cmd = Command(
+        "greet",
+        lambda name: received.append(name) or 0,
+        arguments=[Argument("name", str, "desc", config=WithConfig())],
+    )
+    root.subcommands["greet"] = greet_cmd
+
+    with patch("platformdirs.user_config_dir", return_value=str(tmp_path)):
+        cli = Cli(root_command=root)
+
+    context = {"env_prefix": cli.env_prefix, "config_data": cli._config_data}
+    root.execute(["greet"], context)
+    assert received == ["ConfigAlice"]
