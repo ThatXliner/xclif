@@ -1,6 +1,8 @@
 """Unit tests for xclif.Cli and the from_routes routing system."""
 
 import types
+from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -159,3 +161,43 @@ def test_from_routes_greeter_config_has_set_and_get():
     config = cli.root_command.subcommands["config"]
     assert "set" in config.subcommands
     assert "get" in config.subcommands
+
+
+def test_cli_default_env_prefix():
+    root = Command("myapp", lambda: 0)
+    cli = Cli(root_command=root)
+    assert cli.env_prefix == "MYAPP"
+
+
+def test_cli_custom_env_prefix():
+    root = Command("myapp", lambda: 0)
+    cli = Cli(root_command=root, env_prefix="CUSTOM")
+    assert cli.env_prefix == "CUSTOM"
+
+
+def test_cli_default_config_name():
+    root = Command("myapp", lambda: 0)
+    cli = Cli(root_command=root)
+    assert cli.config_name == "myapp"
+
+
+def test_cli_custom_config_name():
+    root = Command("myapp", lambda: 0)
+    cli = Cli(root_command=root, config_name="my-app-config")
+    assert cli.config_name == "my-app-config"
+
+
+def test_cli_loads_config_from_platformdirs(tmp_path):
+    (tmp_path / "config.toml").write_text('greeting = "from_file"\n')
+
+    root = Command("myapp", lambda: 0)
+    with patch("platformdirs.user_config_dir", return_value=str(tmp_path)):
+        cli = Cli(root_command=root)
+    assert cli._config_data == {"greeting": "from_file"}
+
+
+def test_cli_missing_config_file_is_empty(tmp_path):
+    root = Command("myapp", lambda: 0)
+    with patch("platformdirs.user_config_dir", return_value=str(tmp_path)):
+        cli = Cli(root_command=root)
+    assert cli._config_data == {}

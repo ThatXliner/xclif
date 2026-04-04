@@ -56,11 +56,13 @@ Single occurrences still produce a one-element list (never unwrapped).
 """
 from __future__ import annotations
 
+import os
 from collections import defaultdict
 from difflib import get_close_matches
 from typing import TYPE_CHECKING
 
-from xclif.definition import Option
+from xclif.config import resolve_key
+from xclif.definition import Argument, Option
 from xclif.errors import UsageError
 
 if TYPE_CHECKING:
@@ -258,12 +260,7 @@ def parse_and_execute_impl(
     variadic_arg = declared_args[-1] if declared_args and declared_args[-1].variadic else None
     fixed_args = declared_args[:-1] if variadic_arg else declared_args
 
-    # Check required fixed args are present
-    if len(positionals) < len(fixed_args):
-        missing = [a.name for a in fixed_args[len(positionals) :]]
-        raise UsageError(f"Missing required argument(s): {', '.join(missing)}")
-
-    # Convert fixed positional args
+    # Convert fixed positional args (CLI-supplied)
     converted_args = []
     for raw, arg in zip(positionals, fixed_args):
         try:
@@ -272,6 +269,20 @@ def parse_and_execute_impl(
             raise UsageError(
                 f"Invalid value {raw!r} for argument '{arg.name}': expected {_type_name(arg.converter)}"
             )
+
+    # Fill missing positionals from WithConfig (env/config) — already converted
+    for i in range(len(converted_args), len(fixed_args)):
+        arg = fixed_args[i]
+        resolved = _resolve_with_config(arg.name, arg, new_context)
+        if resolved is not _CONFIG_MISSING:
+            converted_args.append(resolved)
+        else:
+            break
+
+    # Check required fixed args are present
+    if len(converted_args) < len(fixed_args):
+        missing = [a.name for a in fixed_args[len(converted_args) :]]
+        raise UsageError(f"Missing required argument(s): {', '.join(missing)}")
 
     # Convert variadic remainder
     if variadic_arg:
@@ -293,8 +304,15 @@ def parse_and_execute_impl(
                 user_kwargs[name] = values
             else:
                 user_kwargs[name] = values if len(values) > 1 else values[0]
-        elif option.default is not None:
-            user_kwargs[name] = option.default
+        else:
+            # Try WithConfig resolution: env var > config file > default
+            resolved = _resolve_with_config(name, option, new_context)
+            if resolved is not _CONFIG_MISSING:
+                if option.is_list and not isinstance(resolved, list):
+                    resolved = [resolved]
+                user_kwargs[name] = resolved
+            elif option.default is not None:
+                user_kwargs[name] = option.default
 
     return command.run(*converted_args, **user_kwargs) or 0
 
@@ -302,3 +320,70 @@ def parse_and_execute_impl(
 def _user_opts(parsed_opts: dict, command: "Command") -> bool:
     """Return True if any user-defined options were parsed."""
     return any(k in command.options for k in parsed_opts)
+
+
+_CONFIG_MISSING = object()
+
+_BOOL_TRUE = frozenset({"1", "true", "yes", "on"})
+_BOOL_FALSE = frozenset({"0", "false", "no", "off"})
+
+
+def _parse_bool_string(raw: str, source: str) -> bool:
+    """Parse a string as a boolean, raising UsageError for ambiguous values."""
+    lower = raw.lower()
+    if lower in _BOOL_TRUE:
+        return True
+    if lower in _BOOL_FALSE:
+        return False
+    raise UsageError(
+        f"Invalid boolean value {raw!r} from {source}: "
+        f"expected one of: {', '.join(sorted(_BOOL_TRUE | _BOOL_FALSE))}"
+    )
+
+
+def _resolve_with_config(
+    name: str,
+    option_or_arg: "Option | Argument",
+    context: dict,
+) -> object:
+    """Try to resolve a WithConfig parameter from env var or config file.
+
+    Returns _CONFIG_MISSING if no value is found.
+    """
+    cfg = option_or_arg.config
+    if cfg is None:
+        return _CONFIG_MISSING
+
+    env_prefix = context.get("env_prefix")
+    config_data = context.get("config_data", {})
+
+    # Try env var
+    env_var = cfg.env if cfg.env else (f"{env_prefix}_{name.upper()}" if env_prefix else None)
+    if env_var:
+        raw = os.environ.get(env_var)
+        if raw is not None:
+            if option_or_arg.converter is bool:
+                return _parse_bool_string(raw, f"env var '{env_var}'")
+            try:
+                return option_or_arg.converter(raw)
+            except (ValueError, TypeError):
+                raise UsageError(
+                    f"Invalid value {raw!r} from env var '{env_var}': "
+                    f"expected {_type_name(option_or_arg.converter)}"
+                )
+
+    # Try config file
+    config_key = cfg.key if cfg.key else name
+    value = resolve_key(config_data, config_key, _CONFIG_MISSING)
+    if value is not _CONFIG_MISSING:
+        if isinstance(value, option_or_arg.converter):
+            return value
+        try:
+            return option_or_arg.converter(value)
+        except (ValueError, TypeError):
+            raise UsageError(
+                f"Invalid value {value!r} from config key '{config_key}': "
+                f"expected {_type_name(option_or_arg.converter)}"
+            )
+
+    return _CONFIG_MISSING

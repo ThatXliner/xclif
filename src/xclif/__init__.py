@@ -1,7 +1,7 @@
 import inspect
 import sys
 import types
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import NoReturn, Self
 
 from xclif.command import Command, command
@@ -11,20 +11,23 @@ from xclif.importer import get_modules
 __all__ = ["Cli", "WithConfig", "command"]
 
 
-class WithConfig[T]:
+@dataclass(frozen=True)
+class WithConfig:
     """Marker for parameters that can be read from a config file or env var.
 
-    ``name: WithConfig[str]`` expresses intent — the parameter *should* fall back
-    to a config file (TOML/JSON in the OS data dir) or an environment variable
-    when not supplied on the CLI.  This is not yet implemented; the annotation
-    is currently transparent (``WithConfig[str]`` behaves exactly like ``str``).
+    ``name: WithConfig[str]`` is sugar for ``Annotated[str, WithConfig()]``.
+    Use ``Annotated[str, WithConfig(env="MY_VAR", key="custom")]`` for overrides.
 
-    Planned priority order: CLI flag > env var > config file > default.
+    Priority order: CLI flag > env var > config file > default.
     See: https://github.com/ThatXliner/xclif/issues/23
     """
 
+    env: str | None = None
+    key: str | None = None
+
     def __class_getitem__(cls, item: type) -> type:
-        return item
+        from typing import Annotated
+        return Annotated[item, cls()]
 
 
 def _detect_version(package_name: str) -> str | None:
@@ -42,9 +45,29 @@ class Cli:
 
     root_command: Command
     version: str | None = None
+    env_prefix: str | None = None
+    config_name: str | None = None
+    _config_data: dict = field(default_factory=dict, init=False, repr=False)
+    _config_dir: "Path | None" = field(default=None, init=False, repr=False)
+    _finalized: bool = field(default=False, init=False, repr=False)
 
     def __post_init__(self) -> None:
+        from pathlib import Path
+
+        import platformdirs
+
         from xclif.completions import make_completions_command
+        from xclif.config import load_config
+
+        # Derive defaults from root command name
+        if self.env_prefix is None:
+            self.env_prefix = self.root_command.name.upper()
+        if self.config_name is None:
+            self.config_name = self.root_command.name
+
+        # Load config file
+        self._config_dir = Path(platformdirs.user_config_dir(self.config_name))
+        self._config_data = load_config(self._config_dir)
 
         # Add completions subcommand
         self.root_command._assert_no_arguments(adding="completions")
@@ -58,8 +81,30 @@ class Cli:
         )
         self.root_command.version = self.version
 
+    def _finalize(self) -> None:
+        """Run config injection and validation after all subcommands are added.
+
+        Called automatically by ``from_routes``, ``from_manifest``, and
+        ``__call__``. Safe to call multiple times (idempotent).
+        """
+        if self._finalized:
+            return
+        self._finalized = True
+
+        from xclif.config_commands import _has_with_config, make_config_command
+        from xclif.validation import check_with_config_conflicts
+
+        # Auto-inject config subcommand if any WithConfig params exist
+        if "config" not in self.root_command.subcommands and _has_with_config(self.root_command):
+            self.root_command.subcommands["config"] = make_config_command(self._config_dir)
+
+        # Validate WithConfig conflicts
+        check_with_config_conflicts(self.root_command, self.env_prefix)
+
     def __call__(self) -> NoReturn:
-        sys.exit(self.root_command.execute())
+        self._finalize()
+        context = {"env_prefix": self.env_prefix, "config_data": self._config_data}
+        sys.exit(self.root_command.execute(context=context))
 
     def add_command(self, path: list[str], command: Command) -> None:
         cursor = self.root_command
@@ -74,7 +119,14 @@ class Cli:
         cursor.subcommands[command.name] = command
 
     @classmethod
-    def from_manifest(cls, manifest: types.ModuleType, *, version: str | None = None) -> Self:
+    def from_manifest(
+        cls,
+        manifest: types.ModuleType,
+        *,
+        version: str | None = None,
+        env_prefix: str | None = None,
+        config_name: str | None = None,
+    ) -> Self:
         """Load a pre-compiled manifest produced by ``xclif compile``.
 
         This is a faster alternative to :meth:`from_routes` — it skips the
@@ -99,10 +151,17 @@ class Cli:
         if version is None and manifest.__package__:
             package_name = manifest.__package__.split(".")[0]
             version = _detect_version(package_name)
-        return build_fn(version=version)
+        return build_fn(version=version, env_prefix=env_prefix, config_name=config_name)
 
     @classmethod
-    def from_routes(cls, routes: types.ModuleType, *, version: str | None = None) -> Self:
+    def from_routes(
+        cls,
+        routes: types.ModuleType,
+        *,
+        version: str | None = None,
+        env_prefix: str | None = None,
+        config_name: str | None = None,
+    ) -> Self:
         members = inspect.getmembers(routes, lambda x: isinstance(x, Command))
 
         if len(members) > 1:
@@ -125,7 +184,7 @@ class Cli:
         if root_command.name is None:
             msg = "Root command must have a name (it will determine the program name)"
             raise ValueError(msg)
-        output = cls(root_command=root_command, version=version)
+        output = cls(root_command=root_command, version=version, env_prefix=env_prefix, config_name=config_name)
         for path, module in get_modules(routes):
             members = inspect.getmembers(module, lambda x: isinstance(x, Command))
             if not members:
@@ -135,4 +194,5 @@ class Cli:
                 raise ValueError(msg)
             _name, function = members[0]
             output.add_command(path.removeprefix(root_path).split("."), function)
+        output._finalize()
         return output

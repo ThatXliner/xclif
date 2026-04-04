@@ -95,6 +95,23 @@ Options and positional arguments may appear in any order at the same command lev
    myapp greet --template "Hi!" Alice
    myapp greet Alice --template "Hi!"  # both valid
 
+Config-backed parameters
+------------------------
+
+Parameters annotated with ``WithConfig[T]`` fall back to environment variables and config
+files when not supplied on the CLI:
+
+.. code-block:: python
+
+   from xclif import WithConfig, command
+
+   @command()
+   def _(name: WithConfig[str], greeting: WithConfig[str] = "Hello") -> None:
+       ...
+
+See :doc:`config` for full details on priority order, env var naming, config file format,
+and per-parameter overrides.
+
 The ``--`` separator
 ---------------------
 

@@ -9,7 +9,9 @@ authors = [
 ]
 requires-python = ">=3.12"
 dependencies = [
+    "platformdirs>=4.0",
     "rich>=14.0.0",
+    "tomlkit>=0.13",
 ]
 classifiers = [
     "Programming Language :: Python :: Implementation :: CPython",

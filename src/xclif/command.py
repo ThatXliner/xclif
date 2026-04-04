@@ -4,7 +4,7 @@ import textwrap
 from dataclasses import dataclass, field
 from typing import Callable
 
-from xclif.annotations import annotation2converter, is_list_type
+from xclif.annotations import annotation2converter, is_list_type, unwrap_with_config
 from xclif.constants import INITIAL_LEFT_PADDING, NAME_DESC_PADDING, NO_DESC
 from xclif.definition import IMPLICIT_OPTIONS, Argument, Option
 from xclif.errors import UsageError
@@ -184,9 +184,9 @@ class Command:
         self.subcommands[name] = cmd
         return cmd
 
-    def execute(self, args: list[str] | None = None) -> int:
+    def execute(self, args: list[str] | None = None, context: dict | None = None) -> int:
         try:
-            return parse_and_execute_impl(sys.argv[1:] if args is None else args, self)
+            return parse_and_execute_impl(sys.argv[1:] if args is None else args, self, context)
         except UsageError as exc:
             _rprint(f"[bold red]Error:[/bold red] {exc}", file=sys.stderr)
             if exc.hint:
@@ -249,18 +249,23 @@ def extract_parameters(function: Callable) -> tuple[list[Argument], dict[str, Op
         if parameter.annotation is inspect.Parameter.empty:
             msg = f"Argument {name!r} has no type hint"
             raise ValueError(msg)
-        converter = annotation2converter(parameter.annotation)
+
+        # Unwrap WithConfig[T] or Annotated[T, WithConfig(...)]
+        raw_annotation = parameter.annotation
+        inner_type, with_config = unwrap_with_config(raw_annotation)
+
+        converter = annotation2converter(inner_type)
         if converter is None:
             msg = "Unsupported type"
             raise TypeError(msg)
         is_argument = parameter.default is inspect.Parameter.empty
-        list_valued = is_list_type(parameter.annotation)
+        list_valued = is_list_type(inner_type)
         if is_argument:
-            arguments.append(Argument(name, converter, NO_DESC))
+            arguments.append(Argument(name, converter, NO_DESC, config=with_config))
         else:
             default = parameter.default
             aliases = _auto_alias(name, taken_aliases)
-            options[name] = Option(name, converter, NO_DESC, default, is_list=list_valued, aliases=aliases)
+            options[name] = Option(name, converter, NO_DESC, default, is_list=list_valued, aliases=aliases, config=with_config)
     return arguments, options
 
 

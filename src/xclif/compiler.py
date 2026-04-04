@@ -113,7 +113,7 @@ def compile_routes(routes: types.ModuleType, output_dir: Path | None = None) -> 
         "from xclif import Cli",
         "",
         "",
-        "def _build_cli(version: str | None = None) -> Cli:",
+        "def _build_cli(version: str | None = None, env_prefix: str | None = None, config_name: str | None = None) -> Cli:",
     ]
 
     # Import lines (inside the function so they remain lazy at module-load time
@@ -145,14 +145,36 @@ def compile_routes(routes: types.ModuleType, output_dir: Path | None = None) -> 
     sub_entries.sort(key=lambda x: (len(x[0]), x[0]))
 
     lines.append("")
-    lines.append("    cli = Cli(root_command=root, version=version)")
+    lines.append("    cli = Cli(root_command=root, version=version, env_prefix=env_prefix, config_name=config_name)")
     for path, alias in sub_entries:
         path_repr = repr(path)
         lines.append(f"    cli.add_command({path_repr}, {alias})")
 
+    lines.append("    cli._finalize()")
     lines.append("    return cli")
     lines.append("")
 
     source = "\n".join(lines) + "\n"
+
+    # Validate WithConfig conflicts at compile time — build the full tree
+    # so we see leaf-route params too (not just root)
+    from xclif.validation import check_with_config_conflicts
+
+    temp_cli = cls_placeholder = type('_Temp', (), {'root_command': None})()
+    root_cmd = getattr(routes, root_attr)
+    temp_root = Command(root_cmd.name, root_cmd.run, root_cmd.arguments.copy(),
+                        dict(root_cmd.options), dict(root_cmd.subcommands))
+    for mod_name, attr in entries:
+        mod = importlib.import_module(mod_name)
+        sub_cmd = getattr(mod, attr)
+        rel = mod_name.removeprefix(root_path)
+        path = rel.split(".")
+        cursor = temp_root
+        for part in path[:-1]:
+            cursor = cursor.subcommands.setdefault(part, Command(part, lambda: 0))
+        cursor.subcommands[sub_cmd.name] = sub_cmd
+    if temp_root.name:
+        check_with_config_conflicts(temp_root, temp_root.name.upper())
+
     output_path.write_text(source, encoding="utf-8")
     return output_path
