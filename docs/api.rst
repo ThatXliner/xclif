@@ -50,6 +50,30 @@ xclif.parser
    :undoc-members:
    :show-inheritance:
 
+xclif.config
+------------
+
+.. automodule:: xclif.config
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+xclif.config_commands
+---------------------
+
+.. automodule:: xclif.config_commands
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+xclif.validation
+----------------
+
+.. automodule:: xclif.validation
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 xclif.importer
 --------------
 
