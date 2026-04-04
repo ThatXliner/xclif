@@ -70,12 +70,25 @@ if TYPE_CHECKING:
 
 
 def _build_alias_map(options: dict[str, Option]) -> dict[str, str]:
-    """Build a mapping from short alias → long option name."""
+    """Build a mapping from short alias → param key."""
     alias_map: dict[str, str] = {}
     for long_name, option in options.items():
         for alias in option.aliases:
             alias_map[alias] = long_name
     return alias_map
+
+
+def _build_flag_map(options: dict[str, Option]) -> dict[str, str]:
+    """Build a mapping from CLI flag name (underscored) → param key.
+
+    Handles Option(name=...) overrides: --dry-run maps to param key dry_run,
+    but --from (overridden via Option(name="from")) maps to param key from_ref.
+    """
+    flag_map: dict[str, str] = {}
+    for param_key, option in options.items():
+        cli_name = option.name.replace("-", "_")
+        flag_map[cli_name] = param_key
+    return flag_map
 
 
 def _type_name(converter: type) -> str:
@@ -85,7 +98,7 @@ def _type_name(converter: type) -> str:
 
 def _suggest_option(name: str, options: dict[str, Option]) -> str | None:
     """Suggest a close match for an unknown option name."""
-    candidates = [f"--{n.replace('_', '-')}" for n in options]
+    candidates = [f"--{opt.name.replace('_', '-')}" for opt in options.values()]
     matches = get_close_matches(name, candidates, n=1, cutoff=0.6)
     return matches[0] if matches else None
 
@@ -109,6 +122,7 @@ def _parse_token_stream(
         subcmd_index - index into `args` of the subcommand token, or None
     """
     alias_map = _build_alias_map(options)
+    flag_map = _build_flag_map(options)
     positionals: list[str] = []
     parsed_opts: dict[str, list] = defaultdict(list)
     i = 0
@@ -124,8 +138,9 @@ def _parse_token_stream(
             # Long option: --name value  or  --name=value
             if "=" in token:
                 name_part, value = token.split("=", 1)
-                name = name_part.removeprefix("--").replace("-", "_")
-                if name not in options:
+                flag = name_part.removeprefix("--").replace("-", "_")
+                name = flag_map.get(flag)
+                if name is None:
                     suggestion = _suggest_option(name_part, options)
                     hint = f"Did you mean '{suggestion}'?" if suggestion else None
                     raise UsageError(f"Unknown option {name_part!r}", hint=hint)
@@ -136,11 +151,12 @@ def _parse_token_stream(
                     parsed_opts[name].append(option.converter(value))
                 except (ValueError, TypeError):
                     raise UsageError(
-                        f"Invalid value {value!r} for option '--{name.replace('_', '-')}': expected {_type_name(option.converter)}"
+                        f"Invalid value {value!r} for option '--{option.name.replace('_', '-')}': expected {_type_name(option.converter)}"
                     )
             else:
-                name = token.removeprefix("--").replace("-", "_")
-                if name not in options:
+                flag = token.removeprefix("--").replace("-", "_")
+                name = flag_map.get(flag)
+                if name is None:
                     suggestion = _suggest_option(token, options)
                     hint = f"Did you mean '{suggestion}'?" if suggestion else None
                     raise UsageError(f"Unknown option {token!r}", hint=hint)
@@ -155,7 +171,7 @@ def _parse_token_stream(
                         parsed_opts[name].append(option.converter(args[i]))
                     except (ValueError, TypeError):
                         raise UsageError(
-                            f"Invalid value {args[i]!r} for option '--{name.replace('_', '-')}': expected {_type_name(option.converter)}"
+                            f"Invalid value {args[i]!r} for option '--{option.name.replace('_', '-')}': expected {_type_name(option.converter)}"
                         )
 
         elif token.startswith("-") and len(token) > 1:

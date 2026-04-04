@@ -41,7 +41,7 @@ class Command:
 
     def _format_option_label(self, name: str, option: Option) -> str:
         """Format an option name with its aliases for display."""
-        parts = [f"--{name.replace('_', '-')}"]
+        parts = [f"--{option.name.replace('_', '-')}"]
         parts.extend(option.aliases)
         return ", ".join(parts)
 
@@ -274,9 +274,9 @@ def extract_parameters(function: Callable) -> tuple[list[Argument], dict[str, Op
                 msg = f"Arg() used on option parameter '{name}' — use Option() instead"
                 raise ValueError(msg)
             default = parameter.default
-            aliases = _auto_alias(name, taken_aliases)
             description = opt_meta.description if opt_meta and opt_meta.description else NO_DESC
             cli_name = opt_meta.name if opt_meta and opt_meta.name else name
+            aliases = _auto_alias(cli_name, taken_aliases)
             options[name] = Option(cli_name, converter, description, default, is_list=list_valued, aliases=aliases, config=with_config)
     return arguments, options
 
