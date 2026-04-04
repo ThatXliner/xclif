@@ -68,8 +68,8 @@ def test_no_with_config_params_no_error():
     check_with_config_conflicts(root, "APP")
 
 
-def test_conflict_within_single_command():
-    """Same param name in two sibling commands with different types conflicts."""
+def test_conflict_same_param_name_different_types():
+    """Two sibling commands with the same param name but different WithConfig types conflict."""
     cmd1 = Command("a", lambda: None, options={
         "count": Option("count", str, "desc", config=WithConfig()),
     })

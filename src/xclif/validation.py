@@ -61,8 +61,6 @@ def _walk_commands(
     for param in (*command.arguments, *command.options.values()):
         if param.config is None:
             continue
-        cfg = param.config
-
         entry = (param.converter, command.name, param.name)
 
         # Every WithConfig param resolves both a config key and an env var
