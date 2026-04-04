@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from xclif import Cli
-from xclif.command import Command
 
 
 def _build_cli(version: str | None = None) -> Cli:
@@ -13,12 +12,12 @@ def _build_cli(version: str | None = None) -> Cli:
     from xclif_greeter.routes.config.set import _ as _xclif_greeter_routes_config_set
     from xclif_greeter.routes.greet import _ as _xclif_greeter_routes_greet
 
-    root = Command(_root.name, _root.run, _root.arguments, _root.options)
+    root = _root
 
     cli = Cli(root_command=root, version=version)
-    cli.add_command(['config'], Command(_xclif_greeter_routes_config.name, _xclif_greeter_routes_config.run, _xclif_greeter_routes_config.arguments, _xclif_greeter_routes_config.options))
-    cli.add_command(['greet'], Command(_xclif_greeter_routes_greet.name, _xclif_greeter_routes_greet.run, _xclif_greeter_routes_greet.arguments, _xclif_greeter_routes_greet.options))
-    cli.add_command(['config', 'get'], Command(_xclif_greeter_routes_config_get.name, _xclif_greeter_routes_config_get.run, _xclif_greeter_routes_config_get.arguments, _xclif_greeter_routes_config_get.options))
-    cli.add_command(['config', 'set'], Command(_xclif_greeter_routes_config_set.name, _xclif_greeter_routes_config_set.run, _xclif_greeter_routes_config_set.arguments, _xclif_greeter_routes_config_set.options))
+    cli.add_command(['config'], _xclif_greeter_routes_config)
+    cli.add_command(['greet'], _xclif_greeter_routes_greet)
+    cli.add_command(['config', 'get'], _xclif_greeter_routes_config_get)
+    cli.add_command(['config', 'set'], _xclif_greeter_routes_config_set)
     return cli
 

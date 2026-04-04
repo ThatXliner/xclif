@@ -4,7 +4,7 @@ Walks a routes package once (at build/install time) and emits a
 ``_xclif_manifest.py`` file next to the routes package.  At runtime the
 manifest is loaded by ``Cli.from_manifest()`` instead of re-walking the
 filesystem, skipping ``pkgutil.walk_packages`` + ``inspect.getmembers``
-overhead (~24-26 ms on Apple Silicon).
+overhead (~13-15 ms on Apple Silicon).
 
 Usage
 -----

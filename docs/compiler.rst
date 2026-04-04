@@ -3,7 +3,7 @@ Manifest Compiler
 
 :meth:`~xclif.Cli.from_routes` discovers commands by walking your routes package with
 ``pkgutil.walk_packages`` on every invocation. For most CLIs this is imperceptible, but it
-adds ~24–26 ms of cold-start overhead on Apple Silicon — enough to matter if your tool is
+adds ~13–15 ms of cold-start overhead on Apple Silicon — enough to matter if your tool is
 invoked hundreds of times per second (e.g. shell completion hooks or CI scripts).
 
 The **manifest compiler** eliminates this overhead. It walks the package *once* at build time
@@ -96,7 +96,6 @@ The compiler writes:
    from __future__ import annotations
 
    from xclif import Cli
-   from xclif.command import Command
 
 
    def _build_cli(version: str | None = None) -> Cli:
@@ -106,13 +105,13 @@ The compiler writes:
        from myapp.routes.config.get import _ as _myapp_routes_config_get
        from myapp.routes.config.set import _ as _myapp_routes_config_set
 
-       root = Command(_root.name, _root.run, _root.arguments, _root.options)
+       root = _root
 
        cli = Cli(root_command=root, version=version)
-       cli.add_command(['config'], Command(_myapp_routes_config.name, ...))
-       cli.add_command(['greet'], Command(_myapp_routes_greet.name, ...))
-       cli.add_command(['config', 'get'], Command(_myapp_routes_config_get.name, ...))
-       cli.add_command(['config', 'set'], Command(_myapp_routes_config_set.name, ...))
+       cli.add_command(['config'], _myapp_routes_config)
+       cli.add_command(['greet'], _myapp_routes_greet)
+       cli.add_command(['config', 'get'], _myapp_routes_config_get)
+       cli.add_command(['config', 'set'], _myapp_routes_config_set)
        return cli
 
 The imports are **inside** ``_build_cli()`` so loading the manifest module itself is free —
