@@ -31,9 +31,7 @@ def check_with_config_conflicts(root: "Command", env_prefix: str) -> None:
                 f"WithConfig conflict: config key '{key}' is used as "
                 f"{_type_name(first[0])} (in '{first[1]}', param '{first[2]}') "
                 f"and {_type_name(second[0])} (in '{second[1]}', param '{second[2]}').\n\n"
-                f"To fix, give one a distinct key:\n"
-                f"    {second[2]}: Annotated[{_type_name(second[0])}, "
-                f"WithConfig(key=\"{second[1]}_{second[2]}\")]"
+                f"To fix, rename one of the parameters so they have distinct config keys."
             )
 
     for var, entries in env_var_map.items():
@@ -45,9 +43,7 @@ def check_with_config_conflicts(root: "Command", env_prefix: str) -> None:
                 f"WithConfig conflict: env var '{var}' maps to "
                 f"{_type_name(first[0])} (in '{first[1]}', param '{first[2]}') "
                 f"and {_type_name(second[0])} (in '{second[1]}', param '{second[2]}').\n\n"
-                f"To fix, give one a distinct env var:\n"
-                f"    {second[2]}: Annotated[{_type_name(second[0])}, "
-                f"WithConfig(env=\"{second[1].upper()}_{second[2].upper()}\")]"
+                f"To fix, rename one of the parameters so they map to distinct env vars."
             )
 
 
@@ -71,10 +67,10 @@ def _walk_commands(
 
         # Every WithConfig param resolves both a config key and an env var
         # at runtime, so check both for conflicts.
-        config_key = cfg.key if cfg.key else param.name
+        config_key = param.name
         config_key_map.setdefault(config_key, []).append(entry)
 
-        env_var = cfg.env if cfg.env else f"{env_prefix}_{param.name.upper()}"
+        env_var = f"{env_prefix}_{param.name.upper()}"
         env_var_map.setdefault(env_var, []).append(entry)
 
     for sub in command.subcommands.values():

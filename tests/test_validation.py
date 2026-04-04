@@ -34,28 +34,15 @@ def test_conflict_different_types_config_key():
 
 
 def test_conflict_different_types_env_var():
-    """Same env var + different types raises."""
+    """Same param name across commands + different types raises (same auto-env-var)."""
     cmd1 = Command("greet", lambda: None, options={
-        "name": Option("name", str, "desc", config=WithConfig(env="APP_NAME", key="greet_name")),
+        "name": Option("name", str, "desc", config=WithConfig()),
     })
     cmd2 = Command("farewell", lambda: None, options={
-        "alias": Option("alias", int, "desc", config=WithConfig(env="APP_NAME", key="farewell_alias")),
+        "name": Option("name", int, "desc", config=WithConfig()),
     })
     root = Command("app", lambda: 0, subcommands={"greet": cmd1, "farewell": cmd2})
-    with pytest.raises(ValueError, match="WithConfig conflict.*env var 'APP_NAME'"):
-        check_with_config_conflicts(root, "APP")
-
-
-def test_conflict_custom_key_overlaps():
-    """Two params with different names but same custom key + different types."""
-    cmd1 = Command("a", lambda: None, options={
-        "foo": Option("foo", str, "desc", config=WithConfig(key="shared")),
-    })
-    cmd2 = Command("b", lambda: None, options={
-        "bar": Option("bar", int, "desc", config=WithConfig(key="shared")),
-    })
-    root = Command("app", lambda: 0, subcommands={"a": cmd1, "b": cmd2})
-    with pytest.raises(ValueError, match="config key 'shared'"):
+    with pytest.raises(ValueError, match="WithConfig conflict"):
         check_with_config_conflicts(root, "APP")
 
 
@@ -82,11 +69,13 @@ def test_no_with_config_params_no_error():
 
 
 def test_conflict_within_single_command():
-    """Two options in the same command with conflicting keys."""
-    cmd = Command("test", lambda: None, options={
-        "name": Option("name", str, "desc", config=WithConfig(key="shared")),
-        "count": Option("count", int, "desc", config=WithConfig(key="shared")),
+    """Same param name in two sibling commands with different types conflicts."""
+    cmd1 = Command("a", lambda: None, options={
+        "count": Option("count", str, "desc", config=WithConfig()),
     })
-    root = Command("app", lambda: 0, subcommands={"test": cmd})
-    with pytest.raises(ValueError, match="config key 'shared'"):
+    cmd2 = Command("b", lambda: None, options={
+        "count": Option("count", int, "desc", config=WithConfig()),
+    })
+    root = Command("app", lambda: 0, subcommands={"a": cmd1, "b": cmd2})
+    with pytest.raises(ValueError, match="WithConfig conflict"):
         check_with_config_conflicts(root, "APP")

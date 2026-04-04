@@ -358,7 +358,7 @@ def _resolve_with_config(
     config_data = context.get("config_data", {})
 
     # Try env var
-    env_var = cfg.env if cfg.env else (f"{env_prefix}_{name.upper()}" if env_prefix else None)
+    env_var = f"{env_prefix}_{name.upper()}" if env_prefix else None
     if env_var:
         raw = os.environ.get(env_var)
         if raw is not None:
@@ -373,7 +373,7 @@ def _resolve_with_config(
                 )
 
     # Try config file
-    config_key = cfg.key if cfg.key else name
+    config_key = name
     value = resolve_key(config_data, config_key, _CONFIG_MISSING)
     if value is not _CONFIG_MISSING:
         if isinstance(value, option_or_arg.converter):

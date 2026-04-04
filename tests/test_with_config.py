@@ -4,19 +4,18 @@ from typing import Annotated, get_args, get_origin, get_type_hints
 from unittest.mock import patch
 
 from xclif import Cli, WithConfig
+from xclif import Arg, Option as OptionMeta
 from xclif.command import Command, command, extract_parameters
 from xclif.definition import Argument, Option
 
 
-def test_with_config_getitem_returns_annotated():
-    """WithConfig[str] should produce Annotated[str, WithConfig()]."""
+def test_with_config_getitem_still_works():
+    """WithConfig[str] should still produce Annotated[str, WithConfig()]."""
     result = WithConfig[str]
     assert get_origin(result) is Annotated
     args = get_args(result)
     assert args[0] is str
     assert isinstance(args[1], WithConfig)
-    assert args[1].env is None
-    assert args[1].key is None
 
 
 def test_with_config_getitem_int():
@@ -25,14 +24,6 @@ def test_with_config_getitem_int():
     assert args[0] is int
     assert isinstance(args[1], WithConfig)
 
-
-def test_with_config_explicit_annotated():
-    """Annotated[str, WithConfig(env="MY_VAR")] should work directly."""
-    hint = Annotated[str, WithConfig(env="MY_VAR", key="custom_key")]
-    args = get_args(hint)
-    assert args[0] is str
-    assert args[1].env == "MY_VAR"
-    assert args[1].key == "custom_key"
 
 
 def test_with_config_in_function_signature():
@@ -49,16 +40,67 @@ def test_with_config_in_function_signature():
 
 def test_with_config_equality():
     assert WithConfig() == WithConfig()
-    assert WithConfig(env="A") == WithConfig(env="A")
-    assert WithConfig(env="A") != WithConfig(env="B")
 
 
 def test_with_config_is_frozen():
+    import pytest
     wc = WithConfig()
+    with pytest.raises((AttributeError, TypeError)):
+        wc.x = 1  # type: ignore[attr-defined]
+
+
+def test_with_config_has_no_fields():
+    """WithConfig should be a no-argument marker after simplification."""
+    wc = WithConfig()
+    assert not hasattr(wc, 'env')
+    assert not hasattr(wc, 'key')
+
+
+def test_arg_metadata():
+    from xclif import Arg
+    a = Arg(description="A file", name="FILE")
+    assert a.description == "A file"
+    assert a.name == "FILE"
+
+
+def test_arg_defaults():
+    from xclif import Arg
+    a = Arg()
+    assert a.description is None
+    assert a.name is None
+
+
+def test_option_metadata():
+    from xclif import Option as OptionMeta
+    o = OptionMeta(description="Dry run", name="dry-run")
+    assert o.description == "Dry run"
+    assert o.name == "dry-run"
+
+
+def test_option_defaults():
+    from xclif import Option as OptionMeta
+    o = OptionMeta()
+    assert o.description is None
+    assert o.name is None
+
+
+def test_arg_is_frozen():
+    from xclif import Arg
+    a = Arg(description="x")
     try:
-        wc.env = "X"
+        a.description = "y"
         assert False, "Should have raised"
-    except AttributeError:
+    except (AttributeError, TypeError):
+        pass
+
+
+def test_option_is_frozen():
+    from xclif import Option as OptionMeta
+    o = OptionMeta(description="x")
+    try:
+        o.description = "y"
+        assert False, "Should have raised"
+    except (AttributeError, TypeError):
         pass
 
 

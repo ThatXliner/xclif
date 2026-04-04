@@ -427,17 +427,17 @@ def test_option_config_field_default_none():
 
 
 def test_argument_config_field_set():
-    wc = WithConfig(key="user_name")
+    wc = WithConfig()
     arg = Argument("name", str, "desc", config=wc)
     assert arg.config is wc
-    assert arg.config.key == "user_name"
+    assert isinstance(arg.config, WithConfig)
 
 
 def test_option_config_field_set():
-    wc = WithConfig(env="MY_NAME")
+    wc = WithConfig()
     opt = Option("name", str, "desc", config=wc)
     assert opt.config is wc
-    assert opt.config.env == "MY_NAME"
+    assert isinstance(opt.config, WithConfig)
 
 
 # ---------------------------------------------------------------------------
@@ -463,13 +463,6 @@ def test_extract_params_with_config_argument():
     assert args[0].config is not None
     assert args[0].config == WithConfig()
 
-
-def test_extract_params_with_config_annotated_override():
-    def f(name: Annotated[str, WithConfig(env="MY_NAME", key="user")] = "") -> None: ...
-    args, opts = extract_parameters(f)
-    assert opts["name"].config is not None
-    assert opts["name"].config.env == "MY_NAME"
-    assert opts["name"].config.key == "user"
 
 
 def test_extract_params_without_config_has_none():

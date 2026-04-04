@@ -5,10 +5,10 @@ from dataclasses import dataclass, field
 from typing import NoReturn, Self
 
 from xclif.command import Command, command
-from xclif.definition import Option
+from xclif.definition import Option as _DefinitionOption
 from xclif.importer import get_modules
 
-__all__ = ["Cli", "WithConfig", "command"]
+__all__ = ["Arg", "Cli", "Option", "WithConfig", "command"]
 
 
 @dataclass(frozen=True)
@@ -16,18 +16,43 @@ class WithConfig:
     """Marker for parameters that can be read from a config file or env var.
 
     ``name: WithConfig[str]`` is sugar for ``Annotated[str, WithConfig()]``.
-    Use ``Annotated[str, WithConfig(env="MY_VAR", key="custom")]`` for overrides.
 
     Priority order: CLI flag > env var > config file > default.
-    See: https://github.com/ThatXliner/xclif/issues/23
+    Env var: ``<PREFIX>_<PARAM_NAME_UPPERCASED>``
+    Config key: the parameter name as-is.
     """
-
-    env: str | None = None
-    key: str | None = None
 
     def __class_getitem__(cls, item: type) -> type:
         from typing import Annotated
         return Annotated[item, cls()]
+
+
+@dataclass(frozen=True)
+class Arg:
+    """Annotation metadata for positional arguments.
+
+    Use inside ``Annotated`` to attach a description or display name::
+
+        def copy(src: Annotated[str, Arg(description="Source file", name="SRC")]) -> None: ...
+    """
+
+    description: str | None = None
+    name: str | None = None  # display name in help (e.g. "FILE")
+
+
+@dataclass(frozen=True)
+class Option:
+    """Annotation metadata for CLI options.
+
+    Use inside ``Annotated`` to attach a description or override the flag name::
+
+        def build(dry_run: Annotated[bool, Option(description="Skip execution", name="dry-run")] = False) -> None: ...
+
+    ``name`` overrides the CLI flag (``--dry-run``). The Python kwarg name is unchanged.
+    """
+
+    description: str | None = None
+    name: str | None = None  # CLI flag name override (e.g. "dry-run" → --dry-run)
 
 
 def _detect_version(package_name: str) -> str | None:
@@ -76,7 +101,7 @@ class Cli:
         )
 
         # Inject --version as an implicit option on root command only
-        self.root_command.implicit_options["version"] = Option(
+        self.root_command.implicit_options["version"] = _DefinitionOption(
             "version", bool, "Print program version and exit",
         )
         self.root_command.version = self.version

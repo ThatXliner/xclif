@@ -723,39 +723,6 @@ def test_argument_missing_without_config_raises():
         parse_and_execute_impl([], cmd, context)
 
 
-def test_option_custom_env_name(monkeypatch):
-    """WithConfig(env='CUSTOM') uses that exact env var name."""
-    monkeypatch.setenv("CUSTOM", "custom_val")
-
-    received = {}
-
-    def run(greeting: str = "hi") -> None:
-        received["greeting"] = greeting
-
-    cmd = Command(
-        "test", run,
-        options={"greeting": Option("greeting", str, "desc", "hi", config=WithConfig(env="CUSTOM"))},
-    )
-    context = {"env_prefix": "MYAPP", "config_data": {}}
-    parse_and_execute_impl([], cmd, context)
-    assert received["greeting"] == "custom_val"
-
-
-def test_option_custom_config_key():
-    """WithConfig(key='greet.msg') resolves a dotted path in config."""
-    received = {}
-
-    def run(greeting: str = "hi") -> None:
-        received["greeting"] = greeting
-
-    cmd = Command(
-        "test", run,
-        options={"greeting": Option("greeting", str, "desc", "hi", config=WithConfig(key="greet.msg"))},
-    )
-    context = {"env_prefix": "MYAPP", "config_data": {"greet": {"msg": "nested_val"}}}
-    parse_and_execute_impl([], cmd, context)
-    assert received["greeting"] == "nested_val"
-
 
 def test_option_int_from_env(monkeypatch):
     """Env var value is converted using the option's converter."""
