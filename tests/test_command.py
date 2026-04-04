@@ -5,6 +5,7 @@ import pytest
 from xclif.command import Command, command, extract_parameters
 from xclif.constants import NO_DESC
 from xclif.definition import Argument, Option
+from xclif import WithConfig
 
 
 # ---------------------------------------------------------------------------
@@ -406,3 +407,32 @@ def test_command_method_on_command_with_arguments_raises():
     with pytest.raises(ValueError, match="positional arguments"):
         @root.command()
         def sub() -> None: ...
+
+
+# ---------------------------------------------------------------------------
+# Argument / Option config field
+# ---------------------------------------------------------------------------
+
+
+def test_argument_config_field_default_none():
+    arg = Argument("name", str, "desc")
+    assert arg.config is None
+
+
+def test_option_config_field_default_none():
+    opt = Option("name", str, "desc")
+    assert opt.config is None
+
+
+def test_argument_config_field_set():
+    wc = WithConfig(key="user_name")
+    arg = Argument("name", str, "desc", config=wc)
+    assert arg.config is wc
+    assert arg.config.key == "user_name"
+
+
+def test_option_config_field_set():
+    wc = WithConfig(env="MY_NAME")
+    opt = Option("name", str, "desc", config=wc)
+    assert opt.config is wc
+    assert opt.config.env == "MY_NAME"

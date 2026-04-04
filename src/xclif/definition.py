@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any, Callable
+
+if TYPE_CHECKING:
+    from xclif import WithConfig
 
 
 @dataclass
@@ -10,6 +13,7 @@ class Argument[T]:
     converter: Callable[[Any], T]
     description: str
     variadic: bool = False
+    config: WithConfig | None = None
 
     @property
     def short_description(self) -> str:
@@ -25,6 +29,7 @@ class Option[T]:
     cascading: bool = False
     is_list: bool = False
     aliases: list[str] = field(default_factory=list)
+    config: WithConfig | None = None
 
     @property
     def short_description(self) -> str:
