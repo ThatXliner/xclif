@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- `Arg` annotation marker: attach `description` and display `name` to positional arguments via `Annotated[str, Arg(description="...", name="FILE")]`.
+- `Option` annotation marker: attach `description` and override CLI flag `name` via `Annotated[bool, Option(description="...", name="dry-run")]`.
+
+### Changed
+- `WithConfig` is now a zero-argument marker. The `env` and `key` override fields have been removed. Env var names are always `<PREFIX>_<PARAM_UPPERCASED>`; config keys are always the parameter name.
+
 ## 0.2.0 — Developer Experience (unreleased)
 
 ### `WithConfig[T]` — config file and env var resolution (#23, #24)

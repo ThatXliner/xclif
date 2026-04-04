@@ -46,15 +46,6 @@ Override the prefix on ``Cli``:
    cli = Cli.from_routes(routes, env_prefix="MYAPP")
    # Now looks for MYAPP_NAME instead of GREETER_NAME
 
-Override the full env var name per parameter:
-
-.. code-block:: python
-
-   from typing import Annotated
-
-   @command()
-   def _(name: Annotated[str, WithConfig(env="MY_NAME")]) -> None: ...
-
 Config files
 ------------
 
@@ -80,31 +71,6 @@ Override the app name used for the config directory:
 .. code-block:: python
 
    cli = Cli.from_routes(routes, config_name="my-greeter")
-
-Dotted key paths
-^^^^^^^^^^^^^^^^
-
-Use ``WithConfig(key="section.param")`` to read from nested config:
-
-.. code-block:: python
-
-   @command()
-   def _(name: Annotated[str, WithConfig(key="greeter.name")]) -> None: ...
-
-.. code-block:: toml
-
-   [greeter]
-   name = "Alice"
-
-This also works with JSON:
-
-.. code-block:: json
-
-   {
-     "greeter": {
-       "name": "Alice"
-     }
-   }
 
 Auto-injected config subcommands
 ---------------------------------
@@ -132,8 +98,7 @@ parameters sharing the same config key or env var with **different types** is an
    WithConfig conflict: config key 'name' is used as str (in 'greet')
    and int (in 'farewell').
 
-   To fix, give one a distinct key:
-       name: Annotated[int, WithConfig(key="farewell_name")]
+   To fix, rename one of the parameters.
 
 Same key with the **same type** is allowed — the parameters share the config value
 intentionally.

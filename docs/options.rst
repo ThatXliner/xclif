@@ -109,8 +109,48 @@ files when not supplied on the CLI:
    def _(name: WithConfig[str], greeting: WithConfig[str] = "Hello") -> None:
        ...
 
-See :doc:`config` for full details on priority order, env var naming, config file format,
-and per-parameter overrides.
+See :doc:`config` for full details on priority order, env var naming, and config file format.
+
+Per-parameter metadata
+----------------------
+
+Use ``Arg`` and ``Option`` inside ``Annotated`` to attach descriptions or override
+display names and flag names:
+
+.. code-block:: python
+
+   from typing import Annotated
+   from xclif import Arg, Option, command
+
+   @command()
+   def copy(
+       src: Annotated[str, Arg(description="Source file", name="SRC")],
+       dst: Annotated[str, Arg(description="Destination path", name="DST")],
+   ) -> None:
+       """Copy SRC to DST."""
+
+   @command()
+   def build(
+       dry_run: Annotated[bool, Option(description="Skip execution", name="dry-run")] = False,
+   ) -> None:
+       """Build the project."""
+
+``Arg`` fields:
+
+- ``description`` — text shown next to the argument in help output
+- ``name`` — display name in help (e.g. ``SRC`` instead of ``src``); does not affect parsing
+
+``Option`` fields:
+
+- ``description`` — text shown next to the flag in help output
+- ``name`` — overrides the CLI flag name (e.g. ``dry-run`` → ``--dry-run``). The Python
+  kwarg name passed to the function is unchanged.
+
+Both can be combined with ``WithConfig``:
+
+.. code-block:: python
+
+   name: Annotated[str, Arg(description="Person to greet"), WithConfig()]
 
 The ``--`` separator
 ---------------------
