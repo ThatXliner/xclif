@@ -106,7 +106,14 @@ class Cli:
         cursor.subcommands[command.name] = command
 
     @classmethod
-    def from_manifest(cls, manifest: types.ModuleType, *, version: str | None = None) -> Self:
+    def from_manifest(
+        cls,
+        manifest: types.ModuleType,
+        *,
+        version: str | None = None,
+        env_prefix: str | None = None,
+        config_name: str | None = None,
+    ) -> Self:
         """Load a pre-compiled manifest produced by ``xclif compile``.
 
         This is a faster alternative to :meth:`from_routes` — it skips the
@@ -131,10 +138,17 @@ class Cli:
         if version is None and manifest.__package__:
             package_name = manifest.__package__.split(".")[0]
             version = _detect_version(package_name)
-        return build_fn(version=version)
+        return build_fn(version=version, env_prefix=env_prefix, config_name=config_name)
 
     @classmethod
-    def from_routes(cls, routes: types.ModuleType, *, version: str | None = None) -> Self:
+    def from_routes(
+        cls,
+        routes: types.ModuleType,
+        *,
+        version: str | None = None,
+        env_prefix: str | None = None,
+        config_name: str | None = None,
+    ) -> Self:
         members = inspect.getmembers(routes, lambda x: isinstance(x, Command))
 
         if len(members) > 1:
@@ -157,7 +171,7 @@ class Cli:
         if root_command.name is None:
             msg = "Root command must have a name (it will determine the program name)"
             raise ValueError(msg)
-        output = cls(root_command=root_command, version=version)
+        output = cls(root_command=root_command, version=version, env_prefix=env_prefix, config_name=config_name)
         for path, module in get_modules(routes):
             members = inspect.getmembers(module, lambda x: isinstance(x, Command))
             if not members:

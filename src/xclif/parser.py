@@ -344,12 +344,24 @@ def _resolve_with_config(
     if env_var:
         raw = os.environ.get(env_var)
         if raw is not None:
-            return option_or_arg.converter(raw)
+            try:
+                return option_or_arg.converter(raw)
+            except (ValueError, TypeError):
+                raise UsageError(
+                    f"Invalid value {raw!r} from env var '{env_var}': "
+                    f"expected {_type_name(option_or_arg.converter)}"
+                )
 
     # Try config file
     config_key = cfg.key if cfg.key else name
     value = resolve_key(config_data, config_key, _CONFIG_MISSING)
     if value is not _CONFIG_MISSING:
-        return option_or_arg.converter(value)
+        try:
+            return option_or_arg.converter(value)
+        except (ValueError, TypeError):
+            raise UsageError(
+                f"Invalid value {value!r} from config key '{config_key}': "
+                f"expected {_type_name(option_or_arg.converter)}"
+            )
 
     return _CONFIG_MISSING
