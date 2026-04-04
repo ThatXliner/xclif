@@ -11,20 +11,23 @@ from xclif.importer import get_modules
 __all__ = ["Cli", "WithConfig", "command"]
 
 
-class WithConfig[T]:
+@dataclass(frozen=True)
+class WithConfig:
     """Marker for parameters that can be read from a config file or env var.
 
-    ``name: WithConfig[str]`` expresses intent — the parameter *should* fall back
-    to a config file (TOML/JSON in the OS data dir) or an environment variable
-    when not supplied on the CLI.  This is not yet implemented; the annotation
-    is currently transparent (``WithConfig[str]`` behaves exactly like ``str``).
+    ``name: WithConfig[str]`` is sugar for ``Annotated[str, WithConfig()]``.
+    Use ``Annotated[str, WithConfig(env="MY_VAR", key="custom")]`` for overrides.
 
-    Planned priority order: CLI flag > env var > config file > default.
+    Priority order: CLI flag > env var > config file > default.
     See: https://github.com/ThatXliner/xclif/issues/23
     """
 
+    env: str | None = None
+    key: str | None = None
+
     def __class_getitem__(cls, item: type) -> type:
-        return item
+        from typing import Annotated
+        return Annotated[item, cls()]
 
 
 def _detect_version(package_name: str) -> str | None:
