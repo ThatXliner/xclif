@@ -176,7 +176,7 @@ ExtendedIO is Xclif's approach to transparent resource access. Instead of limiti
 
 - [ ] `WithConfig[T]` — read from config files (TOML/JSON) and env vars (stub exists, not yet functional)
 - [ ] `Annotated[str, Arg(description="...")]` for per-parameter metadata
-- [ ] Shell completion generation for bash, zsh, fish (stub exists)
+- [x] Shell completion generation for bash, zsh, fish
 - [ ] Distinct user errors vs developer errors with different output styles
 - [ ] Documented exit codes
 - [ ] Skip `_`-prefixed modules in `from_routes` (private helpers inside the routes package)
