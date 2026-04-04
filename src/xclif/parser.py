@@ -260,21 +260,7 @@ def parse_and_execute_impl(
     variadic_arg = declared_args[-1] if declared_args and declared_args[-1].variadic else None
     fixed_args = declared_args[:-1] if variadic_arg else declared_args
 
-    # Fill missing positionals from WithConfig (env/config) before checking
-    for i in range(len(positionals), len(fixed_args)):
-        arg = fixed_args[i]
-        resolved = _resolve_with_config(arg.name, arg, new_context)
-        if resolved is not _CONFIG_MISSING:
-            positionals.append(str(resolved))
-        else:
-            break
-
-    # Check required fixed args are present
-    if len(positionals) < len(fixed_args):
-        missing = [a.name for a in fixed_args[len(positionals) :]]
-        raise UsageError(f"Missing required argument(s): {', '.join(missing)}")
-
-    # Convert fixed positional args
+    # Convert fixed positional args (CLI-supplied)
     converted_args = []
     for raw, arg in zip(positionals, fixed_args):
         try:
@@ -283,6 +269,20 @@ def parse_and_execute_impl(
             raise UsageError(
                 f"Invalid value {raw!r} for argument '{arg.name}': expected {_type_name(arg.converter)}"
             )
+
+    # Fill missing positionals from WithConfig (env/config) — already converted
+    for i in range(len(converted_args), len(fixed_args)):
+        arg = fixed_args[i]
+        resolved = _resolve_with_config(arg.name, arg, new_context)
+        if resolved is not _CONFIG_MISSING:
+            converted_args.append(resolved)
+        else:
+            break
+
+    # Check required fixed args are present
+    if len(converted_args) < len(fixed_args):
+        missing = [a.name for a in fixed_args[len(converted_args) :]]
+        raise UsageError(f"Missing required argument(s): {', '.join(missing)}")
 
     # Convert variadic remainder
     if variadic_arg:
@@ -308,6 +308,8 @@ def parse_and_execute_impl(
             # Try WithConfig resolution: env var > config file > default
             resolved = _resolve_with_config(name, option, new_context)
             if resolved is not _CONFIG_MISSING:
+                if option.is_list and not isinstance(resolved, list):
+                    resolved = [resolved]
                 user_kwargs[name] = resolved
             elif option.default is not None:
                 user_kwargs[name] = option.default
@@ -321,6 +323,22 @@ def _user_opts(parsed_opts: dict, command: "Command") -> bool:
 
 
 _CONFIG_MISSING = object()
+
+_BOOL_TRUE = frozenset({"1", "true", "yes", "on"})
+_BOOL_FALSE = frozenset({"0", "false", "no", "off"})
+
+
+def _parse_bool_string(raw: str, source: str) -> bool:
+    """Parse a string as a boolean, raising UsageError for ambiguous values."""
+    lower = raw.lower()
+    if lower in _BOOL_TRUE:
+        return True
+    if lower in _BOOL_FALSE:
+        return False
+    raise UsageError(
+        f"Invalid boolean value {raw!r} from {source}: "
+        f"expected one of: {', '.join(sorted(_BOOL_TRUE | _BOOL_FALSE))}"
+    )
 
 
 def _resolve_with_config(
@@ -344,6 +362,8 @@ def _resolve_with_config(
     if env_var:
         raw = os.environ.get(env_var)
         if raw is not None:
+            if option_or_arg.converter is bool:
+                return _parse_bool_string(raw, f"env var '{env_var}'")
             try:
                 return option_or_arg.converter(raw)
             except (ValueError, TypeError):

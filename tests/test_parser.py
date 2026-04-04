@@ -788,3 +788,87 @@ def test_no_config_context_skips_resolution():
     )
     parse_and_execute_impl([], cmd)
     assert received["greeting"] == "hi"
+
+
+def test_with_config_bool_env_false(monkeypatch):
+    """Bool env var 'false' should resolve to False, not True."""
+    monkeypatch.setenv("MYAPP_VERBOSE", "false")
+    received = {}
+
+    def run(verbose=False):
+        received["verbose"] = verbose
+        return 0
+
+    cmd = Command(
+        "greet", run,
+        options={"verbose": Option("verbose", bool, "desc", False, config=WithConfig())},
+    )
+    context = {"env_prefix": "MYAPP", "config_data": {}}
+    parse_and_execute_impl([], cmd, context)
+    assert received["verbose"] is False
+
+
+def test_with_config_bool_env_true(monkeypatch):
+    """Bool env var '1' should resolve to True."""
+    monkeypatch.setenv("MYAPP_VERBOSE", "1")
+    received = {}
+
+    def run(verbose=False):
+        received["verbose"] = verbose
+        return 0
+
+    cmd = Command(
+        "greet", run,
+        options={"verbose": Option("verbose", bool, "desc", False, config=WithConfig())},
+    )
+    context = {"env_prefix": "MYAPP", "config_data": {}}
+    parse_and_execute_impl([], cmd, context)
+    assert received["verbose"] is True
+
+
+def test_with_config_bool_env_invalid(monkeypatch):
+    """Bool env var with invalid value raises UsageError."""
+    monkeypatch.setenv("MYAPP_VERBOSE", "maybe")
+    cmd = Command(
+        "greet", lambda verbose=False: 0,
+        options={"verbose": Option("verbose", bool, "desc", False, config=WithConfig())},
+    )
+    context = {"env_prefix": "MYAPP", "config_data": {}}
+    with pytest.raises(UsageError, match="Invalid boolean value"):
+        parse_and_execute_impl([], cmd, context)
+
+
+def test_with_config_list_option_wraps_scalar(monkeypatch):
+    """is_list option resolved from env should be wrapped in a list."""
+    monkeypatch.setenv("MYAPP_TAG", "latest")
+    received = {}
+
+    def run(tag=None):
+        received["tag"] = tag
+        return 0
+
+    cmd = Command(
+        "publish", run,
+        options={"tag": Option("tag", str, "desc", [], is_list=True, config=WithConfig())},
+    )
+    context = {"env_prefix": "MYAPP", "config_data": {}}
+    parse_and_execute_impl([], cmd, context)
+    assert received["tag"] == ["latest"]
+
+
+def test_with_config_positional_no_double_conversion():
+    """Positional resolved from config should not be double-converted."""
+    received = {}
+
+    def run(count):
+        received["count"] = count
+        return 0
+
+    cmd = Command(
+        "app", run,
+        arguments=[Argument("count", int, "desc", config=WithConfig())],
+    )
+    context = {"env_prefix": "MYAPP", "config_data": {"count": 42}}
+    parse_and_execute_impl([], cmd, context)
+    assert received["count"] == 42
+    assert isinstance(received["count"], int)
