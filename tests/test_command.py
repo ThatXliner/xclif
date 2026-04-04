@@ -8,6 +8,8 @@ from xclif.command import Command, command, extract_parameters
 from xclif.constants import NO_DESC
 from xclif.definition import Argument, Option
 from xclif import WithConfig
+from xclif import Arg, Option as OptionMeta
+from xclif.annotations import unwrap_param_metadata
 
 
 # ---------------------------------------------------------------------------
@@ -476,3 +478,45 @@ def test_extract_params_with_config_int():
     args, opts = extract_parameters(f)
     assert opts["count"].converter is int
     assert opts["count"].config is not None
+
+
+# ---------------------------------------------------------------------------
+# unwrap_param_metadata
+# ---------------------------------------------------------------------------
+
+
+def test_unwrap_param_metadata_plain_type():
+    inner, arg_meta, opt_meta, with_config = unwrap_param_metadata(str)
+    assert inner is str
+    assert arg_meta is None
+    assert opt_meta is None
+    assert with_config is None
+
+def test_unwrap_param_metadata_with_arg():
+    a = Arg(description="A file", name="FILE")
+    inner, arg_meta, opt_meta, with_config = unwrap_param_metadata(Annotated[str, a])
+    assert inner is str and arg_meta is a and opt_meta is None and with_config is None
+
+def test_unwrap_param_metadata_with_option():
+    o = OptionMeta(description="Dry run", name="dry-run")
+    inner, arg_meta, opt_meta, with_config = unwrap_param_metadata(Annotated[bool, o])
+    assert inner is bool and arg_meta is None and opt_meta is o and with_config is None
+
+def test_unwrap_param_metadata_with_config():
+    from xclif import WithConfig
+    inner, arg_meta, opt_meta, with_config = unwrap_param_metadata(Annotated[str, WithConfig()])
+    assert inner is str and isinstance(with_config, WithConfig) and arg_meta is None and opt_meta is None
+
+def test_unwrap_param_metadata_combined():
+    from xclif import WithConfig
+    a = Arg(description="desc")
+    wc = WithConfig()
+    inner, arg_meta, opt_meta, with_config = unwrap_param_metadata(Annotated[str, a, wc])
+    assert inner is str and arg_meta is a and opt_meta is None and with_config is wc
+
+def test_unwrap_param_metadata_option_and_withconfig():
+    from xclif import WithConfig
+    o = OptionMeta(description="desc")
+    wc = WithConfig()
+    inner, arg_meta, opt_meta, with_config = unwrap_param_metadata(Annotated[str, o, wc])
+    assert inner is str and arg_meta is None and opt_meta is o and with_config is wc

@@ -35,3 +35,31 @@ def annotation2converter[T: ParameterTypes, Y](x: T) -> None | Callable[[T], Y]:
 def is_list_type(x) -> bool:
     """Return True if the annotation is a list[X] generic."""
     return get_origin(x) is list
+
+
+def unwrap_param_metadata(annotation):
+    """Extract Arg, Option, and WithConfig from an Annotated annotation.
+
+    Returns (inner_type, arg_meta, option_meta, with_config).
+    For plain (non-Annotated) types, returns (annotation, None, None, None).
+    """
+    from xclif import Arg, Option, WithConfig
+
+    if get_origin(annotation) is not Annotated:
+        return annotation, None, None, None
+
+    args = get_args(annotation)
+    inner_type = args[0]
+    arg_meta = None
+    opt_meta = None
+    with_config = None
+
+    for metadata in args[1:]:
+        if isinstance(metadata, Arg):
+            arg_meta = metadata
+        elif isinstance(metadata, Option):
+            opt_meta = metadata
+        elif isinstance(metadata, WithConfig):
+            with_config = metadata
+
+    return inner_type, arg_meta, opt_meta, with_config
