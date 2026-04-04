@@ -84,7 +84,7 @@ No default → positional argument. Has default → `--template` option. Docstri
 
 ## Performance
 
-> Performance is not a primary focus of Xclif. If startup latency is a hard constraint, Python is probably the wrong tool for the job. These numbers are here for fun.
+> Performance is not a primary focus of Xclif. If startup latency is a hard constraint, Python is probably the wrong tool for the job. These numbers are here for fun. That being said, we do recommend switching to a manifest-based setup for large codebases.
 
 ### Startup time
 
