@@ -4,7 +4,7 @@ import textwrap
 from dataclasses import dataclass, field
 from typing import Callable
 
-from xclif.annotations import annotation2converter, is_list_type, unwrap_with_config
+from xclif.annotations import annotation2converter, is_list_type, unwrap_param_metadata
 from xclif.constants import INITIAL_LEFT_PADDING, NAME_DESC_PADDING, NO_DESC
 from xclif.definition import IMPLICIT_OPTIONS, Argument, Option
 from xclif.errors import UsageError
@@ -228,7 +228,8 @@ def extract_parameters(function: Callable) -> tuple[list[Argument], dict[str, Op
             if parameter.annotation is inspect.Parameter.empty:
                 msg = f"Variadic argument {name!r} has no type hint"
                 raise ValueError(msg)
-            converter = annotation2converter(parameter.annotation)
+            inner_type, _, _, _ = unwrap_param_metadata(parameter.annotation)
+            converter = annotation2converter(inner_type)
             if converter is None:
                 msg = "Unsupported type"
                 raise TypeError(msg)
@@ -250,9 +251,9 @@ def extract_parameters(function: Callable) -> tuple[list[Argument], dict[str, Op
             msg = f"Argument {name!r} has no type hint"
             raise ValueError(msg)
 
-        # Unwrap WithConfig[T] or Annotated[T, WithConfig(...)]
+        # Unwrap all Annotated metadata: Arg, Option (annotation), WithConfig
         raw_annotation = parameter.annotation
-        inner_type, with_config = unwrap_with_config(raw_annotation)
+        inner_type, arg_meta, opt_meta, with_config = unwrap_param_metadata(raw_annotation)
 
         converter = annotation2converter(inner_type)
         if converter is None:
@@ -260,12 +261,23 @@ def extract_parameters(function: Callable) -> tuple[list[Argument], dict[str, Op
             raise TypeError(msg)
         is_argument = parameter.default is inspect.Parameter.empty
         list_valued = is_list_type(inner_type)
+
         if is_argument:
-            arguments.append(Argument(name, converter, NO_DESC, config=with_config))
+            if opt_meta is not None:
+                msg = f"Option() used on argument parameter '{name}' — use Arg() instead"
+                raise ValueError(msg)
+            description = arg_meta.description if arg_meta and arg_meta.description else NO_DESC
+            display_name = arg_meta.name if arg_meta and arg_meta.name else name
+            arguments.append(Argument(display_name, converter, description, config=with_config))
         else:
+            if arg_meta is not None:
+                msg = f"Arg() used on option parameter '{name}' — use Option() instead"
+                raise ValueError(msg)
             default = parameter.default
             aliases = _auto_alias(name, taken_aliases)
-            options[name] = Option(name, converter, NO_DESC, default, is_list=list_valued, aliases=aliases, config=with_config)
+            description = opt_meta.description if opt_meta and opt_meta.description else NO_DESC
+            cli_name = opt_meta.name if opt_meta and opt_meta.name else name
+            options[name] = Option(cli_name, converter, description, default, is_list=list_valued, aliases=aliases, config=with_config)
     return arguments, options
 
 

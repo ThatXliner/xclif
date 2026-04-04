@@ -520,3 +520,54 @@ def test_unwrap_param_metadata_option_and_withconfig():
     wc = WithConfig()
     inner, arg_meta, opt_meta, with_config = unwrap_param_metadata(Annotated[str, o, wc])
     assert inner is str and arg_meta is None and opt_meta is o and with_config is wc
+
+
+# ---------------------------------------------------------------------------
+# extract_parameters — Arg/Option metadata
+# ---------------------------------------------------------------------------
+
+
+def test_arg_description_from_metadata():
+    def f(src: Annotated[str, Arg(description="Source file")]) -> None: ...
+    args, opts = extract_parameters(f)
+    assert args[0].description == "Source file"
+
+def test_arg_name_override():
+    def f(src: Annotated[str, Arg(name="SRC")]) -> None: ...
+    args, opts = extract_parameters(f)
+    assert args[0].name == "SRC"
+
+def test_option_description_from_metadata():
+    def f(dry_run: Annotated[bool, OptionMeta(description="Skip execution")] = False) -> None: ...
+    args, opts = extract_parameters(f)
+    assert opts["dry_run"].description == "Skip execution"
+
+def test_option_name_override_cli_flag():
+    def f(dry_run: Annotated[bool, OptionMeta(name="dry-run")] = False) -> None: ...
+    args, opts = extract_parameters(f)
+    assert "dry_run" in opts          # dict key stays as Python param name
+    assert opts["dry_run"].name == "dry-run"  # internal name = CLI flag override
+
+def test_option_metadata_on_argument_raises():
+    def f(src: Annotated[str, OptionMeta(description="x")]) -> None: ...
+    with pytest.raises(ValueError, match="Option\\(\\) used on argument"):
+        extract_parameters(f)
+
+def test_arg_metadata_on_option_raises():
+    def f(src: Annotated[str, Arg(description="x")] = "default") -> None: ...
+    with pytest.raises(ValueError, match="Arg\\(\\) used on option"):
+        extract_parameters(f)
+
+def test_arg_with_config_combined():
+    from xclif import WithConfig
+    def f(name: Annotated[str, Arg(description="A name"), WithConfig()]) -> None: ...
+    args, opts = extract_parameters(f)
+    assert args[0].description == "A name"
+    assert args[0].config is not None
+
+def test_option_with_config_combined():
+    from xclif import WithConfig
+    def f(greeting: Annotated[str, OptionMeta(description="Greeting"), WithConfig()] = "hi") -> None: ...
+    args, opts = extract_parameters(f)
+    assert opts["greeting"].description == "Greeting"
+    assert opts["greeting"].config is not None
