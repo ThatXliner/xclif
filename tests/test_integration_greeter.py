@@ -48,32 +48,24 @@ def test_root_help_returns_zero(root, capsys):
 # ---------------------------------------------------------------------------
 
 
-def test_greet_with_name_option(root, capsys, tmp_path, monkeypatch):
-    import greeter.routes.greet as greet_mod
-    monkeypatch.setattr(greet_mod, "_CONFIG_PATH", str(tmp_path / "no_config.json"))
+def test_greet_with_name_option(root, capsys):
     result = root.execute(["greet", "--name", "Alice"])
     assert result == 0
     assert "Alice" in capsys.readouterr().out
 
 
-def test_greet_default_template(root, capsys, tmp_path, monkeypatch):
-    import greeter.routes.greet as greet_mod
-    monkeypatch.setattr(greet_mod, "_CONFIG_PATH", str(tmp_path / "no_config.json"))
+def test_greet_default_template(root, capsys):
     root.execute(["greet", "--name", "Alice"])
     assert "Hello, Alice!" in capsys.readouterr().out
 
 
-def test_greet_custom_template(root, capsys, tmp_path, monkeypatch):
-    import greeter.routes.greet as greet_mod
-    monkeypatch.setattr(greet_mod, "_CONFIG_PATH", str(tmp_path / "no_config.json"))
+def test_greet_custom_template(root, capsys):
     root.execute(["greet", "--name", "Alice", "--template", "Hi, {}!"])
     assert "Hi, Alice!" in capsys.readouterr().out
 
 
-def test_greet_no_name_prints_error(root, capsys, tmp_path, monkeypatch):
-    # Patch config path to a non-existent file so no stored name is found.
-    import greeter.routes.greet as greet_mod
-    monkeypatch.setattr(greet_mod, "_CONFIG_PATH", str(tmp_path / "no_config.json"))
+def test_greet_no_name_prints_error(root, capsys):
+    # No name provided and no config data in context — should print error.
     result = root.execute(["greet"])
     assert result == 0
     assert "Error" in capsys.readouterr().out
@@ -131,16 +123,14 @@ def test_config_set_then_get_roundtrip(root, capsys, tmp_path, monkeypatch):
     assert "Hey, {}!" in out
 
 
-def test_greet_uses_stored_config(root, capsys, tmp_path, monkeypatch):
-    import greeter.routes.config.set as set_mod
-    import greeter.routes.greet as greet_mod
-    cfg_path = str(tmp_path / "config.json")
-    monkeypatch.setattr(set_mod, "_CONFIG_PATH", cfg_path)
-    monkeypatch.setattr(greet_mod, "_CONFIG_PATH", cfg_path)
-
-    root.execute(["config", "set", "--name", "Carol", "--template", "Howdy, {}!"])
-    capsys.readouterr()  # discard "Config saved" output
-    root.execute(["greet"])
+def test_greet_uses_stored_config(root, capsys, tmp_path):
+    # Write config data directly and pass it via context so WithConfig resolution works.
+    cfg_path = tmp_path / "config.json"
+    cfg_path.write_text('{"name": "Carol", "template": "Howdy, {}!"}')
+    from xclif.config import load_config
+    config_data = load_config(tmp_path)
+    context = {"config_data": config_data}
+    root.execute(["greet"], context=context)
     assert "Howdy, Carol!" in capsys.readouterr().out
 
 
@@ -180,9 +170,7 @@ def test_greet_help_short_flag(root, capsys):
     assert result == 0
 
 
-def test_verbose_before_subcommand(root, capsys, tmp_path, monkeypatch):
-    import greeter.routes.greet as greet_mod
-    monkeypatch.setattr(greet_mod, "_CONFIG_PATH", str(tmp_path / "no_config.json"))
+def test_verbose_before_subcommand(root, capsys):
     result = root.execute(["-v", "greet", "--name", "Alice"])
     assert result == 0
     assert "Alice" in capsys.readouterr().out
