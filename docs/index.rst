@@ -23,6 +23,7 @@ file-based routing and a decorator-based API.
    commands
    options
    flat-api
+   compiler
 
 .. toctree::
    :maxdepth: 1

@@ -99,6 +99,11 @@ def build_targets() -> list[Target]:
             cmd=[sys.executable, str(EXAMPLES_DIR / "xclif_greeter_flat.py")],
             invocations=INVOCATIONS,
         ),
+        Target(
+            name="Xclif (manifest)",
+            cmd=[sys.executable, "-m", "xclif_greeter_manifest"],
+            invocations=INVOCATIONS,
+        ),
     ]
 
 # ---------------------------------------------------------------------------
@@ -147,7 +152,7 @@ def print_comparison_table(all_results: list[Result]) -> None:
     for r in all_results:
         by_label.setdefault(r.label, {})[r.target] = r.mean_ms
 
-    frameworks = ["Click", "Typer", "Xclif", "Xclif (flat)"]
+    frameworks = ["Click", "Typer", "Xclif", "Xclif (flat)", "Xclif (manifest)"]
     col = 14
     header = f"{'Scenario':<28} " + "".join(f"{fw:>{col}}" for fw in frameworks) + f"  {'Winner'}"
     sep = "-" * len(header)
@@ -177,7 +182,7 @@ def print_speedup_table(all_results: list[Result]) -> None:
     for r in all_results:
         by_label.setdefault(r.label, {})[r.target] = r.mean_ms
 
-    header = f"{'Scenario':<28} {'Xclif vs Click':>18} {'Xclif vs Typer':>18} {'Flat vs Click':>18}"
+    header = f"{'Scenario':<28} {'Xclif vs Click':>18} {'Xclif vs Typer':>18} {'Flat vs Click':>18} {'Manifest vs Click':>20}"
     sep = "-" * len(header)
 
     print(sep)
@@ -188,14 +193,16 @@ def print_speedup_table(all_results: list[Result]) -> None:
 
     for label in ORDERED_LABELS:
         vals = by_label.get(label, {})
-        xclif = vals.get("Xclif")
-        flat  = vals.get("Xclif (flat)")
-        click  = vals.get("Click")
-        typer  = vals.get("Typer")
-        vs_click = f"{click  / xclif:.2f}x" if (xclif and click)  else "n/a"
-        vs_typer = f"{typer  / xclif:.2f}x" if (xclif and typer)  else "n/a"
-        flat_vs_click = f"{click / flat:.2f}x" if (flat and click) else "n/a"
-        print(f"{label:<28} {vs_click:>18} {vs_typer:>18} {flat_vs_click:>18}")
+        xclif    = vals.get("Xclif")
+        flat     = vals.get("Xclif (flat)")
+        manifest = vals.get("Xclif (manifest)")
+        click    = vals.get("Click")
+        typer    = vals.get("Typer")
+        vs_click      = f"{click / xclif:.2f}x"    if (xclif    and click) else "n/a"
+        vs_typer      = f"{typer / xclif:.2f}x"    if (xclif    and typer) else "n/a"
+        flat_vs_click = f"{click / flat:.2f}x"     if (flat     and click) else "n/a"
+        mani_vs_click = f"{click / manifest:.2f}x" if (manifest and click) else "n/a"
+        print(f"{label:<28} {vs_click:>18} {vs_typer:>18} {flat_vs_click:>18} {mani_vs_click:>20}")
 
     print(sep + "\n")
 

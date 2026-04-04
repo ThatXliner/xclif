@@ -20,6 +20,9 @@ classifiers = [
     "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
 ]
 
+[project.scripts]
+xclif = "xclif.__main__:cli"
+
 [project.urls]
 Homepage = "https://github.com/ThatXliner/xclif"
 Documentation = "https://xclif.readthedocs.io/en/latest/index.html"
