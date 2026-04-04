@@ -376,6 +376,8 @@ def _resolve_with_config(
     config_key = cfg.key if cfg.key else name
     value = resolve_key(config_data, config_key, _CONFIG_MISSING)
     if value is not _CONFIG_MISSING:
+        if isinstance(value, option_or_arg.converter):
+            return value
         try:
             return option_or_arg.converter(value)
         except (ValueError, TypeError):
