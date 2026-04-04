@@ -15,8 +15,7 @@ def check_with_config_conflicts(root: "Command", env_prefix: str) -> None:
     Raises ValueError with an actionable message if two parameters
     share the same config key or env var but have different types.
 
-    - Arguments and Options with a custom key are checked via config_key_map.
-    - Options without a custom key are checked via env_var_map.
+    Every WithConfig param is checked for both config key and env var conflicts.
     """
     config_key_map: dict[str, list[tuple[type, str, str]]] = {}
     env_var_map: dict[str, list[tuple[type, str, str]]] = {}
@@ -60,10 +59,8 @@ def _walk_commands(
 ) -> None:
     """Recursively collect WithConfig metadata from the command tree.
 
-    Every WithConfig param is recorded in config_key_map.
-    Options (not Arguments) are also recorded in env_var_map.
+    Every WithConfig param is recorded in both config_key_map and env_var_map.
     """
-    from xclif.definition import Argument
 
     for param in (*command.arguments, *command.options.values()):
         if param.config is None:
@@ -77,9 +74,8 @@ def _walk_commands(
         config_key = cfg.key if cfg.key else param.name
         config_key_map.setdefault(config_key, []).append(entry)
 
-        if not isinstance(param, Argument):
-            env_var = cfg.env if cfg.env else f"{env_prefix}_{param.name.upper()}"
-            env_var_map.setdefault(env_var, []).append(entry)
+        env_var = cfg.env if cfg.env else f"{env_prefix}_{param.name.upper()}"
+        env_var_map.setdefault(env_var, []).append(entry)
 
     for sub in command.subcommands.values():
         _walk_commands(sub, env_prefix, config_key_map, env_var_map)
