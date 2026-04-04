@@ -1,5 +1,7 @@
 """Unit tests for xclif.command and xclif.definition."""
 
+from typing import Annotated
+
 import pytest
 
 from xclif.command import Command, command, extract_parameters
@@ -436,3 +438,48 @@ def test_option_config_field_set():
     opt = Option("name", str, "desc", config=wc)
     assert opt.config is wc
     assert opt.config.env == "MY_NAME"
+
+
+# ---------------------------------------------------------------------------
+# extract_parameters — WithConfig detection
+# ---------------------------------------------------------------------------
+
+
+def test_extract_params_with_config_option():
+    def f(name: WithConfig[str] = "default") -> None: ...
+    args, opts = extract_parameters(f)
+    assert "name" in opts
+    assert opts["name"].converter is str
+    assert opts["name"].default == "default"
+    assert opts["name"].config is not None
+    assert opts["name"].config == WithConfig()
+
+
+def test_extract_params_with_config_argument():
+    def f(name: WithConfig[str]) -> None: ...
+    args, opts = extract_parameters(f)
+    assert len(args) == 1
+    assert args[0].converter is str
+    assert args[0].config is not None
+    assert args[0].config == WithConfig()
+
+
+def test_extract_params_with_config_annotated_override():
+    def f(name: Annotated[str, WithConfig(env="MY_NAME", key="user")] = "") -> None: ...
+    args, opts = extract_parameters(f)
+    assert opts["name"].config is not None
+    assert opts["name"].config.env == "MY_NAME"
+    assert opts["name"].config.key == "user"
+
+
+def test_extract_params_without_config_has_none():
+    def f(name: str = "default") -> None: ...
+    args, opts = extract_parameters(f)
+    assert opts["name"].config is None
+
+
+def test_extract_params_with_config_int():
+    def f(count: WithConfig[int] = 0) -> None: ...
+    args, opts = extract_parameters(f)
+    assert opts["count"].converter is int
+    assert opts["count"].config is not None

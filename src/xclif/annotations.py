@@ -1,8 +1,24 @@
-from typing import Callable, get_args, get_origin
+from typing import Annotated, Callable, get_args, get_origin
 
 type ScalarParameterTypes = str | int | float | bool
 type ParameterTypes = ScalarParameterTypes | list[ScalarParameterTypes]
 _default_converters = {str: str, int: int, float: float, bool: bool}
+
+
+def unwrap_with_config(annotation) -> tuple[type, "WithConfig | None"]:
+    """Unwrap an annotation that may be Annotated[T, WithConfig(...)].
+
+    Returns (inner_type, with_config_instance) or (annotation, None).
+    """
+    from xclif import WithConfig
+
+    if get_origin(annotation) is Annotated:
+        args = get_args(annotation)
+        inner_type = args[0]
+        for metadata in args[1:]:
+            if isinstance(metadata, WithConfig):
+                return inner_type, metadata
+    return annotation, None
 
 
 def annotation2converter[T: ParameterTypes, Y](x: T) -> None | Callable[[T], Y]:
