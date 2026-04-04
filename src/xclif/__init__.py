@@ -48,6 +48,8 @@ class Cli:
     env_prefix: str | None = None
     config_name: str | None = None
     _config_data: dict = field(default_factory=dict, init=False, repr=False)
+    _config_dir: "Path | None" = field(default=None, init=False, repr=False)
+    _finalized: bool = field(default=False, init=False, repr=False)
 
     def __post_init__(self) -> None:
         from pathlib import Path
@@ -64,8 +66,8 @@ class Cli:
             self.config_name = self.root_command.name
 
         # Load config file
-        config_dir = Path(platformdirs.user_config_dir(self.config_name))
-        self._config_data = load_config(config_dir)
+        self._config_dir = Path(platformdirs.user_config_dir(self.config_name))
+        self._config_data = load_config(self._config_dir)
 
         # Add completions subcommand
         self.root_command._assert_no_arguments(adding="completions")
@@ -79,17 +81,28 @@ class Cli:
         )
         self.root_command.version = self.version
 
-        # Auto-inject config subcommand if any WithConfig params exist
-        from xclif.config_commands import _has_with_config, make_config_command
+    def _finalize(self) -> None:
+        """Run config injection and validation after all subcommands are added.
 
+        Called automatically by ``from_routes``, ``from_manifest``, and
+        ``__call__``. Safe to call multiple times (idempotent).
+        """
+        if self._finalized:
+            return
+        self._finalized = True
+
+        from xclif.config_commands import _has_with_config, make_config_command
+        from xclif.validation import check_with_config_conflicts
+
+        # Auto-inject config subcommand if any WithConfig params exist
         if "config" not in self.root_command.subcommands and _has_with_config(self.root_command):
-            self.root_command.subcommands["config"] = make_config_command(config_dir)
+            self.root_command.subcommands["config"] = make_config_command(self._config_dir)
 
         # Validate WithConfig conflicts
-        from xclif.validation import check_with_config_conflicts
         check_with_config_conflicts(self.root_command, self.env_prefix)
 
     def __call__(self) -> NoReturn:
+        self._finalize()
         context = {"env_prefix": self.env_prefix, "config_data": self._config_data}
         sys.exit(self.root_command.execute(context=context))
 
@@ -181,4 +194,5 @@ class Cli:
                 raise ValueError(msg)
             _name, function = members[0]
             output.add_command(path.removeprefix(root_path).split("."), function)
+        output._finalize()
         return output

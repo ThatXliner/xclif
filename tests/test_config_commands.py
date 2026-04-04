@@ -100,6 +100,7 @@ def test_cli_auto_injects_config_when_with_config_exists(tmp_path):
     root = _make_root_with_config_option()
     with patch("platformdirs.user_config_dir", return_value=str(tmp_path)):
         cli = Cli(root_command=root)
+    cli._finalize()
     assert "config" in cli.root_command.subcommands
     config_cmd = cli.root_command.subcommands["config"]
     assert "get" in config_cmd.subcommands
@@ -117,6 +118,7 @@ def test_cli_skips_config_injection_when_already_exists(tmp_path):
     })
     with patch("platformdirs.user_config_dir", return_value=str(tmp_path)):
         cli = Cli(root_command=root)
+    cli._finalize()
     assert "get" not in cli.root_command.subcommands["config"].subcommands
 
 
@@ -126,4 +128,5 @@ def test_cli_no_config_injection_without_with_config(tmp_path):
     })
     with patch("platformdirs.user_config_dir", return_value=str(tmp_path)):
         cli = Cli(root_command=root)
+    cli._finalize()
     assert "config" not in cli.root_command.subcommands
