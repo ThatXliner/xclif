@@ -100,28 +100,6 @@ Return value
 
 The function should return an ``int`` exit code, or ``None`` (treated as ``0``).
 
-Subcommands (decorator API, not recommended)
---------------------------------------------
-
-.. code-block:: python
-
-   from xclif.command import Command
-
-   root = Command("myapp", lambda: 0)
-
-   @root.command()
-   def greet(name: str) -> None:
-       """Greet someone."""
-       print(f"Hello, {name}!")
-
-   # Nested group
-   config = root.group("config")
-
-   @config.command()
-   def get(key: str) -> None:
-       """Get a config value."""
-       ...
-
 Implicit options
 ----------------
 
@@ -137,3 +115,9 @@ Both ``--verbose`` and ``--colors`` **cascade**: if set at any level, the value 
 automatically inherited by all subcommands. So ``myapp --verbose subcommand`` and
 ``myapp subcommand --verbose`` are equivalent, and ``myapp -vv subcommand`` gives
 the subcommand a verbosity level of 2.
+
+Building subcommand trees imperatively
+---------------------------------------
+
+If you need to build the command tree in code rather than via file-based routing, see
+:doc:`flat-api`.

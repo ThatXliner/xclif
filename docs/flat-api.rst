@@ -33,17 +33,17 @@ using :class:`~xclif.command.Command` methods directly.
        """Greet someone."""
        print(f"{greeting}, {name}!")
 
-   config = root.group("config")
+   server = root.group("server")
 
-   @config.command()
-   def set(key: str, value: str) -> None:
-       """Set a config value."""
-       print(f"Set {key}={value}")
+   @server.command()
+   def start(host: str = "localhost", port: int = 8080) -> None:
+       """Start the server."""
+       print(f"Starting on {host}:{port}")
 
-   @config.command("get")
-   def get_cmd(key: str) -> None:
-       """Get a config value."""
-       print(f"Get {key}")
+   @server.command()
+   def stop() -> None:
+       """Stop the server."""
+       print("Stopping server")
 
    if __name__ == "__main__":
        cli()
@@ -71,10 +71,10 @@ Creates an empty intermediate command (a *group*) and attaches it as a subcomman
 
 .. code-block:: python
 
-   config = root.group("config")
+   server = root.group("server")
 
-   @config.command()
-   def set(key: str, value: str) -> None: ...
+   @server.command()
+   def start(host: str = "localhost") -> None: ...
 
 Groups have no run logic of their own — invoking them without a subcommand prints help.
 A group cannot have positional arguments.
