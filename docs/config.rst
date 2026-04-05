@@ -13,7 +13,9 @@ these sources in order:
 Basic usage
 -----------
 
-Annotate parameters with ``WithConfig[T]`` to opt into config/env resolution:
+Annotate parameters with ``WithConfig[T]`` to opt into config/env resolution.
+``WithConfig[str]`` is sugar for ``Annotated[str, WithConfig()]`` — both forms are
+equivalent:
 
 .. code-block:: python
 
