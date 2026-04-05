@@ -10,6 +10,8 @@ The greeter CLI has:
 """
 
 import json
+from unittest.mock import patch
+
 import pytest
 
 from greeter import routes
@@ -150,7 +152,8 @@ def test_completions_subcommand_exists(cli):
 
 
 def test_completions_executes(cli, capsys):
-    result = cli.root_command.execute(["completions"])
+    with patch("sys.stdout.isatty", return_value=False):
+        result = cli.root_command.execute(["completions", "bash"])
     assert result == 0
 
 

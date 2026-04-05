@@ -1,7 +1,7 @@
 """Shell completion script generators for xclif applications."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
     from xclif.command import Command
@@ -150,35 +150,41 @@ def generate_fish(root: Command) -> str:
 
 
 def make_completions_command(root: Command) -> "Command":
-    """Build the completions subcommand tree."""
-    from xclif.command import Command
+    """Build the completions subcommand."""
+    import sys
 
-    def bash_run() -> int:
-        """Generate bash completion script"""
-        print(generate_bash(root))
+    import rich
+
+    from xclif.command import Command, extract_parameters
+
+    _INSTALL_HINTS = {
+        "bash": "~/.local/share/bash-completion/completions/{app}",
+        "zsh": "~/.zsh/completions/_{app}",
+        "fish": "~/.config/fish/completions/{app}.fish",
+    }
+
+    _generators = {
+        "bash": generate_bash,
+        "zsh": generate_zsh,
+        "fish": generate_fish,
+    }
+
+    def completions_run(shell: Literal["bash", "zsh", "fish"]) -> int:
+        """Generate shell completion script
+
+        Prints the completion script for SHELL to stdout.
+        Pipe it to the appropriate location for your shell.
+        """
+        script = _generators[shell](root)
+        print(script, end="")
+        if sys.stdout.isatty():
+            path = _INSTALL_HINTS[shell].format(app=root.name)
+            rich.print(
+                f"[dim]# To install, run:[/dim]\n"
+                f"[bold]  {root.name} completions {shell} > {path}[/bold]",
+                file=sys.stderr,
+            )
         return 0
 
-    def zsh_run() -> int:
-        """Generate zsh completion script"""
-        print(generate_zsh(root))
-        return 0
-
-    def fish_run() -> int:
-        """Generate fish completion script"""
-        print(generate_fish(root))
-        return 0
-
-    def completions_run() -> int:
-        """Generate shell completion scripts"""
-        return 0
-
-    completions = Command(
-        "completions",
-        completions_run,
-        subcommands={
-            "bash": Command("bash", bash_run),
-            "zsh": Command("zsh", zsh_run),
-            "fish": Command("fish", fish_run),
-        },
-    )
-    return completions
+    arguments, options = extract_parameters(completions_run)
+    return Command("completions", completions_run, arguments, options)
