@@ -132,6 +132,12 @@ class Cli:
         sys.exit(self.root_command.execute(context=context))
 
     def add_command(self, path: list[str], command: Command) -> None:
+        """Mount *command* at the given path within the command tree.
+
+        ``path`` is a list of names from the root downward, e.g.
+        ``["config", "set"]`` mounts *command* as ``myapp config set``.
+        Intermediate groups are created automatically if they don't exist.
+        """
         cursor = self.root_command
         for part in path[:-1]:
             if cursor.arguments:

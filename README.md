@@ -99,7 +99,7 @@ Benchmarked on macOS (Apple Silicon, Python 3.12, 30 iterations + 3 warmup, wall
 | `--help` | **29.2** ✅ | 82.2 | 59.6 | 46.6 | 47.2 |
 | `greet --help` | **29.7** ✅ | 83.8 | 59.3 | 46.8 | 47.6 |
 
-**Xclif (flat)** uses the decorator API (`Command.command()` / `Command.group()`) instead of `from_routes`, and is the fastest framework for command execution — edging out Click by ~1–2 ms. The `--help` gap (~20 ms vs Click) is Rich's lazy-import cost.
+**Xclif (flat)** uses the decorator API (`Command.command()` / `Command.group()`) instead of `from_routes`, and is the fastest framework for command execution — edging out Click by ~1–2 ms. The `--help` gap (~20 ms vs Click) is Rich's lazy-import cost. If better scaling is desirable for large codebases, the [manifest compiler](#from_manifest) pre-builds a static manifest that matches flat API performance without requiring manual command registration.
 
 **Typer** is the slowest overall: it wraps Click with extra overhead, and its Rich-based help rendering adds ~52–53 ms on `--help` scenarios.
 

@@ -4,6 +4,8 @@ import textwrap
 from dataclasses import dataclass, field
 from typing import Callable
 
+__all__ = ["Command", "command", "extract_parameters"]
+
 from xclif.annotations import annotation2converter, is_list_type, unwrap_param_metadata
 from xclif.constants import INITIAL_LEFT_PADDING, NAME_DESC_PADDING, NO_DESC
 from xclif.definition import IMPLICIT_OPTIONS, Argument, Option
@@ -167,6 +169,13 @@ class Command:
         _rprint(help_text)
 
     def command(self, name: str | None = None) -> "Callable[[Callable], Command]":
+        """Register a subcommand on this command using the decorator API.
+
+        This is the flat API alternative to file-based routing. For large
+        codebases where better scaling is desirable, consider the manifest
+        compiler (``xclif compile``) instead, which pre-builds a static
+        manifest and avoids the filesystem walk cost of ``Cli.from_routes``.
+        """
         def _decorator(func: Callable) -> "Command":
             cmd = command(name)(func)
             self._assert_no_arguments(adding=cmd.name)
@@ -175,12 +184,25 @@ class Command:
         return _decorator
 
     def group(self, name: str) -> "Command":
+        """Create an empty subcommand group on this command.
+
+        Part of the flat decorator API. For large codebases where better
+        scaling is desirable, consider the manifest compiler
+        (``xclif compile``) to pre-build a static manifest instead.
+        """
         self._assert_no_arguments(adding=name)
         cmd = Command(name, lambda: 0)
         self.subcommands[name] = cmd
         return cmd
 
     def execute(self, args: list[str] | None = None, context: dict | None = None) -> int:
+        """Parse *args* and run the appropriate subcommand, returning an exit code.
+
+        When *args* is ``None``, ``sys.argv[1:]`` is used. Pass an explicit
+        list for testing without subprocess overhead::
+
+            assert my_command.execute(["greet", "Alice"]) == 0
+        """
         try:
             return parse_and_execute_impl(sys.argv[1:] if args is None else args, self, context)
         except UsageError as exc:
