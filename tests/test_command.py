@@ -571,3 +571,31 @@ def test_option_with_config_combined():
     args, opts = extract_parameters(f)
     assert opts["greeting"].description == "Greeting"
     assert opts["greeting"].config is not None
+
+
+# ---------------------------------------------------------------------------
+# Literal type support
+# ---------------------------------------------------------------------------
+
+from typing import Literal
+
+
+def test_literal_argument_has_choices():
+    def f(shell: Literal["bash", "zsh", "fish"]) -> None: ...
+    args, opts = extract_parameters(f)
+    assert len(args) == 1
+    assert args[0].choices == ["bash", "zsh", "fish"]
+
+
+def test_literal_argument_converter_validates():
+    def f(shell: Literal["bash", "zsh", "fish"]) -> None: ...
+    args, _ = extract_parameters(f)
+    assert args[0].converter("bash") == "bash"
+    with pytest.raises(ValueError):
+        args[0].converter("nope")
+
+
+def test_literal_option_has_choices():
+    def f(shell: Literal["bash", "zsh"] = "bash") -> None: ...
+    _, opts = extract_parameters(f)
+    assert opts["shell"].choices == ["bash", "zsh"]

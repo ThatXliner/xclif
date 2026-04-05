@@ -52,7 +52,7 @@ class Command:
             + f"[b][u]Usage[/u]: {self.name}[/] [OPTIONS]"
             + (" " if self.arguments else "")
             + " ".join(
-                f"[{x.name.upper()}{'...' if x.variadic else ''}]"
+                f"[{'|'.join(x.choices) if x.choices else x.name.upper()}{'...' if x.variadic else ''}]"
                 for x in self.arguments
             )
             + "\n\n"
@@ -86,7 +86,7 @@ class Command:
                 "[b][u]Arguments[/u]:[/]\n"
                 + "\n".join(
                     " " * INITIAL_LEFT_PADDING
-                    + f"[b][{x.name}{'...' if x.variadic else ''}][/b]".ljust(
+                    + f"[b][{'|'.join(x.choices) if x.choices else x.name}{'...' if x.variadic else ''}][/b]".ljust(
                         pad_length + NAME_DESC_PADDING
                     )
                     + f"[i]{x.description}[/]"
@@ -114,7 +114,7 @@ class Command:
             + f"[b][u]Usage[/u]: {self.name}[/] [OPTIONS]"
             + (" " if self.arguments else "")
             + " ".join(
-                f"[{x.name.upper()}{'...' if x.variadic else ''}]"
+                f"[{'|'.join(x.choices) if x.choices else x.name.upper()}{'...' if x.variadic else ''}]"
                 for x in self.arguments
             )
             + "\n\n"
@@ -149,7 +149,7 @@ class Command:
                 "[b][u]Arguments[/u]:[/]\n"
                 + "\n".join(
                     " " * INITIAL_LEFT_PADDING
-                    + f"[b][{x.name}{'...' if x.variadic else ''}][/b]".ljust(
+                    + f"[b][{'|'.join(x.choices) if x.choices else x.name}{'...' if x.variadic else ''}][/b]".ljust(
                         pad_length + NAME_DESC_PADDING
                     )
                     + textwrap.indent(x.description, " " * indent_width).strip()
@@ -200,6 +200,11 @@ class Command:
     @property
     def short_description(self) -> str:
         return self.description.split("\n")[0]
+
+
+def _get_choices(converter) -> list[str] | None:
+    """Return choices list if converter is a Literal converter, else None."""
+    return getattr(converter, "__choices__", None)
 
 
 def _auto_alias(name: str, taken: set[str]) -> list[str]:
@@ -268,7 +273,7 @@ def extract_parameters(function: Callable) -> tuple[list[Argument], dict[str, Op
                 raise ValueError(msg)
             description = arg_meta.description if arg_meta and arg_meta.description else NO_DESC
             display_name = arg_meta.name if arg_meta and arg_meta.name else name
-            arguments.append(Argument(display_name, converter, description, config=with_config))
+            arguments.append(Argument(display_name, converter, description, config=with_config, choices=_get_choices(converter)))
         else:
             if arg_meta is not None:
                 msg = f"Arg() used on option parameter '{name}' — use Option() instead"
@@ -277,7 +282,7 @@ def extract_parameters(function: Callable) -> tuple[list[Argument], dict[str, Op
             description = opt_meta.description if opt_meta and opt_meta.description else NO_DESC
             cli_name = opt_meta.name if opt_meta and opt_meta.name else name
             aliases = _auto_alias(cli_name, taken_aliases)
-            options[name] = Option(cli_name, converter, description, default, is_list=list_valued, aliases=aliases, config=with_config)
+            options[name] = Option(cli_name, converter, description, default, is_list=list_valued, aliases=aliases, config=with_config, choices=_get_choices(converter))
     return arguments, options
 
 

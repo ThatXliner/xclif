@@ -14,6 +14,7 @@ class Argument[T]:
     description: str
     variadic: bool = False
     config: WithConfig | None = None
+    choices: list[str] | None = None
 
     @property
     def short_description(self) -> str:
@@ -30,6 +31,7 @@ class Option[T]:
     is_list: bool = False
     aliases: list[str] = field(default_factory=list)
     config: WithConfig | None = None
+    choices: list[str] | None = None
 
     @property
     def short_description(self) -> str:
