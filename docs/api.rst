@@ -30,9 +30,3 @@ xclif.errors
    :members:
    :show-inheritance:
 
-xclif.compiler
---------------
-
-.. automodule:: xclif.compiler
-   :members:
-   :show-inheritance:

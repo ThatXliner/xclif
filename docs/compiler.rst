@@ -153,4 +153,3 @@ API reference
 .. automodule:: xclif.compiler
    :members:
    :show-inheritance:
-   :no-index:
