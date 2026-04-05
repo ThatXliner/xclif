@@ -8,7 +8,16 @@ from xclif.command import Command, command
 from xclif.definition import Option as _DefinitionOption
 from xclif.importer import get_modules
 
-__all__ = ["Arg", "Cli", "Option", "WithConfig", "command"]
+try:
+    from importlib.metadata import version as _version, PackageNotFoundError as _PackageNotFoundError
+    try:
+        __version__ = _version("xclif")
+    except _PackageNotFoundError:
+        __version__ = "unknown"
+except Exception:
+    __version__ = "unknown"
+
+__all__ = ["Arg", "Cli", "Option", "WithConfig", "__version__", "command"]
 
 
 @dataclass(frozen=True)
