@@ -23,6 +23,7 @@ file-based routing and a decorator-based API.
    commands
    options
    config
+   completions
    flat-api
    compiler
 
