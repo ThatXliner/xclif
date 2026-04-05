@@ -146,7 +146,9 @@ display names and flag names:
 - ``name`` — overrides the CLI flag name (e.g. ``dry-run`` → ``--dry-run``). The Python
   kwarg name passed to the function is unchanged.
 
-Both can be combined with ``WithConfig``:
+Both can be combined with ``WithConfig``. Note that ``WithConfig[str]`` is sugar for
+``Annotated[str, WithConfig()]`` — when combining with ``Arg`` or ``Option`` you must
+use the full ``Annotated`` form:
 
 .. code-block:: python
 
