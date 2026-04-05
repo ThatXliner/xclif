@@ -27,10 +27,10 @@ myapp/
 └── routes/
     ├── __init__.py       →  myapp
     ├── greet.py          →  myapp greet
-    └── config/
-        ├── __init__.py   →  myapp config
-        ├── get.py        →  myapp config get
-        └── set.py        →  myapp config set
+    └── server/
+        ├── __init__.py   →  myapp server
+        ├── start.py      →  myapp server start
+        └── stop.py       →  myapp server stop
 ```
 
 No registration. No boilerplate assembly. Drop a file in the right folder and the command exists. A developer reading the filesystem immediately understands the CLI's surface area.

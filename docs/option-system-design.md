@@ -73,16 +73,16 @@ The parser scans all tokens at the current level, collecting positional argument
 A value option consumes the *next token* as its value. This creates an ambiguity when that next token happens to be the name of a known subcommand:
 
 ```
-myapp config --format json
+myapp server --format json
 ```
 
-If `json` is also the name of a child subcommand of `config`, how is this parsed?
+If `json` is also the name of a child subcommand of `server`, how is this parsed?
 
-**Rule: options are greedy.** If `--format` is a value option declared on `config`, the token immediately following it is always consumed as its value — even if that token is a valid subcommand name. The subcommand `json` is not invoked.
+**Rule: options are greedy.** If `--format` is a value option declared on `server`, the token immediately following it is always consumed as its value — even if that token is a valid subcommand name. The subcommand `json` is not invoked.
 
 ```
-myapp config --format json        # json is the value of --format
-myapp config --format json json   # json is the value of --format; the second json invokes the subcommand
+myapp server --format json        # json is the value of --format
+myapp server --format json json   # json is the value of --format; the second json invokes the subcommand
 ```
 
 This is unambiguous because the parser knows the arity of every option before it starts reading. There is no lookahead needed — if `--format` takes a value, the next token is the value, full stop.
@@ -120,10 +120,10 @@ myapp run -- --some-flag-for-subprocess
 Xclif uses **lexical scoping** for options. An option belongs to the command level at which it is declared. The parser reads left to right; when it sees a subcommand name, it hands off the remainder of the token stream to that subcommand's parser.
 
 ```
-myapp --verbose config --format json set KEY VALUE
-  ↑                ↑                 ↑
-  root-level       config-level      set-level
-  option           option            (positional args)
+myapp --verbose server --format json start KEY VALUE
+  ↑                ↑                  ↑
+  root-level       server-level       start-level
+  option           option             (positional args)
 ```
 
 Options parsed at a parent level are **not** passed as kwargs to child commands' `run()` functions — they belong to the parent's scope. However, options declared as **cascading** are forwarded through the call hierarchy as context, not as function arguments (see implementation below).
@@ -141,8 +141,8 @@ Cascading options are options whose effect is meaningful at every level below wh
 
 A parent command (one that has subcommands) can have its own `run` function. This function is invoked when:
 
-1. The user calls the parent with no subcommand and no arguments (e.g. `myapp config` alone).
-2. The user explicitly invokes it via flags only (e.g. `myapp config --help`).
+1. The user calls the parent with no subcommand and no arguments (e.g. `myapp server` alone).
+2. The user explicitly invokes it via flags only (e.g. `myapp server --help`).
 
 If no explicit `run` is defined on a namespace command (i.e. the `__init__.py` defines `@command()` with an empty body), the default action is to **print short help**. This is the most useful default — the user typed a partial command and needs to know what to do next.
 
@@ -204,4 +204,4 @@ class Command:
 Should users be able to declare their own cascading options (e.g. `--dry-run` at root that every subcommand respects)? **Proposed: yes, via `Annotated` metadata in a future milestone. Out of scope for 0.1.0.**
 
 **Q3: Parent command with both a `run` and subcommands**
-Is it valid for a parent to have a non-trivial `run` and also have subcommands? E.g. `myapp config` does something useful AND `myapp config set` exists. **Proposed: yes, this is valid and useful. The `run` is the default action when no subcommand is given.**
+Is it valid for a parent to have a non-trivial `run` and also have subcommands? E.g. `myapp server` does something useful AND `myapp server start` exists. **Proposed: yes, this is valid and useful. The `run` is the default action when no subcommand is given.**
