@@ -2,6 +2,7 @@ import inspect
 import sys
 import types
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import NoReturn, Self
 
 from xclif.command import Command, command
@@ -86,8 +87,6 @@ class Cli:
     _finalized: bool = field(default=False, init=False, repr=False)
 
     def __post_init__(self) -> None:
-        from pathlib import Path
-
         import platformdirs
 
         from xclif.completions import make_completions_command
