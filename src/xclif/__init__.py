@@ -9,14 +9,7 @@ from xclif.command import Command, command
 from xclif.definition import Option as _DefinitionOption
 from xclif.importer import get_modules
 
-try:
-    from importlib.metadata import version as _version, PackageNotFoundError as _PackageNotFoundError
-    try:
-        __version__ = _version("xclif")
-    except _PackageNotFoundError:
-        __version__ = "unknown"
-except Exception:
-    __version__ = "unknown"
+__version__ = "0.2.0"
 
 __all__ = ["Arg", "Cli", "Option", "WithConfig", "__version__", "command"]
 
@@ -34,6 +27,7 @@ class WithConfig:
 
     def __class_getitem__(cls, item: type) -> type:
         from typing import Annotated
+
         return Annotated[item, cls()]
 
 
@@ -68,6 +62,7 @@ class Option:
 def _detect_version(package_name: str) -> str | None:
     """Try to auto-detect the version from installed package metadata."""
     import importlib.metadata
+
     try:
         return importlib.metadata.version(package_name)
     except importlib.metadata.PackageNotFoundError:
@@ -110,7 +105,9 @@ class Cli:
 
         # Inject --version as an implicit option on root command only
         self.root_command.implicit_options["version"] = _DefinitionOption(
-            "version", bool, "Print program version and exit",
+            "version",
+            bool,
+            "Print program version and exit",
         )
         self.root_command.version = self.version
 
@@ -128,8 +125,12 @@ class Cli:
         from xclif.validation import check_with_config_conflicts
 
         # Auto-inject config subcommand if any WithConfig params exist
-        if "config" not in self.root_command.subcommands and _has_with_config(self.root_command):
-            self.root_command.subcommands["config"] = make_config_command(self._config_dir)
+        if "config" not in self.root_command.subcommands and _has_with_config(
+            self.root_command
+        ):
+            self.root_command.subcommands["config"] = make_config_command(
+                self._config_dir
+            )
 
         # Validate WithConfig conflicts
         check_with_config_conflicts(self.root_command, self.env_prefix)
@@ -151,9 +152,7 @@ class Cli:
             if cursor.arguments:
                 msg = "Cannot add subcommands to a command with arguments"
                 raise ValueError(msg)
-            cursor = cursor.subcommands.setdefault(
-                part, Command(part, lambda: 0)
-            )
+            cursor = cursor.subcommands.setdefault(part, Command(part, lambda: 0))
         cursor._assert_no_arguments(adding=command.name)
         cursor.subcommands[command.name] = command
 
@@ -223,7 +222,12 @@ class Cli:
         if root_command.name is None:
             msg = "Root command must have a name (it will determine the program name)"
             raise ValueError(msg)
-        output = cls(root_command=root_command, version=version, env_prefix=env_prefix, config_name=config_name)
+        output = cls(
+            root_command=root_command,
+            version=version,
+            env_prefix=env_prefix,
+            config_name=config_name,
+        )
         for path, module in get_modules(routes):
             members = inspect.getmembers(module, lambda x: isinstance(x, Command))
             if not members:
