@@ -139,16 +139,3 @@ even when the user runs a completely unrelated command.
 **Prefix private modules with ``_`` (future support).** Xclif does not yet filter private modules,
 but following the convention now means your code will benefit automatically once support is added.
 Until then, keep helper code outside the routes package entirely.
-
-Plugin discovery (planned)
---------------------------
-
-Third-party packages will be able to contribute subcommands via Python entry points:
-
-.. code-block:: toml
-
-   # In a third-party package's pyproject.toml
-   [project.entry-points."myapp.commands"]
-   my-plugin = "myplugin.routes:root"
-
-This is not yet implemented.

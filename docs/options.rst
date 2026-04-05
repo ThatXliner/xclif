@@ -85,7 +85,8 @@ Xclif auto-generates a single-char short alias for each option using the first a
 character of the option name. ``--template`` → ``-t``, ``--release`` → ``-r``, etc.
 
 If the first character is taken by an implicit option (``-h``, ``-v``), Xclif tries subsequent
-characters. Explicit alias control is planned for 0.2.0 via ``Annotated`` metadata.
+characters. Use ``Option(name=...)`` inside ``Annotated`` to override the flag name explicitly —
+see :ref:`per-parameter metadata <per-param-metadata>` below.
 
 Interspersed options
 --------------------
@@ -110,6 +111,8 @@ files when not supplied on the CLI:
        ...
 
 See :doc:`config` for full details on priority order, env var naming, and config file format.
+
+.. _per-param-metadata:
 
 Per-parameter metadata
 ----------------------
