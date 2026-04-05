@@ -152,6 +152,8 @@ Both can be combined with ``WithConfig``:
 
    name: Annotated[str, Arg(description="Person to greet"), WithConfig()]
 
+.. _constrained-choices:
+
 Constrained choices
 -------------------
 

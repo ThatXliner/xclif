@@ -34,12 +34,6 @@ xclif.annotations
    :undoc-members:
    :show-inheritance:
 
-.. autoclass:: xclif.Arg
-   :members:
-
-.. autoclass:: xclif.Option
-   :members:
-
 xclif.errors
 ------------
 
