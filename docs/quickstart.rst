@@ -16,10 +16,10 @@ Your directory structure *is* your command tree:
    └── routes/
        ├── __init__.py       →  myapp
        ├── greet.py          →  myapp greet
-       └── config/
-           ├── __init__.py   →  myapp config
-           ├── get.py        →  myapp config get
-           └── set.py        →  myapp config set
+       └── server/
+           ├── __init__.py   →  myapp server
+           ├── start.py      →  myapp server start
+           └── stop.py       →  myapp server stop
 
 Step 2: Write commands as functions
 ------------------------------------

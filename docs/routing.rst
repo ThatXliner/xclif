@@ -14,10 +14,10 @@ Given this package layout:
    myapp/routes/
    ├── __init__.py       →  myapp          (root command)
    ├── greet.py          →  myapp greet
-   └── config/
-       ├── __init__.py   →  myapp config   (group command)
-       ├── get.py        →  myapp config get
-       └── set.py        →  myapp config set
+   └── server/
+       ├── __init__.py   →  myapp server   (group command)
+       ├── start.py      →  myapp server start
+       └── stop.py       →  myapp server stop
 
 Each module must export exactly one :class:`~xclif.command.Command` object (typically created
 with the :func:`~xclif.command.command` decorator):
@@ -85,13 +85,13 @@ The ``__init__.py`` should define the group's help text and any group-level opti
 
 .. code-block:: python
 
-   # routes/config/__init__.py
+   # routes/server/__init__.py
    from xclif import command
 
    @command()
    def _() -> None:
-       """Manage configuration."""
-       # Called when user types `myapp config` with no subcommand.
+       """Manage the server."""
+       # Called when user types `myapp server` with no subcommand.
        # Default behaviour: print help.
 
 .. note::

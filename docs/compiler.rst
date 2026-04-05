@@ -82,10 +82,10 @@ layout:
    myapp/routes/
    ├── __init__.py        →  myapp          (root)
    ├── greet.py           →  myapp greet
-   └── config/
-       ├── __init__.py    →  myapp config   (group)
-       ├── get.py         →  myapp config get
-       └── set.py         →  myapp config set
+   └── server/
+       ├── __init__.py    →  myapp server   (group)
+       ├── start.py       →  myapp server start
+       └── stop.py        →  myapp server stop
 
 The compiler writes:
 
@@ -101,17 +101,17 @@ The compiler writes:
    def _build_cli(version: str | None = None, env_prefix: str | None = None, config_name: str | None = None) -> Cli:
        from myapp.routes import _ as _root
        from myapp.routes.greet import _ as _myapp_routes_greet
-       from myapp.routes.config import _ as _myapp_routes_config
-       from myapp.routes.config.get import _ as _myapp_routes_config_get
-       from myapp.routes.config.set import _ as _myapp_routes_config_set
+       from myapp.routes.server import _ as _myapp_routes_server
+       from myapp.routes.server.start import _ as _myapp_routes_server_start
+       from myapp.routes.server.stop import _ as _myapp_routes_server_stop
 
        root = _root
 
        cli = Cli(root_command=root, version=version, env_prefix=env_prefix, config_name=config_name)
-       cli.add_command(['config'], _myapp_routes_config)
+       cli.add_command(['server'], _myapp_routes_server)
        cli.add_command(['greet'], _myapp_routes_greet)
-       cli.add_command(['config', 'get'], _myapp_routes_config_get)
-       cli.add_command(['config', 'set'], _myapp_routes_config_set)
+       cli.add_command(['server', 'start'], _myapp_routes_server_start)
+       cli.add_command(['server', 'stop'], _myapp_routes_server_stop)
        cli._finalize()
        return cli
 

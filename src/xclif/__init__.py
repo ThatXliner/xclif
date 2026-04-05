@@ -144,7 +144,7 @@ class Cli:
         """Mount *command* at the given path within the command tree.
 
         ``path`` is a list of names from the root downward, e.g.
-        ``["config", "set"]`` mounts *command* as ``myapp config set``.
+        ``["server", "start"]`` mounts *command* as ``myapp server start``.
         Intermediate groups are created automatically if they don't exist.
         """
         cursor = self.root_command
