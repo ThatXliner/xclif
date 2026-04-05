@@ -19,14 +19,17 @@ Defining a command
 
 This produces::
 
+   Greet someone.
    Usage: greet [OPTIONS] [NAME]
 
    Arguments:
-     [NAME]    (no description)
+     [name]        No description
 
    Options:
-     --loud, -l    (no description)
-     --help, -h    Show this message and exit
+     --help, -h     Show this help message and exit
+     --verbose, -v  Increase log verbosity (repeatable up to 3 times)
+     --colors       Control color output (always|never|auto)
+     --loud, -l     No description
 
 Command naming
 --------------
