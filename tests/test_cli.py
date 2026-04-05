@@ -34,6 +34,15 @@ def test_cli_auto_adds_completions_command():
     assert "completions" in cli.root_command.subcommands
 
 
+def test_cli_completions_is_single_command_with_shell_arg():
+    root = Command("myapp", lambda: 0)
+    cli = Cli(root_command=root)
+    comp = cli.root_command.subcommands["completions"]
+    assert comp.subcommands == {}
+    assert len(comp.arguments) == 1
+    assert comp.arguments[0].choices == ["bash", "zsh", "fish"]
+
+
 def test_cli_add_command_single_level():
     root = Command("myapp", lambda: 0)
     cli = Cli(root_command=root)
