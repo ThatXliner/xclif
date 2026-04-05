@@ -45,6 +45,6 @@ class Option[T]:
 # NOTE: --version is NOT here — it is injected by Cli onto the root command only.
 IMPLICIT_OPTIONS: dict[str, Option] = {
     "help": Option("help", bool, "Show this help message and exit", aliases=["-h"]),
-    "verbose": Option("verbose", bool, "Increase log verbosity (repeatable)", cascading=True, aliases=["-v"]),
+    "verbose": Option("verbose", bool, "Increase log verbosity (repeatable up to 3 times)", cascading=True, aliases=["-v"]),
     "colors": Option("colors", str, "Control color output (always|never|auto)", cascading=True),
 }
