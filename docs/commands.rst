@@ -100,8 +100,8 @@ Return value
 
 The function should return an ``int`` exit code, or ``None`` (treated as ``0``).
 
-Subcommands (decorator API)
-----------------------------
+Subcommands (decorator API, not recommended)
+--------------------------------------------
 
 .. code-block:: python
 
