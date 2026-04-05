@@ -131,11 +131,7 @@ class Cli:
         self.root_command.version = self.version
 
     def _finalize(self) -> None:
-        """Run config injection and validation after all subcommands are added.
-
-        Called automatically by ``from_routes``, ``from_manifest``, and
-        ``__call__``. Safe to call multiple times (idempotent).
-        """
+        # """Inject config subcommand and validate WithConfig conflicts. Idempotent."""
         if self._finalized:
             return
         self._finalized = True

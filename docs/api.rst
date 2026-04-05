@@ -1,8 +1,8 @@
 API Reference
 =============
 
-xclif (public API)
-------------------
+xclif
+-----
 
 .. automodule:: xclif
    :members:
@@ -23,13 +23,6 @@ xclif.definition
    :members:
    :show-inheritance:
 
-xclif.annotations
------------------
-
-.. automodule:: xclif.annotations
-   :members:
-   :show-inheritance:
-
 xclif.errors
 ------------
 
@@ -37,37 +30,9 @@ xclif.errors
    :members:
    :show-inheritance:
 
-xclif.parser
-------------
-
-.. automodule:: xclif.parser
-   :members:
-   :show-inheritance:
-
-xclif.config
-------------
-
-.. automodule:: xclif.config
-   :members:
-   :show-inheritance:
-
-xclif.config_commands
----------------------
-
-.. automodule:: xclif.config_commands
-   :members:
-   :show-inheritance:
-
-xclif.validation
-----------------
-
-.. automodule:: xclif.validation
-   :members:
-   :show-inheritance:
-
-xclif.importer
+xclif.compiler
 --------------
 
-.. automodule:: xclif.importer
+.. automodule:: xclif.compiler
    :members:
    :show-inheritance:
