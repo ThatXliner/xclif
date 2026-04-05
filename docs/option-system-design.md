@@ -11,12 +11,12 @@ This document defines the option/argument parsing model for Xclif: what syntax i
 ```
 --flag               # boolean flag → True
 --name value         # value option, space-separated
---name=value         # value option, = form (TODO: not yet implemented)
+--name=value         # value option, = form
 ```
 
 Long option names use `kebab-case` on the CLI; they map to `snake_case` in Python. `--dry-run` → `dry_run`.
 
-### Short aliases (planned)
+### Short aliases
 
 ```
 -v                   # single-char boolean flag
@@ -29,7 +29,7 @@ Short aliases are either auto-generated (first char of the long name, falling ba
 
 Positional arguments are matched by position against the command's declared parameters. Their order matches the order of parameters in the function signature.
 
-### Variadic positional arguments (planned)
+### Variadic positional arguments
 
 The last positional parameter may be variadic — consuming all remaining non-option tokens. In Python this maps to `*args`:
 
@@ -103,7 +103,7 @@ Well-designed modern CLIs use these patterns exclusively. `docker run -e FOO=bar
 
 Variadic options are a historic artifact from single-command scripts. In structured CLIs with subcommand hierarchies, they break the left-to-right unambiguous parsing model that Xclif depends on.
 
-### The `--` separator (planned)
+### The `--` separator
 
 `--` ends all option parsing. Everything after it is passed as raw positional arguments. This is the POSIX convention and is necessary for commands that invoke subprocesses.
 
@@ -134,7 +134,7 @@ Cascading options are options whose effect is meaningful at every level below wh
 
 - Cascading is **opt-in per option**, not automatic.
 - The implicit options `--verbose` and `--colors` cascade by default.
-- User-defined options can be marked cascading via `Annotated` metadata (planned).
+- User-defined options can be marked cascading by passing `cascading=True` to `Option(...)`. Shorthand via `Annotated` metadata is planned.
 - Cascading values are passed as an explicit `context: dict` argument down the recursion — no shared state, no thread-locals.
 
 ### Default action of parent commands
