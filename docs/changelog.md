@@ -5,9 +5,12 @@
 ### Added
 - `Arg` annotation marker: attach `description` and display `name` to positional arguments via `Annotated[str, Arg(description="...", name="FILE")]`.
 - `Option` annotation marker: attach `description` and override CLI flag `name` via `Annotated[bool, Option(description="...", name="dry-run")]`.
+- `Literal["a", "b", ...]` type support: constrain an argument or option to a fixed set of string values. Invalid input raises a `UsageError`; help output shows `[a|b|...]` inline.
+- Shell completions: `completions <shell>` — single command with a positional `shell` argument (`bash`, `zsh`, or `fish`), replacing the old per-shell subcommands. When stdout is a TTY, prints a colored install hint to stderr with the shell-specific destination path.
 
 ### Changed
 - `WithConfig` is now a zero-argument marker. The `env` and `key` override fields have been removed. Env var names are always `<PREFIX>_<PARAM_UPPERCASED>`; config keys are always the parameter name.
+- **Breaking:** `completions bash/zsh/fish` subcommands replaced by `completions <shell>` positional argument.
 
 ## 0.2.0 — Developer Experience (unreleased)
 

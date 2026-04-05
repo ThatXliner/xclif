@@ -152,6 +152,35 @@ Both can be combined with ``WithConfig``:
 
    name: Annotated[str, Arg(description="Person to greet"), WithConfig()]
 
+Constrained choices
+-------------------
+
+Use ``Literal`` to restrict an argument or option to a fixed set of string values.
+Xclif validates the input and shows the valid choices in help output:
+
+.. code-block:: python
+
+   from typing import Annotated, Literal
+   from xclif import command
+
+   @command()
+   def completions(shell: Literal["bash", "zsh", "fish"]) -> None:
+       """Generate shell completion script."""
+       ...
+
+Usage::
+
+   myapp completions bash    # ok
+   myapp completions nushell # error: expected one of: bash|zsh|fish
+
+Help output displays the choices inline::
+
+   Usage: myapp completions [bash|zsh|fish]
+
+Only ``Literal`` of strings is supported. Mixed-type Literals (e.g.
+``Literal["a", 1]``) are not supported and will raise a ``TypeError`` at
+command construction time.
+
 The ``--`` separator
 ---------------------
 

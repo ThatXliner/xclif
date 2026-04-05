@@ -90,6 +90,7 @@ Supported types
 
 - ``str``, ``int``, ``float``, ``bool``
 - ``list[str]``, ``list[int]``, ``list[float]``
+- ``Literal["a", "b", "c"]`` — constrained string choices (see :ref:`options:Constrained choices`)
 
 Return value
 ------------
