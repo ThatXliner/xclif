@@ -11,6 +11,13 @@ if TYPE_CHECKING:
 
 @dataclass
 class Argument[T]:
+    """A positional argument on a command.
+
+    Created automatically from a function signature by the :func:`~xclif.command.command`
+    decorator.  Use :class:`~xclif.Arg` inside ``Annotated`` to attach a
+    description or display name.
+    """
+
     name: str
     converter: Callable[[Any], T]
     description: str
@@ -20,11 +27,19 @@ class Argument[T]:
 
     @property
     def short_description(self) -> str:
+        """First line of *description*, used in compact help output."""
         return self.description.splitlines()[0]
 
 
 @dataclass
 class Option[T]:
+    """A named CLI option (``--flag`` or ``--name value``) on a command.
+
+    Created automatically from a function signature by the :func:`~xclif.command.command`
+    decorator.  Use :class:`~xclif.Option` inside ``Annotated`` to attach a
+    description or override the flag name.
+    """
+
     name: str
     converter: Callable[[Any], T]
     description: str
@@ -37,6 +52,7 @@ class Option[T]:
 
     @property
     def short_description(self) -> str:
+        """First line of *description*, used in compact help output."""
         return self.description.splitlines()[0]
 
 

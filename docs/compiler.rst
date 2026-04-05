@@ -152,5 +152,4 @@ API reference
 
 .. automodule:: xclif.compiler
    :members:
-   :undoc-members:
    :show-inheritance:

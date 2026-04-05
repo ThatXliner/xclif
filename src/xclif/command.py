@@ -4,7 +4,7 @@ import textwrap
 from dataclasses import dataclass, field
 from typing import Callable
 
-__all__ = ["Command", "command", "extract_parameters"]
+__all__ = ["Command", "command"]
 
 from xclif.annotations import annotation2converter, is_list_type, unwrap_param_metadata
 from xclif.constants import INITIAL_LEFT_PADDING, NAME_DESC_PADDING, NO_DESC
@@ -20,7 +20,13 @@ def _rprint(*args, **kwargs) -> None:
 
 @dataclass
 class Command:
-    """A command that can be run."""
+    """A parsed command node in the CLI tree.
+
+    Normally you don't construct this directly — use the :func:`command`
+    decorator or :meth:`Command.command` / :meth:`Command.group` for the flat
+    API.  The file-based routing approach (``Cli.from_routes``) builds the tree
+    automatically from the package layout.
+    """
 
     name: str
     run: Callable[..., int]
@@ -48,6 +54,7 @@ class Command:
         return ", ".join(parts)
 
     def print_short_help(self) -> None:
+        """Print a compact one-screen help summary to stdout."""
         all_options = {**self.implicit_options, **self.options}
         help_text = (
             (self.short_description + "\n" if self.short_description else "")
@@ -108,6 +115,7 @@ class Command:
         _rprint(help_text)
 
     def print_long_help(self) -> None:
+        """Print the full help page (including the long description) to stdout."""
         all_options = {**self.implicit_options, **self.options}
         help_text = (
             (self.description + "\n" if self.short_description else "")
@@ -213,10 +221,12 @@ class Command:
 
     @property
     def description(self) -> str:
+        """Full docstring of the command's ``run`` function, cleaned by ``inspect.getdoc``."""
         return inspect.getdoc(self.run) or NO_DESC
 
     @property
     def short_description(self) -> str:
+        """First line of :attr:`description`, used in subcommand listings."""
         return self.description.split("\n")[0]
 
 

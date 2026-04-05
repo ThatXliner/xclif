@@ -71,7 +71,26 @@ def _detect_version(package_name: str) -> str | None:
 
 @dataclass
 class Cli:
-    """The main API for Xclif."""
+    """Entry point for an Xclif-powered CLI application.
+
+    Typically constructed via :meth:`from_routes` (file-based routing) or
+    :meth:`from_manifest` (pre-compiled manifest for fast startup).  Direct
+    construction is only needed when using the flat decorator API.
+
+    Parameters
+    ----------
+    root_command:
+        The root :class:`~xclif.command.Command` of the CLI tree.
+    version:
+        Version string shown by ``--version``.  Auto-detected from package
+        metadata when *None*.
+    env_prefix:
+        Prefix for environment-variable overrides (e.g. ``"MYAPP"`` →
+        ``MYAPP_FOO``).  Defaults to the uppercased root command name.
+    config_name:
+        App name used to locate the config directory via ``platformdirs``.
+        Defaults to the root command name.
+    """
 
     root_command: Command
     version: str | None = None
@@ -136,6 +155,13 @@ class Cli:
         check_with_config_conflicts(self.root_command, self.env_prefix)
 
     def __call__(self) -> NoReturn:
+        """Parse ``sys.argv`` and dispatch to the appropriate command, then exit.
+
+        This is the normal entry point::
+
+            if __name__ == "__main__":
+                cli()
+        """
         self._finalize()
         context = {"env_prefix": self.env_prefix, "config_data": self._config_data}
         sys.exit(self.root_command.execute(context=context))
@@ -200,6 +226,30 @@ class Cli:
         env_prefix: str | None = None,
         config_name: str | None = None,
     ) -> Self:
+        """Build a :class:`Cli` by walking a routes package at runtime.
+
+        Each module in *routes* that exports a :class:`~xclif.command.Command`
+        becomes a subcommand.  The package structure determines the command
+        hierarchy — see :doc:`routing` for details.
+
+        Parameters
+        ----------
+        routes:
+            The routes package module (e.g. ``import myapp.routes as routes``).
+        version:
+            Explicit version string.  When *None*, auto-detected from the
+            top-level package of *routes*.
+        env_prefix:
+            Prefix for env-var overrides.  Defaults to the uppercased root
+            command name.
+        config_name:
+            App name for config directory resolution.  Defaults to the root
+            command name.
+
+        .. note::
+            For production CLIs, prefer :meth:`from_manifest` to avoid the
+            ``pkgutil.walk_packages`` overhead on every invocation.
+        """
         members = inspect.getmembers(routes, lambda x: isinstance(x, Command))
 
         if len(members) > 1:
