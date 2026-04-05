@@ -140,10 +140,10 @@ even when the user runs a completely unrelated command.
 but following the convention now means your code will benefit automatically once support is added.
 Until then, keep helper code outside the routes package entirely.
 
-Plugin discovery
-----------------
+Plugin discovery (planned)
+--------------------------
 
-Third-party packages can contribute subcommands via Python entry points:
+Third-party packages will be able to contribute subcommands via Python entry points:
 
 .. code-block:: toml
 
@@ -151,4 +151,4 @@ Third-party packages can contribute subcommands via Python entry points:
    [project.entry-points."myapp.commands"]
    my-plugin = "myplugin.routes:root"
 
-Xclif picks these up automatically when the package is installed.
+This is not yet implemented.
