@@ -3,7 +3,7 @@ name = "xclif"
 version = "0.2.0"
 description = "Xliner's CLI Framework"
 readme = "README.md"
-license = "GPL-3.0-or-later"
+license = "MIT"
 authors = [
     { name = "Bryan Hu", email = "thatxliner@gmail.com" }
 ]
@@ -19,7 +19,7 @@ classifiers = [
     "Operating System :: OS Independent",
     "Development Status :: 3 - Alpha",
     "Natural Language :: English",
-    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "License :: OSI Approved :: MIT License",
 ]
 
 [project.scripts]

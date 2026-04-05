@@ -152,8 +152,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
-This project is licensed under the [GNU GPL v3+](https://github.com/ThatXliner/xclif/blob/main/LICENSE.txt).
+This project is licensed under the [MIT license](https://github.com/ThatXliner/xclif/blob/main/LICENSE.txt).
 
-In short, this means you can do anything with it (distribute, modify, sell) but if you were to publish your changes, you must make the source code and build instructions readily available.
 
 If you are a company using this project and want an exception, email [thatxliner@gmail.com](mailto:thatxliner@gmail.com).
