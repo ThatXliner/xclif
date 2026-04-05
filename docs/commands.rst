@@ -128,6 +128,12 @@ Implicit options
 Every command automatically gets:
 
 - ``--help`` / ``-h`` — print help and exit
-- ``--verbose`` / ``-v`` — enable verbose output (cascades to subcommands)
+- ``--verbose`` / ``-v`` — increase verbosity; repeatable up to 3 times (``-vvv``)
+- ``--colors`` — control color output (``always``, ``never``, or ``auto``)
 
 The root command additionally gets ``--version``.
+
+Both ``--verbose`` and ``--colors`` **cascade**: if set at any level, the value is
+automatically inherited by all subcommands. So ``myapp --verbose subcommand`` and
+``myapp subcommand --verbose`` are equivalent, and ``myapp -vv subcommand`` gives
+the subcommand a verbosity level of 2.

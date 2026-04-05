@@ -135,7 +135,7 @@ Cascading options are options whose effect is meaningful at every level below wh
 - Cascading is **opt-in per option**, not automatic.
 - The implicit options `--verbose` and `--colors` cascade by default.
 - User-defined options can be marked cascading by passing `cascading=True` to `Option(...)`. Shorthand via `Annotated` metadata is planned.
-- Cascading values are passed as an explicit `context: dict` argument down the recursion — no shared state, no thread-locals.
+- Cascading values are propagated internally by the parser — no shared state, no thread-locals. User command functions cannot currently read cascaded values directly; this is planned.
 
 ### Default action of parent commands
 
