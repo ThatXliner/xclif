@@ -1,4 +1,4 @@
-from typing import Annotated, Callable, get_args, get_origin
+from typing import Annotated, Callable, Literal, get_args, get_origin
 
 type ScalarParameterTypes = str | int | float | bool
 type ParameterTypes = ScalarParameterTypes | list[ScalarParameterTypes]
@@ -29,6 +29,18 @@ def annotation2converter[T: ParameterTypes, Y](x: T) -> None | Callable[[T], Y]:
         if args and args[0] in _default_converters:
             return _default_converters[args[0]]
         return None
+    if origin is Literal:
+        choices = get_args(x)
+        if not all(isinstance(c, str) for c in choices):
+            return None
+        choices_set = set(choices)
+        choices_str = "|".join(choices)
+        def _literal_converter(value: str, _choices=choices_set, _str=choices_str) -> str:
+            if value not in _choices:
+                raise ValueError(f"expected one of: {_str}, got {value!r}")
+            return value
+        _literal_converter.__choices__ = list(choices)
+        return _literal_converter
     return _default_converters.get(x)
 
 
