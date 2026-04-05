@@ -10,7 +10,7 @@ Flat (Imperative) API
    Consider the flat API only if you are:
 
    * **migrating from Click or Typer** and want to port an existing app incrementally, or
-   * **optimising cold-start performance**, but you should be using the :doc:``compiler <compiler>`` for that anyway. Note that performance is not
+   * **optimising cold-start performance**, but you should be using the :doc:`compiler <compiler>` for that anyway. Note that performance is not
      a primary focus of Xclif and frankly, if startup latency is a hard constraint,
      Python is probably the wrong tool for the job.
 
