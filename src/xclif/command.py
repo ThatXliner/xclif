@@ -52,7 +52,7 @@ class Command:
             + f"[b][u]Usage[/u]: {self.name}[/] [OPTIONS]"
             + (" " if self.arguments else "")
             + " ".join(
-                f"[{'|'.join(x.choices) if x.choices else x.name.upper()}{'...' if x.variadic else ''}]"
+                _arg_markup(x)
                 for x in self.arguments
             )
             + "\n\n"
@@ -64,7 +64,7 @@ class Command:
         }
         pad_length = max(
             [
-                *(len(x.name) for x in self.arguments),
+                *(len(_arg_label(x)) + 2 for x in self.arguments),
                 *map(len, self.subcommands),
                 *(len(label) for label in option_labels.values()),
                 0,
@@ -86,9 +86,7 @@ class Command:
                 "[b][u]Arguments[/u]:[/]\n"
                 + "\n".join(
                     " " * INITIAL_LEFT_PADDING
-                    + f"[b][{'|'.join(x.choices) if x.choices else x.name}{'...' if x.variadic else ''}][/b]".ljust(
-                        pad_length + NAME_DESC_PADDING
-                    )
+                    + f"[b]{_arg_section_label(x).ljust(pad_length + NAME_DESC_PADDING)}[/b]"
                     + f"[i]{x.description}[/]"
                     for x in self.arguments
                 )
@@ -114,7 +112,7 @@ class Command:
             + f"[b][u]Usage[/u]: {self.name}[/] [OPTIONS]"
             + (" " if self.arguments else "")
             + " ".join(
-                f"[{'|'.join(x.choices) if x.choices else x.name.upper()}{'...' if x.variadic else ''}]"
+                _arg_markup(x)
                 for x in self.arguments
             )
             + "\n\n"
@@ -126,7 +124,7 @@ class Command:
         }
         pad_length = max(
             [
-                *(len(x.name) for x in self.arguments),
+                *(len(_arg_label(x)) + 2 for x in self.arguments),
                 *map(len, self.subcommands),
                 *(len(label) for label in option_labels.values()),
                 0,
@@ -149,9 +147,7 @@ class Command:
                 "[b][u]Arguments[/u]:[/]\n"
                 + "\n".join(
                     " " * INITIAL_LEFT_PADDING
-                    + f"[b][{'|'.join(x.choices) if x.choices else x.name}{'...' if x.variadic else ''}][/b]".ljust(
-                        pad_length + NAME_DESC_PADDING
-                    )
+                    + f"[b]{_arg_section_label(x).ljust(pad_length + NAME_DESC_PADDING)}[/b]"
                     + textwrap.indent(x.description, " " * indent_width).strip()
                     for x in self.arguments
                 )
@@ -200,6 +196,29 @@ class Command:
     @property
     def short_description(self) -> str:
         return self.description.split("\n")[0]
+
+
+def _arg_label(arg: "Argument") -> str:
+    """Return the inner label for an argument (no brackets), e.g. 'bash|zsh|fish' or 'NAME'."""
+    if arg.choices:
+        return "|".join(arg.choices)
+    return arg.name.upper() if not arg.variadic else arg.name.upper()
+
+
+def _arg_markup(arg: "Argument") -> str:
+    """Return a Rich-safe bracketed label for an argument, e.g. '[bash|zsh|fish]' or '[NAME]'."""
+    from rich.markup import escape
+    inner = _arg_label(arg)
+    suffix = "..." if arg.variadic else ""
+    return escape(f"[{inner}{suffix}]")
+
+
+def _arg_section_label(arg: "Argument") -> str:
+    """Return a Rich-safe label for the Arguments section listing, e.g. '[bash|zsh|fish]' or '[name]'."""
+    from rich.markup import escape
+    inner = "|".join(arg.choices) if arg.choices else arg.name
+    suffix = "..." if arg.variadic else ""
+    return escape(f"[{inner}{suffix}]")
 
 
 def _get_choices(converter) -> list[str] | None:
