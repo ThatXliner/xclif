@@ -1,6 +1,8 @@
 """Shell completion script generators for xclif applications."""
 from __future__ import annotations
 
+__all__ = ["generate_bash", "generate_zsh", "generate_fish", "make_completions_command"]
+
 from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:

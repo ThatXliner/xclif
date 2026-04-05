@@ -29,6 +29,8 @@ from pathlib import Path
 
 from xclif.command import Command
 
+__all__ = ["compile_routes"]
+
 
 def _find_command_attr(module: types.ModuleType) -> str | None:
     """Return the attribute name of the single Command in *module*, or None.

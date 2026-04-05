@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+__all__ = ["load_config", "resolve_key"]
+
 import json
 from pathlib import Path
 from typing import Any

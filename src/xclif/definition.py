@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Callable
 
+__all__ = ["Argument", "Option", "IMPLICIT_OPTIONS"]
+
 if TYPE_CHECKING:
     from xclif import WithConfig
 

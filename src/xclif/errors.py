@@ -1,3 +1,5 @@
+__all__ = ["UsageError"]
+
 # Not a dataclass: Exception.__init__ requires explicit super().__init__()
 # to set the message, which a dataclass-generated __init__ would not do.
 class UsageError(Exception):
