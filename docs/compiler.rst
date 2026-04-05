@@ -98,7 +98,7 @@ The compiler writes:
    from xclif import Cli
 
 
-   def _build_cli(version: str | None = None) -> Cli:
+   def _build_cli(version: str | None = None, env_prefix: str | None = None, config_name: str | None = None) -> Cli:
        from myapp.routes import _ as _root
        from myapp.routes.greet import _ as _myapp_routes_greet
        from myapp.routes.config import _ as _myapp_routes_config
@@ -107,11 +107,12 @@ The compiler writes:
 
        root = _root
 
-       cli = Cli(root_command=root, version=version)
+       cli = Cli(root_command=root, version=version, env_prefix=env_prefix, config_name=config_name)
        cli.add_command(['config'], _myapp_routes_config)
        cli.add_command(['greet'], _myapp_routes_greet)
        cli.add_command(['config', 'get'], _myapp_routes_config_get)
        cli.add_command(['config', 'set'], _myapp_routes_config_set)
+       cli._finalize()
        return cli
 
 The imports are **inside** ``_build_cli()`` so loading the manifest module itself is free —
