@@ -41,24 +41,6 @@ with the :func:`~xclif.command.command` decorator):
        """Greet someone."""
        print(f"Hello, {name}!")
 
-Using ``_`` as the function name tells Xclif to derive the command name from the module name
-(``greet`` in this case). This is the idiomatic style for route files — the filename already
-encodes the name, so there is no need to repeat it.
-
-The same command can also be written with an explicit function name or an explicit string
-argument — all three are equivalent:
-
-.. code-block:: python
-
-   @command()
-   def _(...): ...          # name from module ("greet")
-
-   @command()
-   def greet(...): ...      # name from function
-
-   @command("greet")
-   def whatever(...): ...   # explicit name (overrides both)
-
 See :doc:`commands` for a full explanation of the naming rules.
 
 Entry point
