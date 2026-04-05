@@ -72,9 +72,9 @@ Flat API (not recommended)
 --------------------------
 
 Xclif also has a flat API that lets you build the command tree imperatively without
-file-based routing. It is **not recommended** for most projects — it does not scale
-well and loses the structural clarity of file-based routing. See :doc:`flat-api` for
-details.
+file-based routing. It is **not recommended** for most projects — if you wanted to
+wire commands up by hand, you probably did not need Xclif in the first place. See
+:doc:`flat-api` for details.
 
 Testing
 -------
