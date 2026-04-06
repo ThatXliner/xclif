@@ -34,9 +34,4 @@ xclif.errors
 xclif.compiler
 --------------
 
-See the :doc:`compiler` guide for full documentation of the manifest compiler.
-
-.. automodule:: xclif.compiler
-   :members:
-   :show-inheritance:
-   :noindex:
+See the :doc:`compiler` guide.
