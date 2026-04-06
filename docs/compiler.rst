@@ -146,10 +146,3 @@ matches the current routes.
 .. tip::
 
    Run ``python -m xclif compile --help`` to see all available options.
-
-API reference
--------------
-
-.. automodule:: xclif.compiler
-   :members:
-   :show-inheritance:
