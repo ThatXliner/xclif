@@ -178,6 +178,7 @@ class Cli:
         cursor._assert_no_arguments(adding=command.name)
         cursor.subcommands[command.name] = command
         for alias in command.aliases:
+            cursor._assert_no_collision(alias, registering=command.name)
             cursor.subcommands[alias] = command
 
     @classmethod

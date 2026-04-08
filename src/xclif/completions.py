@@ -46,10 +46,13 @@ def generate_bash(root: Command) -> str:
         entries.append(f'            COMPREPLY=($(compgen -W "{words}" -- "$cur"))')
         entries.append("            return 0")
         entries.append("            ;;")
+        seen: set[str] = set()
         for sub_name, sub_cmd in cmd.subcommands.items():
-            if sub_name != sub_cmd.name:
-                continue  # skip alias entries
-            entries.extend(_case_entries(sub_cmd, sub_name))
+            if sub_cmd.name in seen:
+                continue  # already emitted (alias or duplicate)
+            seen.add(sub_cmd.name)
+            pattern = "|".join([sub_cmd.name] + sub_cmd.aliases)
+            entries.extend(_case_entries(sub_cmd, pattern))
         return entries
 
     lines.append('    case "$prev" in')

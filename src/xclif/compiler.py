@@ -176,6 +176,7 @@ def compile_routes(routes: types.ModuleType, output_dir: Path | None = None) -> 
             cursor = cursor.subcommands.setdefault(part, Command(part, lambda: 0))
         cursor.subcommands[sub_cmd.name] = sub_cmd
         for a in sub_cmd.aliases:
+            cursor._assert_no_collision(a, registering=sub_cmd.name)
             cursor.subcommands[a] = sub_cmd
     if temp_root.name:
         check_with_config_conflicts(temp_root, temp_root.name.upper())

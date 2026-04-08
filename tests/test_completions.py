@@ -104,9 +104,9 @@ def test_bash_completions_include_alias_as_candidate(root_with_alias):
 
 def test_bash_completions_no_duplicate_case_entry(root_with_alias):
     script = generate_bash(root_with_alias)
-    # Only one case entry for "greet)", not a separate one for "g)"
-    assert script.count("greet)") == 1
-    assert "g)" not in script
+    # A single combined case pattern matching both canonical name and alias
+    assert "greet|g)" in script
+    assert script.count("greet|g)") == 1
 
 
 def test_zsh_completions_include_alias_as_candidate(root_with_alias):

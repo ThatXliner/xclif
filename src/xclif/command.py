@@ -53,6 +53,15 @@ class Command:
                 "commands with positional arguments cannot have subcommands"
             )
 
+    def _assert_no_collision(self, name: str, *, registering: str) -> None:
+        if name in self.subcommands:
+            existing = self.subcommands[name]
+            raise ValueError(
+                f"Cannot register {registering!r} with name {name!r} on "
+                f"command {self.name!r}: conflicts with existing "
+                f"subcommand {existing.name!r}"
+            )
+
     def _format_option_label(self, name: str, option: Option) -> str:
         """Format an option name with its aliases for display."""
         parts = [f"--{option.name.replace('_', '-')}"]
@@ -205,8 +214,10 @@ class Command:
         def _decorator(func: Callable) -> "Command":
             cmd = command(*names)(func)
             self._assert_no_arguments(adding=cmd.name)
+            self._assert_no_collision(cmd.name, registering=cmd.name)
             self.subcommands[cmd.name] = cmd
             for alias in cmd.aliases:
+                self._assert_no_collision(alias, registering=cmd.name)
                 self.subcommands[alias] = cmd
             return cmd
         return _decorator
@@ -357,23 +368,19 @@ def extract_parameters(function: Callable) -> tuple[list[Argument], dict[str, Op
     return arguments, options
 
 
-def command(*names: str, name: str | None = None) -> Callable[[Callable], Command]:
+def command(*names: str) -> Callable[[Callable], Command]:
     """Convert a function into an `xclif.Command`.
 
     Names are optional. The first name is the canonical command name; any
     additional names become aliases (alternative names that resolve to the
     same command). When no names are given, the function name is used
     (or the module name when the function is called ``_``).
-
-    The ``name`` keyword is accepted for backward compatibility with
-    ``@command(name="...")``.
     """
 
     def _decorator(func: Callable) -> Command:
-        all_names = (name, *names) if name is not None else names
-        if all_names:
-            command_name = all_names[0]
-            aliases = list(all_names[1:])
+        if names:
+            command_name = names[0]
+            aliases = list(names[1:])
         elif func.__name__ == "_":
             command_name = func.__module__.split(".")[-1]
             aliases = []
