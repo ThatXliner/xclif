@@ -18,6 +18,11 @@ def _rprint(*args, **kwargs) -> None:
     rich.print(*args, **kwargs)
 
 
+def _get_console(**kwargs) -> "Console":
+    from rich.console import Console
+    return Console(**kwargs)
+
+
 @dataclass
 class Command:
     """A parsed command node in the CLI tree.
@@ -116,10 +121,18 @@ class Command:
 
     def print_long_help(self) -> None:
         """Print the full help page (including the long description) to stdout."""
+        from rich.markdown import Markdown
+
         all_options = {**self.implicit_options, **self.options}
+
+        # Render the description as Markdown for rich formatting
+        if self.short_description:
+            console = _get_console()
+            console.print(Markdown(self.description))
+            console.print()
+
         help_text = (
-            (self.description + "\n" if self.short_description else "")
-            + f"[b][u]Usage[/u]: {self.name}[/] [OPTIONS]"
+            f"[b][u]Usage[/u]: {self.name}[/] [OPTIONS]"
             + (" " if self.arguments else "")
             + " ".join(
                 _arg_markup(x)

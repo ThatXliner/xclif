@@ -38,7 +38,7 @@ The mapping rules are simple:
 
 - **No default** → positional argument (``name``)
 - **Has default** → ``--template`` option
-- **Docstring** → help text
+- **Docstring** → help text (rendered as Markdown in ``--help``)
 - **Type annotation** → parser and type coercion
 
 The function signature *is* the CLI contract.

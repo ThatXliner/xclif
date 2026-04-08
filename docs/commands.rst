@@ -31,6 +31,34 @@ This produces::
      --colors       Control color output (always|never|auto)
      --loud, -l     No description
 
+Markdown descriptions
+---------------------
+
+Docstrings are rendered as **Markdown** in ``--help`` output (via
+`Rich's Markdown support <https://rich.readthedocs.io/en/latest/markdown.html>`_).
+You can use bold, code spans, lists, and other Markdown formatting:
+
+.. code-block:: python
+
+   @command()
+   def deploy(target: str, dry_run: bool = False) -> None:
+       """Deploy the application.
+
+       Pushes the current build to the specified **target** environment.
+
+       Supported targets:
+
+       - `staging` — deploy to the staging cluster
+       - `production` — deploy to prod (requires `--confirm`)
+
+       > Note: runs `preflight_checks()` before deploying.
+       """
+       ...
+
+The first line of the docstring is used as the **short description** in subcommand
+listings and is rendered as plain text. The full docstring (including Markdown) is
+shown when running ``command --help``.
+
 Command naming
 --------------
 

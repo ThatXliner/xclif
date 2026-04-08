@@ -196,6 +196,24 @@ def test_print_long_help_with_args(capsys):
     greet.print_long_help()
 
 
+def test_print_long_help_renders_markdown(capsys):
+    @command()
+    def greet(name: str) -> None:
+        """Greet someone.
+
+        This command supports **bold** and `code` in its help text.
+
+        - Item one
+        - Item two
+        """
+
+    greet.print_long_help()
+    out = capsys.readouterr().out
+    # The description should appear in the output (markdown rendered by Rich)
+    assert "Greet someone." in out
+    assert "Usage:" in out
+
+
 # ---------------------------------------------------------------------------
 # Argument / Option dataclasses
 # ---------------------------------------------------------------------------

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Added
+- Markdown docstrings: command descriptions are now rendered as Markdown in `--help` output via Rich, supporting **bold**, `code`, lists, blockquotes, and more.
+
 ## 0.2.0 — Developer Experience (2026-04-04)
 
 ### Added
