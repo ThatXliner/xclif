@@ -173,35 +173,35 @@ class Command:
 
 ---
 
-## Current implementation status
+## Implementation status
 
 | Feature | Status |
 |---|---|
 | `--flag` boolean | ✅ |
 | `--name value` (space form) | ✅ |
-| `--name=value` (equals form) | ❌ |
+| `--name=value` (equals form) | ✅ |
 | Interspersed options | ✅ |
-| Short options `-v` | ❌ |
-| `--` separator | ❌ |
+| Short options `-v` | ✅ |
+| `--` separator | ✅ |
 | Implicit options in separate namespace | ✅ |
 | `--help` triggering help | ✅ |
 | Cascading context passed to subcommands | ✅ |
 | Cascading values not leaked to `run()` | ✅ |
 | Repeatable options (`--tag a --tag b` → list) | ✅ |
-| Variadic positional `*args` | ❌ |
-| `--version` root-only | ❌ (added to every command) |
+| Variadic positional `*args` | ✅ |
+| `--version` root-only | ✅ |
 | Variadic options (`nargs='*'`/`'+'`) | ✗ Explicitly out of scope |
 | Option bundling (`-abc`) | ✗ Explicitly out of scope |
 
 ---
 
-## Open design questions
+## Resolved design questions
 
 **Q1: `--version` scoping**
-`--version` is in `IMPLICIT_OPTIONS` so it appears on every command. Should it be root-only? **Proposed: yes — make it a `Cli`-level concern rather than a `Command`-level one.**
+Resolved: `--version` is root-only. `Cli` injects it into the root command's `implicit_options`; subcommands do not recognise it.
 
 **Q2: Cascading user options**
-Should users be able to declare their own cascading options (e.g. `--dry-run` at root that every subcommand respects)? **Proposed: yes, via `Annotated` metadata in a future milestone. Out of scope for 0.1.0.**
+Resolved: users can mark options as cascading via `Option(cascading=True)` in `Annotated` metadata. The implicit options `--verbose` and `--colors` cascade by default.
 
 **Q3: Parent command with both a `run` and subcommands**
-Is it valid for a parent to have a non-trivial `run` and also have subcommands? E.g. `myapp server` does something useful AND `myapp server start` exists. **Proposed: yes, this is valid and useful. The `run` is the default action when no subcommand is given.**
+Resolved: yes. A parent command may have a non-trivial `run` and also have subcommands. The `run` is invoked when no subcommand is given.

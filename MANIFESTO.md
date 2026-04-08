@@ -65,7 +65,7 @@ Annotations already express what a parameter is. Xclif reads them — no separat
 Your `__main__.py` is three lines. `Cli.from_routes(routes)` and you're done.
 
 **5. Fast by default.**
-Python CLI startup time is a real problem — Typer can add hundreds of milliseconds before your command even runs. Xclif is designed to stay lean. We don't import what we don't need.
+Python CLI startup time is a real problem — Typer can add hundreds of milliseconds before your command even runs, inheriting Click's import chain and layered abstractions. Xclif was written from scratch, not built on argparse or Click. The parser is custom-built for performance, not based on [getopt](https://pubs.opengroup.org/onlinepubs/9699919799/utilities/getopts.html) or any existing library — while still adhering to [POSIX guidelines](https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap12.html#tag_12_02) where possible. Starting from zero means we don't inherit anyone else's quirks or overhead.
 
 **6. Escape hatches exist.**
 The filesystem convention is the happy path, not a prison. The lower-level `Command` and `Cli` objects are always available when you need to go off-script.
@@ -85,12 +85,6 @@ Xclif's goal is to be the integrated framework for serious Python CLIs. That mea
 These aren't afterthoughts bolted on. They're designed as part of the same system, so they compose correctly and don't fight each other.
 
 The architecture is plugin-based under the hood — so the core stays lean, startup stays fast, and the framework stays extensible. You can swap implementations or add your own. But you shouldn't have to for the common cases.
-
-## Fast by default
-
-Python CLI startup time is a real problem. Typer can add hundreds of milliseconds before your command even runs — it inherits Click's import chain and layered abstractions. For a tool you invoke dozens of times a day, that latency is felt.
-
-Xclif was written from scratch, not built on argparse or Click. The parser is custom-built for performance, not based on [getopt](https://pubs.opengroup.org/onlinepubs/9699919799/utilities/getopts.html) or any existing library — while still adhering to [POSIX guidelines](https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap12.html#tag_12_02) where possible to keep with convention. Starting from zero means we don't inherit anyone else's quirks or overhead.
 
 ## What Xclif is not for
 
