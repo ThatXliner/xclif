@@ -109,6 +109,12 @@ writes to JSON instead.
 
 If your app already defines a ``config`` subcommand, the auto-injection is skipped.
 
+To suppress the ``config`` subcommand entirely, pass ``config_command=False``:
+
+.. code-block:: python
+
+   cli = Cli.from_routes(routes, config_command=False)
+
 Conflict detection
 ------------------
 
