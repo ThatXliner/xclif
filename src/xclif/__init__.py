@@ -128,6 +128,10 @@ class Cli:
         and its values take priority over the user-level config but are still
         overridden by env vars and CLI flags.  Supports ``.toml`` and
         ``.json`` extensions.  *None* (the default) disables local config.
+    config_command:
+        Whether to auto-inject the ``config`` subcommand when any parameter
+        uses :class:`~xclif.config.WithConfig`.  *True* (the default) keeps
+        the current behaviour; set to *False* to suppress it.
     """
 
     root_command: Command
@@ -135,6 +139,7 @@ class Cli:
     env_prefix: str | None = None
     config_name: str | None = None
     local_config: str | None = None
+    config_command: bool = True
     _config_data: dict = field(default_factory=dict, init=False, repr=False)
     _config_dir: "Path | None" = field(default=None, init=False, repr=False)
     _finalized: bool = field(default=False, init=False, repr=False)
@@ -185,8 +190,10 @@ class Cli:
         from xclif.validation import check_with_config_conflicts
 
         # Auto-inject config subcommand if any WithConfig params exist
-        if "config" not in self.root_command.subcommands and _has_with_config(
-            self.root_command
+        if (
+            self.config_command
+            and "config" not in self.root_command.subcommands
+            and _has_with_config(self.root_command)
         ):
             self.root_command.subcommands["config"] = make_config_command(
                 self._config_dir
