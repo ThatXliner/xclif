@@ -357,19 +357,23 @@ def extract_parameters(function: Callable) -> tuple[list[Argument], dict[str, Op
     return arguments, options
 
 
-def command(*names: str) -> Callable[[Callable], Command]:
+def command(*names: str, name: str | None = None) -> Callable[[Callable], Command]:
     """Convert a function into an `xclif.Command`.
 
     Names are optional. The first name is the canonical command name; any
     additional names become aliases (alternative names that resolve to the
     same command). When no names are given, the function name is used
     (or the module name when the function is called ``_``).
+
+    The ``name`` keyword is accepted for backward compatibility with
+    ``@command(name="...")``.
     """
 
     def _decorator(func: Callable) -> Command:
-        if names:
-            command_name = names[0]
-            aliases = list(names[1:])
+        all_names = (name, *names) if name is not None else names
+        if all_names:
+            command_name = all_names[0]
+            aliases = list(all_names[1:])
         elif func.__name__ == "_":
             command_name = func.__module__.split(".")[-1]
             aliases = []
