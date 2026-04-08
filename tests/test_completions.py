@@ -5,7 +5,7 @@ from unittest.mock import patch
 import pytest
 
 from xclif.command import Command
-from xclif.completions import make_completions_command
+from xclif.completions import generate_bash, generate_fish, generate_zsh, make_completions_command
 
 
 @pytest.fixture
@@ -82,3 +82,38 @@ def test_completions_fish_hint_path(root, capsys):
         comp.run("fish")
     captured = capsys.readouterr()
     assert "~/.config/fish/completions/myapp.fish" in captured.err
+
+
+# ---------------------------------------------------------------------------
+# Alias handling in completion scripts
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def root_with_alias():
+    child = Command("greet", lambda: 0, aliases=["g"])
+    root = Command("myapp", lambda: 0, subcommands={"greet": child, "g": child})
+    return root
+
+
+def test_bash_completions_include_alias_as_candidate(root_with_alias):
+    script = generate_bash(root_with_alias)
+    # "g" should appear in the word list so tab-completing "g" works
+    assert " g " in script or ' g"' in script
+
+
+def test_bash_completions_no_duplicate_case_entry(root_with_alias):
+    script = generate_bash(root_with_alias)
+    # Only one case entry for "greet)", not a separate one for "g)"
+    assert script.count("greet)") == 1
+    assert "g)" not in script
+
+
+def test_zsh_completions_include_alias_as_candidate(root_with_alias):
+    script = generate_zsh(root_with_alias)
+    assert "'g:" in script
+
+
+def test_fish_completions_include_alias_as_candidate(root_with_alias):
+    script = generate_fish(root_with_alias)
+    assert " -a 'g'" in script
