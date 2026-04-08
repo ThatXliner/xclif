@@ -3,8 +3,10 @@
 ## Unreleased
 
 ### Added
+- Subcommand aliases: `@command("name", "alias1", "alias2")` lets commands declare alternative names. Aliases are registered in the parent's subcommands dict, included in shell completions, and shown in the command's own Usage line. (#47)
 - Markdown docstrings: command descriptions are now rendered as Markdown in `--help` output via Rich, supporting **bold**, `code`, lists, blockquotes, and more.
 - `local_config` parameter on `Cli`, `from_routes`, and `from_manifest`: set a filename (e.g. `".myapp.toml"`) to load a per-project config from the current working directory. Local values are deep-merged over user-level config. Supports `.toml` and `.json`. Disabled by default.
+- `__version__` is now exported (`from xclif import __version__`).
 
 ## 0.2.0 — Developer Experience (2026-04-04)
 
