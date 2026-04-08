@@ -40,6 +40,7 @@ class Command:
     subcommands: dict[str, "Command"] = field(default_factory=dict)
     implicit_options: dict[str, Option] = field(default_factory=dict)
     version: str | None = None
+    aliases: list[str] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         if not self.implicit_options:
@@ -61,9 +62,10 @@ class Command:
     def print_short_help(self) -> None:
         """Print a compact one-screen help summary to stdout."""
         all_options = {**self.implicit_options, **self.options}
+        alias_suffix = f" ({', '.join(self.aliases)})" if self.aliases else ""
         help_text = (
             (self.short_description + "\n" if self.short_description else "")
-            + f"[b][u]Usage[/u]: {self.name}[/] [OPTIONS]"
+            + f"[b][u]Usage[/u]: {self.name}{alias_suffix}[/] [OPTIONS]"
             + (" " if self.arguments else "")
             + " ".join(
                 _arg_markup(x)
@@ -79,7 +81,7 @@ class Command:
         pad_length = max(
             [
                 *(len(_arg_label(x)) + 2 for x in self.arguments),
-                *map(len, self.subcommands),
+                *(len(cmd.name) for cmd in self.subcommands.values()),
                 *(len(label) for label in option_labels.values()),
                 0,
             ]
@@ -92,6 +94,7 @@ class Command:
                     + f"[b]{name.ljust(pad_length + NAME_DESC_PADDING)}[/]"
                     + f"[i]{cmd.short_description}[/]"
                     for name, cmd in self.subcommands.items()
+                    if name == cmd.name  # skip alias entries
                 )
                 + "\n\n"
             )
@@ -131,8 +134,9 @@ class Command:
             console.print(Markdown(self.description))
             console.print()
 
+        alias_suffix = f" ({', '.join(self.aliases)})" if self.aliases else ""
         help_text = (
-            f"[b][u]Usage[/u]: {self.name}[/] [OPTIONS]"
+            f"[b][u]Usage[/u]: {self.name}{alias_suffix}[/] [OPTIONS]"
             + (" " if self.arguments else "")
             + " ".join(
                 _arg_markup(x)
@@ -148,7 +152,7 @@ class Command:
         pad_length = max(
             [
                 *(len(_arg_label(x)) + 2 for x in self.arguments),
-                *map(len, self.subcommands),
+                *(len(cmd.name) for cmd in self.subcommands.values()),
                 *(len(label) for label in option_labels.values()),
                 0,
             ]
@@ -161,6 +165,7 @@ class Command:
                     + f"[b]{name.ljust(pad_length + NAME_DESC_PADDING)}[/]"
                     + f"[i]{cmd.short_description}[/]"
                     for name, cmd in self.subcommands.items()
+                    if name == cmd.name  # skip alias entries
                 )
                 + "\n\n"
             )
@@ -189,7 +194,7 @@ class Command:
         )
         _rprint(help_text)
 
-    def command(self, name: str | None = None) -> "Callable[[Callable], Command]":
+    def command(self, *names: str) -> "Callable[[Callable], Command]":
         """Register a subcommand on this command using the decorator API.
 
         This is the flat API alternative to file-based routing. For large
@@ -198,9 +203,11 @@ class Command:
         manifest and avoids the filesystem walk cost of ``Cli.from_routes``.
         """
         def _decorator(func: Callable) -> "Command":
-            cmd = command(name)(func)
+            cmd = command(*names)(func)
             self._assert_no_arguments(adding=cmd.name)
             self.subcommands[cmd.name] = cmd
+            for alias in cmd.aliases:
+                self.subcommands[alias] = cmd
             return cmd
         return _decorator
 
@@ -350,17 +357,26 @@ def extract_parameters(function: Callable) -> tuple[list[Argument], dict[str, Op
     return arguments, options
 
 
-def command(name: None | str = None) -> Callable[[Callable], Command]:
-    """Convert a function into an `xclif.Command`."""
+def command(*names: str) -> Callable[[Callable], Command]:
+    """Convert a function into an `xclif.Command`.
+
+    Names are optional. The first name is the canonical command name; any
+    additional names become aliases (alternative names that resolve to the
+    same command). When no names are given, the function name is used
+    (or the module name when the function is called ``_``).
+    """
 
     def _decorator(func: Callable) -> Command:
-        if name is not None:
-            command_name = name
+        if names:
+            command_name = names[0]
+            aliases = list(names[1:])
         elif func.__name__ == "_":
             command_name = func.__module__.split(".")[-1]
+            aliases = []
         else:
             command_name = func.__name__
+            aliases = []
         arguments, options = extract_parameters(func)
-        return Command(command_name, func, arguments, options)
+        return Command(command_name, func, arguments, options, aliases=aliases)
 
     return _decorator

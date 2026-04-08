@@ -47,6 +47,8 @@ def generate_bash(root: Command) -> str:
         entries.append("            return 0")
         entries.append("            ;;")
         for sub_name, sub_cmd in cmd.subcommands.items():
+            if sub_name != sub_cmd.name:
+                continue  # skip alias entries
             entries.extend(_case_entries(sub_cmd, sub_name))
         return entries
 
