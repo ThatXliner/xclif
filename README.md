@@ -153,6 +153,3 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 ## License
 
 This project is licensed under the [MIT license](https://github.com/ThatXliner/xclif/blob/main/LICENSE.txt).
-
-
-If you are a company using this project and want an exception, email [thatxliner@gmail.com](mailto:thatxliner@gmail.com).
