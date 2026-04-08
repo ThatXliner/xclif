@@ -4,6 +4,7 @@
 
 ### Added
 - Markdown docstrings: command descriptions are now rendered as Markdown in `--help` output via Rich, supporting **bold**, `code`, lists, blockquotes, and more.
+- `local_config` parameter on `Cli`, `from_routes`, and `from_manifest`: set a filename (e.g. `".myapp.toml"`) to load a per-project config from the current working directory. Local values are deep-merged over user-level config. Supports `.toml` and `.json`. Disabled by default.
 
 ## 0.2.0 — Developer Experience (2026-04-04)
 

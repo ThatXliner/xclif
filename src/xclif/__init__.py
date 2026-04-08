@@ -59,6 +59,38 @@ class Option:
     name: str | None = None  # CLI flag name override (e.g. "dry-run" → --dry-run)
 
 
+def _deep_merge(base: dict, override: dict) -> dict:
+    """Recursively merge *override* into *base*, returning a new dict.
+
+    Values in *override* take priority.  Nested dicts are merged recursively;
+    non-dict values in *override* replace values in *base*.
+    """
+    merged = base.copy()
+    for key, value in override.items():
+        if key in merged and isinstance(merged[key], dict) and isinstance(value, dict):
+            merged[key] = _deep_merge(merged[key], value)
+        else:
+            merged[key] = value
+    return merged
+
+
+def _load_local_config(filename: str) -> dict:
+    """Load a single config file from the current working directory by name."""
+    import json
+
+    path = Path.cwd() / filename
+    if not path.is_file():
+        return {}
+    suffix = path.suffix.lower()
+    text = path.read_text(encoding="utf-8")
+    if suffix == ".toml":
+        import tomlkit
+        return dict(tomlkit.loads(text))
+    elif suffix == ".json":
+        return json.loads(text)
+    return {}
+
+
 def _detect_version(package_name: str) -> str | None:
     """Try to auto-detect the version from installed package metadata."""
     import importlib.metadata
@@ -90,12 +122,19 @@ class Cli:
     config_name:
         App name used to locate the config directory via ``platformdirs``.
         Defaults to the root command name.
+    local_config:
+        Filename to look for in the current working directory as a local
+        config file (e.g. ``".myapp.toml"``).  When set, the file is loaded
+        and its values take priority over the user-level config but are still
+        overridden by env vars and CLI flags.  Supports ``.toml`` and
+        ``.json`` extensions.  *None* (the default) disables local config.
     """
 
     root_command: Command
     version: str | None = None
     env_prefix: str | None = None
     config_name: str | None = None
+    local_config: str | None = None
     _config_data: dict = field(default_factory=dict, init=False, repr=False)
     _config_dir: "Path | None" = field(default=None, init=False, repr=False)
     _finalized: bool = field(default=False, init=False, repr=False)
@@ -112,9 +151,15 @@ class Cli:
         if self.config_name is None:
             self.config_name = self.root_command.name
 
-        # Load config file
+        # Load config file (user-level)
         self._config_dir = Path(platformdirs.user_config_dir(self.config_name))
         self._config_data = load_config(self._config_dir)
+
+        # Load local config from cwd if configured (overrides user-level)
+        if self.local_config is not None:
+            local_data = _load_local_config(self.local_config)
+            if local_data:
+                self._config_data = _deep_merge(self._config_data, local_data)
 
         # Add completions subcommand
         self.root_command._assert_no_arguments(adding="completions")
@@ -186,6 +231,7 @@ class Cli:
         version: str | None = None,
         env_prefix: str | None = None,
         config_name: str | None = None,
+        local_config: str | None = None,
     ) -> Self:
         """Load a pre-compiled manifest produced by ``xclif compile``.
 
@@ -201,6 +247,8 @@ class Cli:
             Explicit version string.  When *None*, auto-detected from the
             top-level package of *manifest* (same behaviour as
             :meth:`from_routes`).
+        local_config:
+            Filename for cwd-based local config.  See :class:`Cli`.
         """
         build_fn = getattr(manifest, "_build_cli", None)
         if build_fn is None:
@@ -211,7 +259,7 @@ class Cli:
         if version is None and manifest.__package__:
             package_name = manifest.__package__.split(".")[0]
             version = _detect_version(package_name)
-        return build_fn(version=version, env_prefix=env_prefix, config_name=config_name)
+        return build_fn(version=version, env_prefix=env_prefix, config_name=config_name, local_config=local_config)
 
     @classmethod
     def from_routes(
@@ -221,6 +269,7 @@ class Cli:
         version: str | None = None,
         env_prefix: str | None = None,
         config_name: str | None = None,
+        local_config: str | None = None,
     ) -> Self:
         """Build a :class:`Cli` by walking a routes package at runtime.
 
@@ -273,6 +322,7 @@ class Cli:
             version=version,
             env_prefix=env_prefix,
             config_name=config_name,
+            local_config=local_config,
         )
         for path, module in get_modules(routes):
             members = inspect.getmembers(module, lambda x: isinstance(x, Command))

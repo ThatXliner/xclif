@@ -7,8 +7,9 @@ these sources in order:
 
 1. **CLI flag** (highest priority)
 2. **Environment variable**
-3. **Config file** (TOML or JSON)
-4. **Default value** (lowest priority)
+3. **Local config file** (cwd — only when ``local_config`` is set)
+4. **User config file** (TOML or JSON in the OS config directory)
+5. **Default value** (lowest priority)
 
 Basic usage
 -----------
@@ -49,7 +50,10 @@ Override the prefix on ``Cli``:
 Config files
 ------------
 
-Xclif looks for a config file in the OS-appropriate config directory (via
+User config (global)
+~~~~~~~~~~~~~~~~~~~~
+
+Xclif looks for a user config file in the OS-appropriate config directory (via
 `platformdirs <https://github.com/platformdirs/platformdirs>`_):
 
 - Linux: ``~/.config/<app>/config.toml``
@@ -71,6 +75,24 @@ Override the app name used for the config directory:
 .. code-block:: python
 
    cli = Cli.from_routes(routes, config_name="my-greeter")
+
+Local config (per-project)
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+You can also load a config file from the current working directory by setting the
+``local_config`` parameter to a filename. This is useful for per-project configuration
+that lives alongside the project files:
+
+.. code-block:: python
+
+   cli = Cli.from_routes(routes, local_config=".myapp.toml")
+
+With this, Xclif looks for ``.myapp.toml`` in the current directory. If found, its values
+are deep-merged over the user config — local values win, but user-level keys not present
+in the local file are preserved. The file must have a ``.toml`` or ``.json`` extension.
+
+If the file does not exist, it is silently skipped. When ``local_config`` is not set
+(the default), no cwd lookup is performed.
 
 Auto-injected config subcommands
 ---------------------------------
@@ -125,7 +147,7 @@ Full example
    from xclif import Cli
    from . import routes
 
-   cli = Cli.from_routes(routes)
+   cli = Cli.from_routes(routes, local_config=".myapp.toml")
    if __name__ == "__main__":
        cli()
 
@@ -138,7 +160,11 @@ Full example
    export MYAPP_NAME=Alice
    myapp greet
 
-   # Config file
+   # Local config file (.myapp.toml in cwd)
+   echo 'name = "Alice"' > .myapp.toml
+   myapp greet
+
+   # User config file (OS config directory)
    myapp config set name Alice
    myapp greet
 

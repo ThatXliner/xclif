@@ -173,3 +173,160 @@ def test_with_config_argument_from_config(tmp_path):
     context = {"env_prefix": cli.env_prefix, "config_data": cli._config_data}
     root.execute(["greet"], context)
     assert received == ["ConfigAlice"]
+
+
+def test_deep_merge():
+    from xclif import _deep_merge
+
+    base = {"a": 1, "b": {"x": 10, "y": 20}, "c": 3}
+    override = {"b": {"y": 99, "z": 30}, "d": 4}
+    result = _deep_merge(base, override)
+    assert result == {"a": 1, "b": {"x": 10, "y": 99, "z": 30}, "c": 3, "d": 4}
+    # Originals unchanged
+    assert base["b"] == {"x": 10, "y": 20}
+
+
+def test_local_config_overrides_user_config(tmp_path, monkeypatch):
+    """local_config file in cwd overrides user-level config values."""
+    # User-level config
+    (tmp_path / "user_config").mkdir()
+    (tmp_path / "user_config" / "config.toml").write_text('greeting = "from_user"\n')
+
+    # Local config in cwd
+    cwd = tmp_path / "project"
+    cwd.mkdir()
+    (cwd / ".myapp.toml").write_text('greeting = "from_local"\n')
+    monkeypatch.chdir(cwd)
+
+    received = {}
+
+    @command("myapp")
+    def root() -> None:
+        """Test app."""
+
+    greet_cmd = Command(
+        "greet",
+        lambda greeting="default": received.update(greeting=greeting) or 0,
+        options={"greeting": Option("greeting", str, "desc", "default", config=WithConfig())},
+    )
+    root.subcommands["greet"] = greet_cmd
+
+    with patch("platformdirs.user_config_dir", return_value=str(tmp_path / "user_config")):
+        cli = Cli(root_command=root, local_config=".myapp.toml")
+
+    context = {"env_prefix": cli.env_prefix, "config_data": cli._config_data}
+    root.execute(["greet"], context)
+    assert received["greeting"] == "from_local"
+
+
+def test_local_config_merges_with_user_config(tmp_path, monkeypatch):
+    """Local config merges with user config; keys only in user config are preserved."""
+    (tmp_path / "user_config").mkdir()
+    (tmp_path / "user_config" / "config.toml").write_text(
+        'greeting = "from_user"\nname = "Alice"\n'
+    )
+
+    cwd = tmp_path / "project"
+    cwd.mkdir()
+    (cwd / ".myapp.toml").write_text('greeting = "from_local"\n')
+    monkeypatch.chdir(cwd)
+
+    received = {}
+
+    @command("myapp")
+    def root() -> None:
+        """Test app."""
+
+    greet_cmd = Command(
+        "greet",
+        lambda greeting="default", name="nobody": received.update(greeting=greeting, name=name) or 0,
+        options={
+            "greeting": Option("greeting", str, "desc", "default", config=WithConfig()),
+            "name": Option("name", str, "desc", "nobody", config=WithConfig()),
+        },
+    )
+    root.subcommands["greet"] = greet_cmd
+
+    with patch("platformdirs.user_config_dir", return_value=str(tmp_path / "user_config")):
+        cli = Cli(root_command=root, local_config=".myapp.toml")
+
+    context = {"env_prefix": cli.env_prefix, "config_data": cli._config_data}
+    root.execute(["greet"], context)
+    assert received["greeting"] == "from_local"
+    assert received["name"] == "Alice"  # preserved from user config
+
+
+def test_local_config_not_loaded_when_not_set(tmp_path, monkeypatch):
+    """When local_config is None, cwd files are ignored."""
+    cwd = tmp_path / "project"
+    cwd.mkdir()
+    (cwd / ".myapp.toml").write_text('greeting = "from_local"\n')
+    monkeypatch.chdir(cwd)
+
+    received = {}
+
+    @command("myapp")
+    def root() -> None:
+        """Test app."""
+
+    greet_cmd = Command(
+        "greet",
+        lambda greeting="default": received.update(greeting=greeting) or 0,
+        options={"greeting": Option("greeting", str, "desc", "default", config=WithConfig())},
+    )
+    root.subcommands["greet"] = greet_cmd
+
+    with patch("platformdirs.user_config_dir", return_value=str(tmp_path / "empty")):
+        (tmp_path / "empty").mkdir()
+        cli = Cli(root_command=root)  # no local_config
+
+    context = {"env_prefix": cli.env_prefix, "config_data": cli._config_data}
+    root.execute(["greet"], context)
+    assert received["greeting"] == "default"
+
+
+def test_local_config_missing_file_is_fine(tmp_path, monkeypatch):
+    """If local_config is set but the file doesn't exist, nothing happens."""
+    cwd = tmp_path / "project"
+    cwd.mkdir()
+    monkeypatch.chdir(cwd)
+
+    @command("myapp")
+    def root() -> None:
+        """Test app."""
+
+    with patch("platformdirs.user_config_dir", return_value=str(tmp_path)):
+        cli = Cli(root_command=root, local_config=".myapp.toml")
+
+    assert cli._config_data == {}
+
+
+def test_local_config_json(tmp_path, monkeypatch):
+    """local_config works with .json files too."""
+    import json
+
+    cwd = tmp_path / "project"
+    cwd.mkdir()
+    (cwd / ".myapp.json").write_text(json.dumps({"greeting": "from_json"}))
+    monkeypatch.chdir(cwd)
+
+    received = {}
+
+    @command("myapp")
+    def root() -> None:
+        """Test app."""
+
+    greet_cmd = Command(
+        "greet",
+        lambda greeting="default": received.update(greeting=greeting) or 0,
+        options={"greeting": Option("greeting", str, "desc", "default", config=WithConfig())},
+    )
+    root.subcommands["greet"] = greet_cmd
+
+    with patch("platformdirs.user_config_dir", return_value=str(tmp_path / "empty")):
+        (tmp_path / "empty").mkdir()
+        cli = Cli(root_command=root, local_config=".myapp.json")
+
+    context = {"env_prefix": cli.env_prefix, "config_data": cli._config_data}
+    root.execute(["greet"], context)
+    assert received["greeting"] == "from_json"
