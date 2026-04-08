@@ -27,3 +27,9 @@ clean:
 # Install all dependency groups
 install:
     uv sync --all-groups
+
+# Bump version: just bump 0.3.0 "Feature Title"
+bump version title:
+    sed -i '' 's/^version = ".*"/version = "{{version}}"/' pyproject.toml
+    sed -i '' 's/^__version__ = ".*"/__version__ = "{{version}}"/' src/xclif/__init__.py
+    sed -i '' 's/^## Unreleased$/## Unreleased\n\n## {{version}} — {{title}} ('"$(date +%Y-%m-%d)"')/' docs/changelog.md

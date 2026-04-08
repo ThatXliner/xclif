@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.3.0 — Aliases! (2026-04-08)
+
 ### Added
 - Subcommand aliases: `@command("name", "alias1", "alias2")` lets commands declare alternative names. Aliases are registered in the parent's subcommands dict, included in shell completions, and shown in the command's own Usage line. (#47)
 - Markdown docstrings: command descriptions are now rendered as Markdown in `--help` output via Rich, supporting **bold**, `code`, lists, blockquotes, and more.

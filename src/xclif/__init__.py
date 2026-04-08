@@ -9,7 +9,7 @@ from xclif.command import Command, command
 from xclif.definition import Option as _DefinitionOption
 from xclif.importer import get_modules
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 __all__ = ["Arg", "Cli", "Option", "WithConfig", "__version__", "command"]
 
