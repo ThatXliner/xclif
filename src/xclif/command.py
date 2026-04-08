@@ -62,10 +62,10 @@ class Command:
     def print_short_help(self) -> None:
         """Print a compact one-screen help summary to stdout."""
         all_options = {**self.implicit_options, **self.options}
-        alias_suffix = f" ({', '.join(self.aliases)})" if self.aliases else ""
+        alias_suffix = f" [dim i]({', '.join(self.aliases)})[/dim i]" if self.aliases else ""
         help_text = (
             (self.short_description + "\n" if self.short_description else "")
-            + f"[b][u]Usage[/u]: {self.name}{alias_suffix}[/] [OPTIONS]"
+            + f"[b][u]Usage[/u]: {self.name}[/]{alias_suffix} [OPTIONS]"
             + (" " if self.arguments else "")
             + " ".join(
                 _arg_markup(x)
@@ -134,9 +134,9 @@ class Command:
             console.print(Markdown(self.description))
             console.print()
 
-        alias_suffix = f" ({', '.join(self.aliases)})" if self.aliases else ""
+        alias_suffix = f" [dim i]({', '.join(self.aliases)})[/dim i]" if self.aliases else ""
         help_text = (
-            f"[b][u]Usage[/u]: {self.name}{alias_suffix}[/] [OPTIONS]"
+            f"[b][u]Usage[/u]: {self.name}[/]{alias_suffix} [OPTIONS]"
             + (" " if self.arguments else "")
             + " ".join(
                 _arg_markup(x)
