@@ -234,6 +234,14 @@ def test_second_token_invokes_subcommand_after_greedy_consumption():
     assert idx == 2
 
 
+def test_alias_stops_scan():
+    greet = Command("greet", lambda: 0, aliases=["g"])
+    subcmds = {"greet": greet, "g": greet}
+    pos, opts, idx = _parse_token_stream({}, subcmds, ["g", "Alice"])
+    assert idx == 0
+    assert pos == []
+
+
 # ---------------------------------------------------------------------------
 # _parse_token_stream — error cases
 # ---------------------------------------------------------------------------
@@ -491,6 +499,37 @@ def test_namespace_no_args_prints_help(capsys):
     result = parse_and_execute_impl([], parent)
     assert result == 0
     assert capsys.readouterr().out != ""
+
+
+def test_alias_dispatches_to_subcommand():
+    received = []
+
+    def run(name: str) -> None:
+        received.append(name)
+
+    child = Command("greet", run, arguments=[Argument("name", str, "desc")], aliases=["g"])
+    parent = Command("parent", lambda: 0, subcommands={"greet": child, "g": child})
+    parse_and_execute_impl(["g", "Alice"], parent)
+    assert received == ["Alice"]
+
+
+def test_alias_help_shows_aliases_in_usage(capsys):
+    child = Command("greet", lambda: 0, aliases=["g", "gr"])
+    child.print_short_help()
+    out = capsys.readouterr().out
+    assert "g, gr" in out
+
+
+def test_alias_not_shown_in_parent_subcommand_list(capsys):
+    child = Command("greet", lambda: 0, aliases=["g"])
+    parent = Command("parent", lambda: 0, subcommands={"greet": child, "g": child})
+    parent.print_short_help()
+    out = capsys.readouterr().out
+    # "greet" should appear once as a subcommand, "g" should not appear as a separate entry
+    lines = [l.strip() for l in out.splitlines()]
+    subcommand_lines = [l for l in lines if l.startswith("greet")]
+    assert len(subcommand_lines) == 1
+    assert not any(l.startswith("g ") or l == "g" for l in lines if not l.startswith("gr"))
 
 
 def test_unknown_subcommand_raises():

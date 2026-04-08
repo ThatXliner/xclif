@@ -99,6 +99,32 @@ All three forms are equivalent in what they produce — the only difference is *
 name comes from. In practice, prefer the module-inference style (``def _``) in route
 files and the function-name style (``def greet``) in the decorator API.
 
+Aliases
+-------
+
+A command can have one or more **aliases** — alternative names that resolve to the same
+command. Pass additional strings after the canonical name:
+
+.. code-block:: python
+
+   @command("checkout", "co")
+   def _(branch: str) -> None:
+       """Switch branches."""
+       ...
+
+Now both ``myapp checkout main`` and ``myapp co main`` work identically. Aliases appear
+dimmed in help output next to the canonical name.
+
+Multiple aliases are supported:
+
+.. code-block:: python
+
+   @command("checkout", "co", "sw")
+   def _(branch: str) -> None: ...
+
+Aliases are validated at registration time — if an alias collides with an existing
+subcommand name, a ``ValueError`` is raised.
+
 Parameter rules
 ---------------
 

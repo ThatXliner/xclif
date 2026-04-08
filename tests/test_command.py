@@ -110,6 +110,36 @@ def test_command_function_name_used():
     assert greet.name == "greet"
 
 
+def test_command_with_aliases():
+    @command("checkout", "co")
+    def _(name: str) -> None: ...
+
+    assert _.name == "checkout"
+    assert _.aliases == ["co"]
+
+
+def test_command_with_multiple_aliases():
+    @command("checkout", "co", "sw")
+    def _(name: str) -> None: ...
+
+    assert _.name == "checkout"
+    assert _.aliases == ["co", "sw"]
+
+
+def test_command_no_aliases_by_default():
+    @command("checkout")
+    def _(name: str) -> None: ...
+
+    assert _.aliases == []
+
+
+def test_command_no_args_no_aliases():
+    @command()
+    def greet() -> None: ...
+
+    assert greet.aliases == []
+
+
 # ---------------------------------------------------------------------------
 # Command dataclass
 # ---------------------------------------------------------------------------
@@ -378,6 +408,17 @@ def test_command_method_uses_explicit_name():
 
     assert "hi" in root.subcommands
     assert "hello" not in root.subcommands
+
+
+def test_command_method_registers_aliases():
+    root = Command("root", lambda: 0)
+
+    @root.command("checkout", "co")
+    def _(name: str) -> None: ...
+
+    assert "checkout" in root.subcommands
+    assert "co" in root.subcommands
+    assert root.subcommands["checkout"] is root.subcommands["co"]
 
 
 def test_command_method_returns_command():

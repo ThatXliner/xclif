@@ -61,8 +61,12 @@ A decorator that registers a function as a subcommand of the parent command:
    @parent.command("hi")      # explicit name
    def greet(...): ...
 
+   @parent.command("hi", "h") # explicit name with alias
+   def greet(...): ...
+
 The decorated function is converted to a :class:`~xclif.command.Command` and attached to
-``parent.subcommands``. The return value is the :class:`~xclif.command.Command` object.
+``parent.subcommands``. Additional names after the first become aliases. The return value
+is the :class:`~xclif.command.Command` object.
 
 ``Command.group()``
 -------------------
