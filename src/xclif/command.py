@@ -75,11 +75,13 @@ class Command:
         if not _get_console().is_terminal:
             self.print_agent_help()
             return
+        from rich.markup import escape
+
         all_options = {**self.implicit_options, **self.options}
-        alias_suffix = f" [dim i]({', '.join(self.aliases)})[/dim i]" if self.aliases else ""
+        alias_suffix = f" [dim]({', '.join(self.aliases)})[/dim]" if self.aliases else ""
         help_text = (
             (self.short_description + "\n" if self.short_description else "")
-            + f"[b][u]Usage[/u]: {self.name}[/]{alias_suffix} [OPTIONS]"
+            + f"[bold cyan]Usage:[/bold cyan] [cyan]{self.name}[/cyan]{alias_suffix} [dim]{escape('[OPTIONS]')}[/dim]"
             + (" " if self.arguments else "")
             + " ".join(
                 _arg_markup(x)
@@ -92,21 +94,28 @@ class Command:
             name: self._format_option_label(name, opt)
             for name, opt in all_options.items()
         }
+        # Build subcommand labels: "name <arg1> <arg2>" for leaves with args
+        subcmd_labels = {
+            name: _subcmd_label(name, cmd)
+            for name, cmd in self.subcommands.items()
+            if name == cmd.name
+        }
         pad_length = max(
             [
                 *(len(_arg_label(x)) + 2 for x in self.arguments),
-                *(len(cmd.name) for cmd in self.subcommands.values()),
+                *(len(label) for label in subcmd_labels.values()),
                 *(len(label) for label in option_labels.values()),
                 0,
             ]
         )
         if self.subcommands:
             help_text += (
-                "[b][u]Subcommands[/u]:[/]\n"
+                "[bold cyan]Subcommands:[/bold cyan]\n"
                 + "\n".join(
                     " " * INITIAL_LEFT_PADDING
-                    + f"[b]{name.ljust(pad_length + NAME_DESC_PADDING)}[/]"
-                    + f"[i]{cmd.short_description}[/]"
+                    + f"[cyan]{name}[/cyan]"
+                    + f"[dim]{escape(_subcmd_args_suffix(cmd)).ljust(pad_length + NAME_DESC_PADDING - len(name))}[/dim]"
+                    + f"[dim]{cmd.short_description}[/dim]"
                     for name, cmd in self.subcommands.items()
                     if name == cmd.name  # skip alias entries
                 )
@@ -114,22 +123,21 @@ class Command:
             )
         elif self.arguments:
             help_text += (
-                "[b][u]Arguments[/u]:[/]\n"
+                "[bold cyan]Arguments:[/bold cyan]\n"
                 + "\n".join(
                     " " * INITIAL_LEFT_PADDING
-                    + f"[b]{_arg_section_label(x).ljust(pad_length + NAME_DESC_PADDING)}[/b]"
-                    + f"[i]{x.description}[/]"
+                    + f"[dim cyan]{_arg_section_label(x).ljust(pad_length + NAME_DESC_PADDING)}[/dim cyan]"
+                    + f"[dim]{x.description}[/dim]"
                     for x in self.arguments
                 )
                 + "\n\n"
             )
         help_text += (
-            "[b][u]Options[/u]:[/]\n"
+            "[bold cyan]Options:[/bold cyan]\n"
             + "\n".join(
-                "[b]"
-                + " " * INITIAL_LEFT_PADDING
-                + option_labels[name].ljust(pad_length + NAME_DESC_PADDING)
-                + f"[/b][i]{opt.description}[/]"
+                " " * INITIAL_LEFT_PADDING
+                + f"[cyan]{option_labels[name].ljust(pad_length + NAME_DESC_PADDING)}[/cyan]"
+                + f"[dim]{opt.description}[/dim]"
                 for name, opt in all_options.items()
             )
             + "\n\n"
@@ -142,6 +150,7 @@ class Command:
             self.print_agent_help()
             return
         from rich.markdown import Markdown
+        from rich.markup import escape
 
         all_options = {**self.implicit_options, **self.options}
 
@@ -151,9 +160,9 @@ class Command:
             console.print(Markdown(self.description))
             console.print()
 
-        alias_suffix = f" [dim i]({', '.join(self.aliases)})[/dim i]" if self.aliases else ""
+        alias_suffix = f" [dim]({', '.join(self.aliases)})[/dim]" if self.aliases else ""
         help_text = (
-            f"[b][u]Usage[/u]: {self.name}[/]{alias_suffix} [OPTIONS]"
+            f"[bold cyan]Usage:[/bold cyan] [cyan]{self.name}[/cyan]{alias_suffix} [dim]{escape('[OPTIONS]')}[/dim]"
             + (" " if self.arguments else "")
             + " ".join(
                 _arg_markup(x)
@@ -166,21 +175,27 @@ class Command:
             name: self._format_option_label(name, opt)
             for name, opt in all_options.items()
         }
+        subcmd_labels = {
+            name: _subcmd_label(name, cmd)
+            for name, cmd in self.subcommands.items()
+            if name == cmd.name
+        }
         pad_length = max(
             [
                 *(len(_arg_label(x)) + 2 for x in self.arguments),
-                *(len(cmd.name) for cmd in self.subcommands.values()),
+                *(len(label) for label in subcmd_labels.values()),
                 *(len(label) for label in option_labels.values()),
                 0,
             ]
         )
         if self.subcommands:
             help_text += (
-                "[b][u]Subcommands[/u]:[/]\n"
+                "[bold cyan]Subcommands:[/bold cyan]\n"
                 + "\n".join(
                     " " * INITIAL_LEFT_PADDING
-                    + f"[b]{name.ljust(pad_length + NAME_DESC_PADDING)}[/]"
-                    + f"[i]{cmd.short_description}[/]"
+                    + f"[cyan]{name}[/cyan]"
+                    + f"[dim]{escape(_subcmd_args_suffix(cmd)).ljust(pad_length + NAME_DESC_PADDING - len(name))}[/dim]"
+                    + f"[dim]{cmd.short_description}[/dim]"
                     for name, cmd in self.subcommands.items()
                     if name == cmd.name  # skip alias entries
                 )
@@ -189,22 +204,21 @@ class Command:
         elif self.arguments:
             indent_width = INITIAL_LEFT_PADDING + pad_length + NAME_DESC_PADDING
             help_text += (
-                "[b][u]Arguments[/u]:[/]\n"
+                "[bold cyan]Arguments:[/bold cyan]\n"
                 + "\n".join(
                     " " * INITIAL_LEFT_PADDING
-                    + f"[b]{_arg_section_label(x).ljust(pad_length + NAME_DESC_PADDING)}[/b]"
-                    + textwrap.indent(x.description, " " * indent_width).strip()
+                    + f"[dim cyan]{_arg_section_label(x).ljust(pad_length + NAME_DESC_PADDING)}[/dim cyan]"
+                    + f"[dim]{textwrap.indent(x.description, ' ' * indent_width).strip()}[/dim]"
                     for x in self.arguments
                 )
                 + "\n\n"
             )
         help_text += (
-            "[b][u]Options[/u]:[/]\n"
+            "[bold cyan]Options:[/bold cyan]\n"
             + "\n".join(
-                "[b]"
-                + " " * INITIAL_LEFT_PADDING
-                + option_labels[name].ljust(pad_length + NAME_DESC_PADDING)
-                + f"[/b][i]{opt.description}[/]"
+                " " * INITIAL_LEFT_PADDING
+                + f"[cyan]{option_labels[name].ljust(pad_length + NAME_DESC_PADDING)}[/cyan]"
+                + f"[dim]{opt.description}[/dim]"
                 for name, opt in all_options.items()
             )
             + "\n\n"
@@ -296,6 +310,23 @@ class Command:
     def short_description(self) -> str:
         """First line of :attr:`description`, used in subcommand listings."""
         return self.description.split("\n")[0]
+
+
+def _subcmd_args_suffix(cmd: "Command") -> str:
+    """Return argument placeholders for a leaf subcommand, e.g. ' <name> <file>'."""
+    if cmd.subcommands or not cmd.arguments:
+        return ""
+    parts = []
+    for arg in cmd.arguments:
+        label = _arg_label(arg)
+        suffix = "..." if arg.variadic else ""
+        parts.append(f"<{label.lower()}{suffix}>")
+    return " " + " ".join(parts)
+
+
+def _subcmd_label(name: str, cmd: "Command") -> str:
+    """Return full display label for a subcommand including arg placeholders."""
+    return name + _subcmd_args_suffix(cmd)
 
 
 def _arg_label(arg: "Argument") -> str:
