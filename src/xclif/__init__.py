@@ -6,12 +6,13 @@ from pathlib import Path
 from typing import NoReturn, Self
 
 from xclif.command import Command, command
+from xclif.context import Context, get_context
 from xclif.definition import _DefinitionOption
 from xclif.importer import get_modules
 
 __version__ = "0.3.0"
 
-__all__ = ["Arg", "Cli", "Option", "WithConfig", "__version__", "command"]
+__all__ = ["Arg", "Cli", "Context", "Option", "WithConfig", "__version__", "command", "get_context"]
 
 
 @dataclass(frozen=True)
