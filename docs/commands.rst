@@ -170,6 +170,42 @@ automatically inherited by all subcommands. So ``myapp --verbose subcommand`` an
 ``myapp subcommand --verbose`` are equivalent, and ``myapp -vv subcommand`` gives
 the subcommand a verbosity level of 2.
 
+Accessing verbosity and context
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Use :func:`~xclif.context.get_context` to access the current verbosity level,
+color mode, and other cascading state from anywhere in your code — no need to
+thread values through function calls:
+
+.. code-block:: python
+
+   from xclif import get_context
+
+   def deploy(target: str) -> None:
+       ctx = get_context()
+       if ctx.verbosity >= 2:
+           print(f"Debug: deploying to {target}")
+       run_deploy(target)
+
+   def run_deploy(target: str) -> None:
+       # Works in nested calls too — no need to pass verbosity around
+       ctx = get_context()
+       if ctx.verbosity >= 1:
+           print(f"Connecting to {target}...")
+       ...
+
+The :class:`~xclif.context.Context` object provides typed properties for
+built-in options:
+
+- ``ctx.verbosity`` — ``int`` (0–3), from ``-v`` / ``-vv`` / ``-vvv``
+- ``ctx.colors`` — ``str`` (``"always"`` / ``"never"`` / ``"auto"``)
+
+.. note::
+
+   ``get_context()`` can only be called during command dispatch (inside a
+   command's ``run()`` function or code called from it). Calling it at module
+   level or outside dispatch raises ``RuntimeError``.
+
 Agent-optimized help
 --------------------
 

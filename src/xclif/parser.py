@@ -64,6 +64,7 @@ from typing import TYPE_CHECKING
 from xclif.config import resolve_key
 from xclif.definition import Argument, _DefinitionOption
 from xclif.errors import UsageError
+from xclif.context import Context, _set_context
 
 if TYPE_CHECKING:
     from xclif.command import Command
@@ -330,7 +331,11 @@ def parse_and_execute_impl(
             elif option.default is not None:
                 user_kwargs[name] = option.default
 
-    return command.run(*converted_args, **user_kwargs) or 0
+    token = _set_context(Context(new_context))
+    try:
+        return command.run(*converted_args, **user_kwargs) or 0
+    finally:
+        _set_context(None, token)
 
 
 def _user_opts(parsed_opts: dict, command: "Command") -> bool:
