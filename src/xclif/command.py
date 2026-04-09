@@ -29,10 +29,10 @@ def _help_console(*, force_rich: bool = False, force_plain: bool = False) -> "Co
     """Return a Console configured for the requested help mode."""
     from rich.console import Console
     if force_plain:
-        return Console(no_color=True, highlight=False)
+        return Console(no_color=True, highlight=False, soft_wrap=True)
     if force_rich:
-        return Console(force_terminal=True)
-    return Console()
+        return Console(force_terminal=True, soft_wrap=True)
+    return Console(soft_wrap=True)
 
 
 @dataclass
@@ -153,7 +153,7 @@ class Command:
             )
             + "\n\n"
         )
-        console.print(help_text, soft_wrap=True)
+        console.print(help_text)
 
     def print_long_help(self, *, force_rich: bool = False, force_plain: bool = False) -> None:
         """Print the full help page (including the long description) to stdout."""
@@ -234,7 +234,7 @@ class Command:
             )
             + "\n\n"
         )
-        console.print(help_text, soft_wrap=True)
+        console.print(help_text)
 
     def print_agent_help(self) -> None:
         """Print a hyper-short, token-efficient help summary for LLM agents.
