@@ -31,9 +31,9 @@ PY="$ROOT/.venv/bin/python"
 
 CLICK="$PY $DIR/click_greeter.py"
 TYPER="$PY $DIR/typer_greeter.py"
-XCLIF_FLAT="$PY $DIR/xclif_greeter_flat.py"
-XCLIF="env PYTHONPATH=$DIR $PY -m xclif_greeter"
-XCLIF_MANIFEST="env PYTHONPATH=$DIR $PY -m xclif_greeter_manifest"
+XCLIF_FLAT="env FORCE_COLOR=1 $PY $DIR/xclif_greeter_flat.py"
+XCLIF="env FORCE_COLOR=1 PYTHONPATH=$DIR $PY -m xclif_greeter"
+XCLIF_MANIFEST="env FORCE_COLOR=1 PYTHONPATH=$DIR $PY -m xclif_greeter_manifest"
 
 run() {
     local label="$1"; shift
