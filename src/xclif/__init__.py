@@ -145,10 +145,17 @@ class Cli:
     _finalized: bool = field(default=False, init=False, repr=False)
 
     def __post_init__(self) -> None:
+        import copy
+
         import platformdirs
 
         from xclif.completions import make_completions_command
         from xclif.config import load_config
+
+        # Shallow-copy root_command so we don't mutate the shared singleton
+        self.root_command = copy.copy(self.root_command)
+        self.root_command.subcommands = dict(self.root_command.subcommands)
+        self.root_command.implicit_options = dict(self.root_command.implicit_options)
 
         # Derive defaults from root command name
         if self.env_prefix is None:
