@@ -126,7 +126,7 @@ class Command:
                     " " * INITIAL_LEFT_PADDING
                     + f"[cyan]{name}[/cyan]"
                     + f"[dim]{escape(_subcmd_args_suffix(cmd)).ljust(pad_length + NAME_DESC_PADDING - len(name))}[/dim]"
-                    + f"[dim]{cmd.short_description}[/dim]"
+                    + _dim_description(cmd.short_description)
                     for name, cmd in self.subcommands.items()
                     if name == cmd.name  # skip alias entries
                 )
@@ -138,7 +138,7 @@ class Command:
                 + "\n".join(
                     " " * INITIAL_LEFT_PADDING
                     + f"[dim cyan]{_arg_section_label(x).ljust(pad_length + NAME_DESC_PADDING)}[/dim cyan]"
-                    + f"[dim]{x.description}[/dim]"
+                    + _dim_description(x.description)
                     for x in self.arguments
                 )
                 + "\n\n"
@@ -148,12 +148,12 @@ class Command:
             + "\n".join(
                 " " * INITIAL_LEFT_PADDING
                 + f"[cyan]{option_labels[name].ljust(pad_length + NAME_DESC_PADDING)}[/cyan]"
-                + f"[dim]{opt.description}[/dim]"
+                + _dim_description(opt.description)
                 for name, opt in all_options.items()
             )
             + "\n\n"
         )
-        console.print(help_text)
+        console.print(help_text, soft_wrap=True)
 
     def print_long_help(self, *, force_rich: bool = False, force_plain: bool = False) -> None:
         """Print the full help page (including the long description) to stdout."""
@@ -206,7 +206,7 @@ class Command:
                     " " * INITIAL_LEFT_PADDING
                     + f"[cyan]{name}[/cyan]"
                     + f"[dim]{escape(_subcmd_args_suffix(cmd)).ljust(pad_length + NAME_DESC_PADDING - len(name))}[/dim]"
-                    + f"[dim]{cmd.short_description}[/dim]"
+                    + _dim_description(cmd.short_description)
                     for name, cmd in self.subcommands.items()
                     if name == cmd.name  # skip alias entries
                 )
@@ -219,7 +219,7 @@ class Command:
                 + "\n".join(
                     " " * INITIAL_LEFT_PADDING
                     + f"[dim cyan]{_arg_section_label(x).ljust(pad_length + NAME_DESC_PADDING)}[/dim cyan]"
-                    + f"[dim]{textwrap.indent(x.description, ' ' * indent_width).strip()}[/dim]"
+                    + _dim_description(textwrap.indent(x.description, ' ' * indent_width).strip())
                     for x in self.arguments
                 )
                 + "\n\n"
@@ -229,12 +229,12 @@ class Command:
             + "\n".join(
                 " " * INITIAL_LEFT_PADDING
                 + f"[cyan]{option_labels[name].ljust(pad_length + NAME_DESC_PADDING)}[/cyan]"
-                + f"[dim]{opt.description}[/dim]"
+                + _dim_description(opt.description)
                 for name, opt in all_options.items()
             )
             + "\n\n"
         )
-        console.print(help_text)
+        console.print(help_text, soft_wrap=True)
 
     def print_agent_help(self) -> None:
         """Print a hyper-short, token-efficient help summary for LLM agents.
@@ -321,6 +321,13 @@ class Command:
     def short_description(self) -> str:
         """First line of :attr:`description`, used in subcommand listings."""
         return self.description.split("\n")[0]
+
+
+def _dim_description(desc: str) -> str:
+    """Return Rich markup for a description, italicizing 'No description'."""
+    if desc == NO_DESC:
+        return f"[dim italic]{desc}[/dim italic]"
+    return f"[dim]{desc}[/dim]"
 
 
 def _subcmd_args_suffix(cmd: "Command") -> str:
