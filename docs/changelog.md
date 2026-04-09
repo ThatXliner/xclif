@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+## 0.4.0 — Agent help text and Options Cascade (2026-04-08)
+
+### Added
+- `get_context()` API: access cascading framework state (`Context` class) from within command handlers. Exported from `xclif`. (#51)
+- Agent-optimized help: `print_agent_help()` emits token-efficient plain-text help for LLM consumers; auto-detected when stdout is not a TTY. Positional arguments are now shown in agent help output.
+- Colorized help output: cyan accents and dimmed descriptions in `--help` via Rich.
+
+### Changed
+- Renamed internal `definition.Option` to `_DefinitionOption` to avoid confusion with the public `Option` annotation marker.
+- Refactored `_set_context` into separate `set`/`reset` methods for type safety.
+
+### Fixed
+- Benchmarks now set `FORCE_COLOR=1` so `--help` benchmarks measure Rich output correctly.
+
 ## 0.3.0 — Aliases! (2026-04-08)
 
 ### Added
