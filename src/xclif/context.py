@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from contextvars import ContextVar
+from contextvars import ContextVar, Token
 from dataclasses import dataclass
 
 
@@ -65,12 +65,15 @@ def get_context() -> Context:
         ) from None
 
 
-def _set_context(ctx: Context | None, token: object | None = None) -> object:
-    """Set or reset the dispatch context. Internal use only.
+def _set_context(ctx: Context) -> Token[Context]:
+    """Set the dispatch context. Internal use only.
 
-    Returns a token that can be passed back to reset the contextvar.
+    Returns a token that must be passed to :func:`_reset_context` to restore
+    the previous state.
     """
-    if token is not None:
-        _context_var.reset(token)
-        return None
     return _context_var.set(ctx)
+
+
+def _reset_context(token: Token[Context]) -> None:
+    """Reset the dispatch context to its previous state. Internal use only."""
+    _context_var.reset(token)

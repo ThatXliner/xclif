@@ -53,7 +53,7 @@ def test_contains():
     assert "missing" not in ctx
 
 
-from xclif.context import get_context, _set_context
+from xclif.context import get_context, _set_context, _reset_context
 
 
 def test_get_context_outside_dispatch():
@@ -70,14 +70,14 @@ def test_set_and_get_context():
         assert get_context() is ctx
         assert get_context().verbosity == 2
     finally:
-        _set_context(None, token)
+        _reset_context(token)
 
 
 def test_context_reset():
     """After reset, get_context() raises again."""
     ctx = Context({"verbose": 1})
     token = _set_context(ctx)
-    _set_context(None, token)
+    _reset_context(token)
     with pytest.raises(RuntimeError):
         get_context()
 
