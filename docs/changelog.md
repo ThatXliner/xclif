@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+- `--help=plain` and `--help=rich` modes: explicitly override help format auto-detection. Bare `--help` still auto-detects based on TTY.
+- `optional_value` field on `_DefinitionOption`: options can now be used as bare flags with a default value, or with `=value` syntax.
+
 ## 0.4.0 — Agent help text and Options Cascade (2026-04-08)
 
 ### Added

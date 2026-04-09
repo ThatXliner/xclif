@@ -164,6 +164,8 @@ def _parse_token_stream(
                 option = options[name]
                 if option.converter is bool:
                     parsed_opts[name].append(True)
+                elif option.optional_value is not None:
+                    parsed_opts[name].append(option.optional_value)
                 else:
                     if i + 1 >= len(args):
                         raise UsageError(f"Option {token!r} requires a value")
@@ -183,6 +185,8 @@ def _parse_token_stream(
             option = options[long_name]
             if option.converter is bool:
                 parsed_opts[long_name].append(True)
+            elif option.optional_value is not None:
+                parsed_opts[long_name].append(option.optional_value)
             else:
                 if i + 1 >= len(args):
                     raise UsageError(f"Option {token!r} requires a value")
@@ -231,12 +235,21 @@ def parse_and_execute_impl(
     # --- Act on implicit options first, before any dispatch ---
 
     # --help / -h: print help and exit immediately
+    # Supports --help (auto-detect), --help=plain, --help=rich
     if parsed_opts.get("help"):
-        if subcmd_index is not None:
-            subcommand = command.subcommands[args[subcmd_index]]
-            subcommand.print_long_help()
+        help_mode = parsed_opts["help"][-1]  # last wins
+        if help_mode not in ("auto", "plain", "rich"):
+            raise UsageError(
+                f"Invalid help mode {help_mode!r}",
+                hint="Valid modes: plain, rich",
+            )
+        target = command.subcommands[args[subcmd_index]] if subcmd_index is not None else command
+        if help_mode == "plain":
+            target.print_agent_help()
+        elif help_mode == "rich":
+            target.print_long_help(force_rich=True)
         else:
-            command.print_long_help()
+            target.print_long_help()
         return 0
 
     # --version: only present on root command (injected by Cli)
