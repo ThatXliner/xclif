@@ -80,3 +80,53 @@ def test_context_reset():
     _set_context(None, token)
     with pytest.raises(RuntimeError):
         get_context()
+
+
+from xclif.command import Command, command
+
+
+def test_get_context_during_dispatch():
+    """get_context() works inside a command's run() function."""
+    captured = {}
+
+    @command("check")
+    def _(name: str) -> None:
+        """Check context."""
+        ctx = get_context()
+        captured["verbosity"] = ctx.verbosity
+        captured["colors"] = ctx.colors
+
+    cmd = _
+    # -v -v gives verbosity 2
+    cmd.execute(["-v", "-v", "hello"])
+    assert captured["verbosity"] == 2
+    assert captured["colors"] == "auto"
+
+
+def test_verbosity_cascades_to_subcommand():
+    """Verbosity set at parent cascades into subcommand's get_context()."""
+    captured = {}
+
+    @command("leaf")
+    def leaf() -> None:
+        """Leaf."""
+        captured["verbosity"] = get_context().verbosity
+
+    root = Command("root", lambda: 0)
+    root.subcommands["leaf"] = leaf
+
+    root.execute(["-v", "leaf"])
+    assert captured["verbosity"] == 1
+
+
+def test_get_context_unavailable_after_dispatch():
+    """get_context() is unavailable after dispatch completes."""
+    @command("noop")
+    def _() -> None:
+        """No-op."""
+        pass
+
+    cmd = _
+    cmd.execute([])
+    with pytest.raises(RuntimeError):
+        get_context()
