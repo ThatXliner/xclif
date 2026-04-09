@@ -214,8 +214,18 @@ class Command:
     def print_agent_help(self) -> None:
         """Print a hyper-short, token-efficient help summary for LLM agents.
 
-        Recursively flattens the entire command tree. Filters out framework-owned
-        implicit options and hidden subcommands like ``completions``.
+        Automatically used when stdout is not a TTY (e.g. piped to another
+        process or called by an agent). Recursively flattens the entire command
+        tree and filters out framework-owned implicit options and hidden
+        subcommands like ``completions``.
+
+        Example output::
+
+            myapp: My application.
+
+            greet - Greet someone. Options: --name STR, --template STR (default: 'Hello, {}!')
+            config get - Print the current config.
+            config set - Set config values.
         """
         header = f"{self.name}: {self.short_description}"
         if not self.subcommands:
