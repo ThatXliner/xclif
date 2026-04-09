@@ -9,7 +9,7 @@ import tomlkit
 from xclif import Cli, WithConfig
 from xclif.command import Command
 from xclif.config_commands import make_config_command
-from xclif.definition import Option
+from xclif.definition import _DefinitionOption
 
 
 def _make_root_with_config_option():
@@ -18,7 +18,7 @@ def _make_root_with_config_option():
         subcommands={
             "greet": Command(
                 "greet", lambda greeting="hi": 0,
-                options={"greeting": Option("greeting", str, "desc", "hi", config=WithConfig())},
+                options={"greeting": _DefinitionOption("greeting", str, "desc", "hi", config=WithConfig())},
             ),
         },
     )
@@ -113,7 +113,7 @@ def test_cli_skips_config_injection_when_already_exists(tmp_path):
         "config": Command("config", lambda: 0),
         "greet": Command(
             "greet", lambda greeting="hi": 0,
-            options={"greeting": Option("greeting", str, "desc", "hi", config=WithConfig())},
+            options={"greeting": _DefinitionOption("greeting", str, "desc", "hi", config=WithConfig())},
         ),
     })
     with patch("platformdirs.user_config_dir", return_value=str(tmp_path)):

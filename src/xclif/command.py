@@ -8,7 +8,7 @@ __all__ = ["Command", "command"]
 
 from xclif.annotations import annotation2converter, is_list_type, unwrap_param_metadata
 from xclif.constants import INITIAL_LEFT_PADDING, NAME_DESC_PADDING, NO_DESC
-from xclif.definition import IMPLICIT_OPTIONS, Argument, Option
+from xclif.definition import IMPLICIT_OPTIONS, Argument, _DefinitionOption
 from xclif.errors import UsageError
 from xclif.parser import parse_and_execute_impl
 
@@ -38,9 +38,9 @@ class Command:
     name: str
     run: Callable[..., int]
     arguments: list[Argument] = field(default_factory=list)
-    options: dict[str, Option] = field(default_factory=dict)
+    options: dict[str, _DefinitionOption] = field(default_factory=dict)
     subcommands: dict[str, "Command"] = field(default_factory=dict)
-    implicit_options: dict[str, Option] = field(default_factory=dict)
+    implicit_options: dict[str, _DefinitionOption] = field(default_factory=dict)
     version: str | None = None
     aliases: list[str] = field(default_factory=list)
 
@@ -64,7 +64,7 @@ class Command:
                 f"subcommand {existing.name!r}"
             )
 
-    def _format_option_label(self, name: str, option: Option) -> str:
+    def _format_option_label(self, name: str, option: _DefinitionOption) -> str:
         """Format an option name with its aliases for display."""
         parts = [f"--{option.name.replace('_', '-')}"]
         parts.extend(option.aliases)
@@ -72,6 +72,9 @@ class Command:
 
     def print_short_help(self) -> None:
         """Print a compact one-screen help summary to stdout."""
+        if not _get_console().is_terminal:
+            self.print_agent_help()
+            return
         all_options = {**self.implicit_options, **self.options}
         alias_suffix = f" [dim i]({', '.join(self.aliases)})[/dim i]" if self.aliases else ""
         help_text = (
@@ -135,6 +138,9 @@ class Command:
 
     def print_long_help(self) -> None:
         """Print the full help page (including the long description) to stdout."""
+        if not _get_console().is_terminal:
+            self.print_agent_help()
+            return
         from rich.markdown import Markdown
 
         all_options = {**self.implicit_options, **self.options}
@@ -208,10 +214,21 @@ class Command:
     def print_agent_help(self) -> None:
         """Print a hyper-short, token-efficient help summary for LLM agents.
 
-        Recursively flattens the entire command tree. Filters out framework-owned
-        implicit options and hidden subcommands like ``completions``.
+        Automatically used when stdout is not a TTY (e.g. piped to another
+        process or called by an agent). Recursively flattens the entire command
+        tree and filters out framework-owned implicit options and hidden
+        subcommands like ``completions``.
+
+        Example output::
+
+            myapp: My application.
+
+            greet NAME - Greet someone. Options: --template STR (default: 'Hello, {}!')
+            config get - Print the current config.
+            config set KEY VALUE - Set config values.
         """
-        header = f"{self.name}: {self.short_description}"
+        args = _format_agent_args(self)
+        header = f"{self.name}{args}: {self.short_description}"
         if not self.subcommands:
             # Leaf command: append own options to the header line
             opts = _format_agent_options(self)
@@ -320,7 +337,8 @@ def _collect_agent_lines(cmd: "Command", prefix: str) -> list[str]:
             lines.extend(_collect_agent_lines(sub, path + " "))
         else:
             # Leaf command
-            line = f"{path} - {sub.short_description}"
+            args = _format_agent_args(sub)
+            line = f"{path}{args} - {sub.short_description}"
             opts = _format_agent_options(sub)
             if opts:
                 line += f" Options: {opts}"
@@ -344,6 +362,20 @@ def _format_agent_options(cmd: "Command") -> str:
     return ", ".join(parts)
 
 
+def _format_agent_args(cmd: "Command") -> str:
+    """Format positional arguments for agent help, e.g. ' NAME FILE...'."""
+    if not cmd.arguments:
+        return ""
+    parts: list[str] = []
+    for arg in cmd.arguments:
+        label = arg.name.upper()
+        if arg.variadic:
+            label += "..."
+        parts.append(label)
+    return " " + " ".join(parts)
+
+
+
 def _get_choices(converter) -> list[str] | None:
     """Return choices list if converter is a Literal converter, else None."""
     return getattr(converter, "__choices__", None)
@@ -359,7 +391,7 @@ def _auto_alias(name: str, taken: set[str]) -> list[str]:
     return []
 
 
-def extract_parameters(function: Callable) -> tuple[list[Argument], dict[str, Option]]:
+def extract_parameters(function: Callable) -> tuple[list[Argument], dict[str, _DefinitionOption]]:
     """Extract arguments and options from a function's signature."""
     signature = inspect.signature(function, eval_str=True)
     arguments = []
@@ -424,7 +456,7 @@ def extract_parameters(function: Callable) -> tuple[list[Argument], dict[str, Op
             description = opt_meta.description if opt_meta and opt_meta.description else NO_DESC
             cli_name = opt_meta.name if opt_meta and opt_meta.name else name
             aliases = _auto_alias(cli_name, taken_aliases)
-            options[name] = Option(cli_name, converter, description, default, is_list=list_valued, aliases=aliases, config=with_config, choices=_get_choices(converter))
+            options[name] = _DefinitionOption(cli_name, converter, description, default, is_list=list_valued, aliases=aliases, config=with_config, choices=_get_choices(converter))
     return arguments, options
 
 

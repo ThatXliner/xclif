@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from xclif.command import Command
-    from xclif.definition import Argument, Option
+    from xclif.definition import Argument, _DefinitionOption
 
 
 def check_with_config_conflicts(root: "Command", env_prefix: str) -> None:

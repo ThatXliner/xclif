@@ -170,6 +170,33 @@ automatically inherited by all subcommands. So ``myapp --verbose subcommand`` an
 ``myapp subcommand --verbose`` are equivalent, and ``myapp -vv subcommand`` gives
 the subcommand a verbosity level of 2.
 
+Agent-optimized help
+--------------------
+
+When ``--help`` output is piped or redirected (i.e. stdout is not a TTY), Xclif
+automatically switches to a compact, plain-text format designed for LLM agents and
+scripts. This format:
+
+- Flattens the entire command tree into one output (no need to call ``--help`` on
+  each subcommand separately)
+- Strips Rich formatting (no ANSI escape codes)
+- Omits framework-owned options (``--help``, ``--verbose``, ``--colors``, ``--version``)
+  and the ``completions`` subcommand
+- Shows only user-defined options with their types and defaults
+
+For example, a CLI with subcommands ``greet`` and ``config get``/``config set``
+produces::
+
+   myapp: My application.
+
+   greet NAME - Greet someone. Options: --template STR (default: 'Hello, {}!')
+   config get - Print the current config.
+   config set KEY VALUE - Set config values.
+
+Detection uses Rich's ``Console.is_terminal``, which respects ``FORCE_COLOR``,
+``TTY_COMPATIBLE``, and other standard environment variables. To force Rich output
+in a non-TTY context (e.g. benchmarks), set ``FORCE_COLOR=1``.
+
 Building subcommand trees imperatively
 ---------------------------------------
 

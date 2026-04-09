@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import NoReturn, Self
 
 from xclif.command import Command, command
-from xclif.definition import Option as _DefinitionOption
+from xclif.definition import _DefinitionOption
 from xclif.importer import get_modules
 
 __version__ = "0.3.0"

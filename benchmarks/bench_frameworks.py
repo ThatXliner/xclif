@@ -13,6 +13,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import os
 import subprocess
 import sys
 import time
@@ -118,6 +119,7 @@ def run_once(cmd: list[str], args: list[str]) -> float:
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         cwd=EXAMPLES_DIR,
+        env={**os.environ, "FORCE_COLOR": "1"},
     )
     return (time.perf_counter() - t0) * 1000
 

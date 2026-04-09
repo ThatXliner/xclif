@@ -6,7 +6,7 @@ import pytest
 
 from xclif.command import Command, command, extract_parameters
 from xclif.constants import NO_DESC
-from xclif.definition import Argument, Option as _DefinitionOption
+from xclif.definition import Argument, _DefinitionOption
 from xclif import WithConfig
 from xclif import Arg, Option as OptionMeta
 from xclif.annotations import unwrap_param_metadata
@@ -226,7 +226,11 @@ def test_print_long_help_with_args(capsys):
     greet.print_long_help()
 
 
-def test_print_long_help_renders_markdown(capsys):
+def test_print_long_help_renders_markdown(capsys, monkeypatch):
+    import sys
+    from rich.console import Console
+    monkeypatch.setattr(sys.modules["xclif.command"], "_get_console", lambda **kw: Console(force_terminal=True))
+
     @command()
     def greet(name: str) -> None:
         """Greet someone.
@@ -660,6 +664,7 @@ def test_literal_option_has_choices():
     assert opts["shell"].choices == ["bash", "zsh"]
 
 
+
 # ---------------------------------------------------------------------------
 # Command.print_agent_help — agent-optimized output
 # ---------------------------------------------------------------------------
@@ -763,3 +768,85 @@ def test_agent_help_hides_completions_subcommand(capsys):
     out = capsys.readouterr().out
     assert "real - A real command." in out
     assert "completions" not in out
+
+
+def test_agent_help_shows_positional_arguments(capsys):
+    """Positional arguments appear uppercased after the command name."""
+    @command()
+    def greet(name: str) -> None:
+        """Greet someone."""
+
+    greet.print_agent_help()
+    out = capsys.readouterr().out
+    assert out == "greet NAME: Greet someone.\n"
+
+
+def test_agent_help_shows_variadic_arguments(capsys):
+    """Variadic arguments show with trailing ellipsis."""
+    @command()
+    def cat(*files: str) -> None:
+        """Concatenate files."""
+
+    cat.print_agent_help()
+    out = capsys.readouterr().out
+    assert "cat FILES...: Concatenate files." in out
+
+
+def test_agent_help_subcommand_with_arguments(capsys):
+    """Subcommand arguments appear in the flattened listing."""
+    root = Command("app", lambda: 0)
+    root.run.__doc__ = "My app."
+
+    @command()
+    def greet(name: str, greeting: str = "Hello") -> None:
+        """Greet someone."""
+
+    root.subcommands["greet"] = greet
+    root.print_agent_help()
+    out = capsys.readouterr().out
+    assert "greet NAME - Greet someone." in out
+    assert "--greeting STR" in out
+
+
+# ---------------------------------------------------------------------------
+# TTY detection dispatch
+# ---------------------------------------------------------------------------
+
+
+def _patch_console_non_tty(monkeypatch):
+    """Patch _get_console to report non-TTY."""
+    import sys
+    _cmd_module = sys.modules["xclif.command"]
+    monkeypatch.setattr(_cmd_module, "_get_console", lambda **kw: type("C", (), {"is_terminal": False})())
+
+
+def test_print_short_help_dispatches_agent_when_not_tty(capsys, monkeypatch):
+    """print_short_help uses agent format when Console reports non-TTY."""
+    _patch_console_non_tty(monkeypatch)
+    root = Command("app", lambda: 0)
+    root.run.__doc__ = "My app."
+
+    @command()
+    def sub() -> None:
+        """A sub."""
+
+    root.subcommands["sub"] = sub
+    root.print_short_help()
+    out = capsys.readouterr().out
+    assert "app: My app." in out
+    assert "sub - A sub." in out
+    assert "[b]" not in out
+
+
+def test_print_long_help_dispatches_agent_when_not_tty(capsys, monkeypatch):
+    """print_long_help uses agent format when Console reports non-TTY."""
+    _patch_console_non_tty(monkeypatch)
+
+    @command()
+    def mytool(name: str) -> None:
+        """A tool."""
+
+    mytool.print_long_help()
+    out = capsys.readouterr().out
+    assert "mytool NAME: A tool." in out
+    assert "[b]" not in out
