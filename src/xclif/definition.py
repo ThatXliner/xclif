@@ -63,7 +63,7 @@ class _DefinitionOption[T]:
 #
 # NOTE: --version is NOT here — it is injected by Cli onto the root command only.
 IMPLICIT_OPTIONS: dict[str, _DefinitionOption] = {
-    "help": _DefinitionOption("help", str, "Show this help message and exit (=plain for plain text, =rich for rich text)", aliases=["-h"], optional_value="auto"),
+    "help": _DefinitionOption("help", str, "Show this help message and exit (=plain|rich|agent)", aliases=["-h"], optional_value="auto"),
     "verbose": _DefinitionOption("verbose", bool, "Increase log verbosity (repeatable up to 3 times)", cascading=True, aliases=["-v"]),
     "colors": _DefinitionOption("colors", str, "Control color output (always|never|auto)", cascading=True),
 }

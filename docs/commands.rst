@@ -26,7 +26,7 @@ This produces::
      [name]        No description
 
    Options:
-     --help, -h     Show this help message and exit (=plain for plain text, =rich for rich text)
+     --help, -h     Show this help message and exit (=plain|rich|agent)
      --verbose, -v  Increase log verbosity (repeatable up to 3 times)
      --colors       Control color output (always|never|auto)
      --loud, -l     No description
@@ -159,7 +159,7 @@ Implicit options
 
 Every command automatically gets:
 
-- ``--help`` / ``-h`` — print help and exit (supports ``--help=plain`` and ``--help=rich`` to override auto-detection)
+- ``--help`` / ``-h`` — print help and exit (supports ``--help=plain``, ``--help=rich``, and ``--help=agent`` to override auto-detection)
 - ``--verbose`` / ``-v`` — increase verbosity; repeatable up to 3 times (``-vvv``)
 - ``--colors`` — control color output (``always``, ``never``, or ``auto``)
 
@@ -235,14 +235,16 @@ Overriding the format
 By default, format detection uses Rich's ``Console.is_terminal``, which respects
 ``FORCE_COLOR``, ``TTY_COMPATIBLE``, and other standard environment variables.
 
-You can also override the format explicitly with ``--help=plain`` or ``--help=rich``:
+You can also override the format explicitly:
 
-- ``--help=plain`` — always output the compact agent-optimized format, even in a TTY
-- ``--help=rich`` — always output the full Rich-formatted help, even when piped
-- ``--help`` (bare) — auto-detect based on whether stdout is a TTY
+- ``--help=plain`` — same layout as rich, but with no colors or ANSI codes
+- ``--help=rich`` — full Rich-formatted help with colors, even when piped
+- ``--help=agent`` — compact token-efficient format, even in a TTY
+- ``--help`` (bare) — auto-detect based on whether stdout is a TTY (rich in TTY, agent when piped)
 
-This is useful when you want to pipe rich help through a pager (``--help=rich | less -R``)
-or get plain output in an interactive terminal for scripting.
+This is useful when you want to pipe rich help through a pager (``--help=rich | less -R``),
+get plain output in an interactive terminal for scripting, or force agent format for
+LLM consumption.
 
 Building subcommand trees imperatively
 ---------------------------------------

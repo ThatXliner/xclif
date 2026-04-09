@@ -25,6 +25,16 @@ def _get_console(**kwargs) -> "Console":
     return Console(**kwargs)
 
 
+def _help_console(*, force_rich: bool = False, force_plain: bool = False) -> "Console":
+    """Return a Console configured for the requested help mode."""
+    from rich.console import Console
+    if force_plain:
+        return Console(no_color=True, highlight=False)
+    if force_rich:
+        return Console(force_terminal=True)
+    return Console()
+
+
 @dataclass
 class Command:
     """A parsed command node in the CLI tree.
@@ -70,13 +80,14 @@ class Command:
         parts.extend(option.aliases)
         return ", ".join(parts)
 
-    def print_short_help(self, *, force_rich: bool = False) -> None:
+    def print_short_help(self, *, force_rich: bool = False, force_plain: bool = False) -> None:
         """Print a compact one-screen help summary to stdout."""
-        if not force_rich and not _get_console().is_terminal:
+        if not force_rich and not force_plain and not _get_console().is_terminal:
             self.print_agent_help()
             return
         from rich.markup import escape
 
+        console = _help_console(force_rich=force_rich, force_plain=force_plain)
         all_options = {**self.implicit_options, **self.options}
         alias_suffix = f" [dim]({', '.join(self.aliases)})[/dim]" if self.aliases else ""
         help_text = (
@@ -142,21 +153,21 @@ class Command:
             )
             + "\n\n"
         )
-        _rprint(help_text)
+        console.print(help_text)
 
-    def print_long_help(self, *, force_rich: bool = False) -> None:
+    def print_long_help(self, *, force_rich: bool = False, force_plain: bool = False) -> None:
         """Print the full help page (including the long description) to stdout."""
-        if not force_rich and not _get_console().is_terminal:
+        if not force_rich and not force_plain and not _get_console().is_terminal:
             self.print_agent_help()
             return
         from rich.markdown import Markdown
         from rich.markup import escape
 
+        console = _help_console(force_rich=force_rich, force_plain=force_plain)
         all_options = {**self.implicit_options, **self.options}
 
         # Render the description as Markdown for rich formatting
         if self.short_description:
-            console = _get_console()
             console.print(Markdown(self.description))
             console.print()
 
@@ -223,7 +234,7 @@ class Command:
             )
             + "\n\n"
         )
-        _rprint(help_text)
+        console.print(help_text)
 
     def print_agent_help(self) -> None:
         """Print a hyper-short, token-efficient help summary for LLM agents.

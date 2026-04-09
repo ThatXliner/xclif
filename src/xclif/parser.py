@@ -235,19 +235,21 @@ def parse_and_execute_impl(
     # --- Act on implicit options first, before any dispatch ---
 
     # --help / -h: print help and exit immediately
-    # Supports --help (auto-detect), --help=plain, --help=rich
+    # Supports --help (auto-detect), --help=plain, --help=rich, --help=agent
     if parsed_opts.get("help"):
         help_mode = parsed_opts["help"][-1]  # last wins
-        if help_mode not in ("auto", "plain", "rich"):
+        if help_mode not in ("auto", "plain", "rich", "agent"):
             raise UsageError(
                 f"Invalid help mode {help_mode!r}",
-                hint="Valid modes: plain, rich",
+                hint="Valid modes: plain, rich, agent",
             )
         target = command.subcommands[args[subcmd_index]] if subcmd_index is not None else command
-        if help_mode == "plain":
+        if help_mode == "agent":
             target.print_agent_help()
         elif help_mode == "rich":
             target.print_long_help(force_rich=True)
+        elif help_mode == "plain":
+            target.print_long_help(force_rich=True, force_plain=True)
         else:
             target.print_long_help()
         return 0
