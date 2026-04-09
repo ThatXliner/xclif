@@ -658,3 +658,108 @@ def test_literal_option_has_choices():
     def f(shell: Literal["bash", "zsh"] = "bash") -> None: ...
     _, opts = extract_parameters(f)
     assert opts["shell"].choices == ["bash", "zsh"]
+
+
+# ---------------------------------------------------------------------------
+# Command.print_agent_help — agent-optimized output
+# ---------------------------------------------------------------------------
+
+
+def test_agent_help_leaf_command_no_options(capsys):
+    """Leaf command with no user options prints name: description only."""
+    cmd = Command("mytool", lambda: 0)
+    cmd.run.__doc__ = "A simple tool."
+    cmd.print_agent_help()
+    out = capsys.readouterr().out
+    assert out == "mytool: A simple tool.\n"
+
+
+def test_agent_help_leaf_command_with_options(capsys):
+    """Leaf command with user options lists them inline."""
+    @command()
+    def mytool(name: str = "", count: int = 3, dry_run: bool = False) -> None:
+        """A tool with options."""
+
+    mytool.print_agent_help()
+    out = capsys.readouterr().out
+    assert "mytool: A tool with options." in out
+    assert "--name STR" in out
+    assert '--count INT (default: 3)' in out
+    assert "--dry-run" in out
+    # Should NOT contain implicit framework options
+    assert "--help" not in out
+    assert "--colors" not in out
+
+
+def test_agent_help_flattens_subcommands(capsys):
+    """Subcommands are flattened with full path."""
+    root = Command("app", lambda: 0)
+    root.run.__doc__ = "My app."
+
+    @command()
+    def sub1() -> None:
+        """First sub."""
+
+    @command()
+    def sub2(target: str = "") -> None:
+        """Second sub."""
+
+    root.subcommands["sub1"] = sub1
+    root.subcommands["sub2"] = sub2
+
+    root.print_agent_help()
+    out = capsys.readouterr().out
+    assert "app: My app." in out
+    assert "sub1 - First sub." in out
+    assert "sub2 - Second sub." in out
+    assert "--target STR" in out
+
+
+def test_agent_help_flattens_nested_subcommands(capsys):
+    """Nested subcommands produce flattened paths like 'config get'."""
+    root = Command("app", lambda: 0)
+    root.run.__doc__ = "My app."
+
+    group = Command("config", lambda: 0)
+    group.run.__doc__ = "Manage config."
+
+    @command()
+    def get() -> None:
+        """Print config."""
+
+    @command()
+    def set_cmd() -> None:
+        """Set config."""
+
+    group.subcommands["get"] = get
+    group.subcommands["set"] = set_cmd
+    root.subcommands["config"] = group
+
+    root.print_agent_help()
+    out = capsys.readouterr().out
+    assert "config get - Print config." in out
+    assert "config set" in out
+    # The group itself should not appear as a separate line
+    lines = [l for l in out.strip().split("\n") if l.startswith("config -")]
+    assert lines == []
+
+
+def test_agent_help_hides_completions_subcommand(capsys):
+    """Framework subcommand 'completions' is filtered out."""
+    root = Command("app", lambda: 0)
+    root.run.__doc__ = "My app."
+
+    @command()
+    def real() -> None:
+        """A real command."""
+
+    completions = Command("completions", lambda: 0)
+    completions.run.__doc__ = "Generate completions."
+
+    root.subcommands["real"] = real
+    root.subcommands["completions"] = completions
+
+    root.print_agent_help()
+    out = capsys.readouterr().out
+    assert "real - A real command." in out
+    assert "completions" not in out
