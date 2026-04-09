@@ -2,9 +2,14 @@
 
 ## Unreleased
 
+## 0.4.1 — Minor adjustments in help text system (2026-04-08)
+
 ### Added
-- `--help=plain`, `--help=rich`, and `--help=agent` modes: explicitly override help format auto-detection. Bare `--help` still auto-detects based on TTY.
+- `--help=plain`, `--help=rich`, and `--help=agent` modes: explicitly override help format auto-detection. Bare `--help` still auto-detects based on TTY. `plain` gives the same layout as `rich` but with no ANSI/color; `agent` gives the compact token-efficient format.
 - `optional_value` field on `_DefinitionOption`: options can now be used as bare flags with a default value, or with `=value` syntax.
+
+### Changed
+- Help section headers (`Usage:`, `Subcommands:`, `Arguments:`, `Options:`) are now bold white instead of bold cyan. Only subcommand/option names remain cyan.
 
 ## 0.4.0 — Agent help text and Options Cascade (2026-04-08)
 

@@ -92,7 +92,7 @@ class Command:
         alias_suffix = f" [dim]({', '.join(self.aliases)})[/dim]" if self.aliases else ""
         help_text = (
             (self.short_description + "\n" if self.short_description else "")
-            + f"[bold cyan]Usage:[/bold cyan] [cyan]{self.name}[/cyan]{alias_suffix} [dim]{escape('[OPTIONS]')}[/dim]"
+            + f"[bold]Usage:[/bold] [cyan]{self.name}[/cyan]{alias_suffix} [dim]{escape('[OPTIONS]')}[/dim]"
             + (" " if self.arguments else "")
             + " ".join(
                 _arg_markup(x)
@@ -121,7 +121,7 @@ class Command:
         )
         if self.subcommands:
             help_text += (
-                "[bold cyan]Subcommands:[/bold cyan]\n"
+                "[bold]Subcommands:[/bold]\n"
                 + "\n".join(
                     " " * INITIAL_LEFT_PADDING
                     + f"[cyan]{name}[/cyan]"
@@ -134,7 +134,7 @@ class Command:
             )
         elif self.arguments:
             help_text += (
-                "[bold cyan]Arguments:[/bold cyan]\n"
+                "[bold]Arguments:[/bold]\n"
                 + "\n".join(
                     " " * INITIAL_LEFT_PADDING
                     + f"[dim cyan]{_arg_section_label(x).ljust(pad_length + NAME_DESC_PADDING)}[/dim cyan]"
@@ -144,7 +144,7 @@ class Command:
                 + "\n\n"
             )
         help_text += (
-            "[bold cyan]Options:[/bold cyan]\n"
+            "[bold]Options:[/bold]\n"
             + "\n".join(
                 " " * INITIAL_LEFT_PADDING
                 + f"[cyan]{option_labels[name].ljust(pad_length + NAME_DESC_PADDING)}[/cyan]"
@@ -173,7 +173,7 @@ class Command:
 
         alias_suffix = f" [dim]({', '.join(self.aliases)})[/dim]" if self.aliases else ""
         help_text = (
-            f"[bold cyan]Usage:[/bold cyan] [cyan]{self.name}[/cyan]{alias_suffix} [dim]{escape('[OPTIONS]')}[/dim]"
+            f"[bold]Usage:[/bold] [cyan]{self.name}[/cyan]{alias_suffix} [dim]{escape('[OPTIONS]')}[/dim]"
             + (" " if self.arguments else "")
             + " ".join(
                 _arg_markup(x)
@@ -201,7 +201,7 @@ class Command:
         )
         if self.subcommands:
             help_text += (
-                "[bold cyan]Subcommands:[/bold cyan]\n"
+                "[bold]Subcommands:[/bold]\n"
                 + "\n".join(
                     " " * INITIAL_LEFT_PADDING
                     + f"[cyan]{name}[/cyan]"
@@ -215,7 +215,7 @@ class Command:
         elif self.arguments:
             indent_width = INITIAL_LEFT_PADDING + pad_length + NAME_DESC_PADDING
             help_text += (
-                "[bold cyan]Arguments:[/bold cyan]\n"
+                "[bold]Arguments:[/bold]\n"
                 + "\n".join(
                     " " * INITIAL_LEFT_PADDING
                     + f"[dim cyan]{_arg_section_label(x).ljust(pad_length + NAME_DESC_PADDING)}[/dim cyan]"
@@ -225,7 +225,7 @@ class Command:
                 + "\n\n"
             )
         help_text += (
-            "[bold cyan]Options:[/bold cyan]\n"
+            "[bold]Options:[/bold]\n"
             + "\n".join(
                 " " * INITIAL_LEFT_PADDING
                 + f"[cyan]{option_labels[name].ljust(pad_length + NAME_DESC_PADDING)}[/cyan]"
