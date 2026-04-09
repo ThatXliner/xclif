@@ -112,7 +112,7 @@ def compile_routes(routes: types.ModuleType, output_dir: Path | None = None) -> 
         "# Re-run `python -m xclif compile <routes_module>` after adding/removing routes.",
         "from __future__ import annotations",
         "",
-        "from xclif import Cli",
+        "from xclif import Cli, _copy_root_command",
         "",
         "",
         "def _build_cli(version: str | None = None, env_prefix: str | None = None, config_name: str | None = None, local_config: str | None = None) -> Cli:",
@@ -130,7 +130,7 @@ def compile_routes(routes: types.ModuleType, output_dir: Path | None = None) -> 
 
     # Reuse the imported Command objects directly so all fields
     # (subcommands, implicit_options, version, etc.) are preserved.
-    lines.append("    root = _root")
+    lines.append("    root = _copy_root_command(_root)")
 
     # Build each sub-command, grouping by path segments
     # We need to emit add_command calls in depth-first order so parent
