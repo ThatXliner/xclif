@@ -105,9 +105,13 @@ def make_config_command(config_dir: Path) -> "Command":
         print(str(config_dir))
         return 0
 
+    def config_run() -> int:
+        """Manage configuration values."""
+        return 0
+
     config = Command(
         "config",
-        lambda: 0,
+        config_run,
         subcommands={
             "get": Command("get", get_run, arguments=[
                 Argument("keys", str, "Config key(s) to read", variadic=True),
