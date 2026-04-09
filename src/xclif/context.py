@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from contextvars import ContextVar, Token
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
@@ -23,10 +23,7 @@ class Context:
         ctx.get("my_option", default)
     """
 
-    _data: dict = field(repr=False)
-
-    def __post_init__(self) -> None:
-        object.__setattr__(self, "_data", dict(self._data))
+    _data: dict
 
     @property
     def verbosity(self) -> int:
