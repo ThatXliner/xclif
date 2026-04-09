@@ -226,7 +226,11 @@ def test_print_long_help_with_args(capsys):
     greet.print_long_help()
 
 
-def test_print_long_help_renders_markdown(capsys):
+def test_print_long_help_renders_markdown(capsys, monkeypatch):
+    import sys
+    from rich.console import Console
+    monkeypatch.setattr(sys.modules["xclif.command"], "_get_console", lambda **kw: Console(force_terminal=True))
+
     @command()
     def greet(name: str) -> None:
         """Greet someone.
@@ -763,3 +767,47 @@ def test_agent_help_hides_completions_subcommand(capsys):
     out = capsys.readouterr().out
     assert "real - A real command." in out
     assert "completions" not in out
+
+
+# ---------------------------------------------------------------------------
+# TTY detection dispatch
+# ---------------------------------------------------------------------------
+
+
+def _patch_console_non_tty(monkeypatch):
+    """Patch _get_console to report non-TTY."""
+    import sys
+    _cmd_module = sys.modules["xclif.command"]
+    monkeypatch.setattr(_cmd_module, "_get_console", lambda **kw: type("C", (), {"is_terminal": False})())
+
+
+def test_print_short_help_dispatches_agent_when_not_tty(capsys, monkeypatch):
+    """print_short_help uses agent format when Console reports non-TTY."""
+    _patch_console_non_tty(monkeypatch)
+    root = Command("app", lambda: 0)
+    root.run.__doc__ = "My app."
+
+    @command()
+    def sub() -> None:
+        """A sub."""
+
+    root.subcommands["sub"] = sub
+    root.print_short_help()
+    out = capsys.readouterr().out
+    assert "app: My app." in out
+    assert "sub - A sub." in out
+    assert "[b]" not in out
+
+
+def test_print_long_help_dispatches_agent_when_not_tty(capsys, monkeypatch):
+    """print_long_help uses agent format when Console reports non-TTY."""
+    _patch_console_non_tty(monkeypatch)
+
+    @command()
+    def mytool(name: str) -> None:
+        """A tool."""
+
+    mytool.print_long_help()
+    out = capsys.readouterr().out
+    assert "mytool: A tool." in out
+    assert "[b]" not in out

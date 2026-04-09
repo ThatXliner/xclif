@@ -72,6 +72,9 @@ class Command:
 
     def print_short_help(self) -> None:
         """Print a compact one-screen help summary to stdout."""
+        if not _get_console().is_terminal:
+            self.print_agent_help()
+            return
         all_options = {**self.implicit_options, **self.options}
         alias_suffix = f" [dim i]({', '.join(self.aliases)})[/dim i]" if self.aliases else ""
         help_text = (
@@ -135,6 +138,9 @@ class Command:
 
     def print_long_help(self) -> None:
         """Print the full help page (including the long description) to stdout."""
+        if not _get_console().is_terminal:
+            self.print_agent_help()
+            return
         from rich.markdown import Markdown
 
         all_options = {**self.implicit_options, **self.options}
