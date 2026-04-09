@@ -12,6 +12,8 @@ from xclif.definition import IMPLICIT_OPTIONS, Argument, Option
 from xclif.errors import UsageError
 from xclif.parser import parse_and_execute_impl
 
+_AGENT_HIDDEN_SUBCOMMANDS = {"completions"}
+
 
 def _rprint(*args, **kwargs) -> None:
     import rich
@@ -203,6 +205,24 @@ class Command:
         )
         _rprint(help_text)
 
+    def print_agent_help(self) -> None:
+        """Print a hyper-short, token-efficient help summary for LLM agents.
+
+        Recursively flattens the entire command tree. Filters out framework-owned
+        implicit options and hidden subcommands like ``completions``.
+        """
+        header = f"{self.name}: {self.short_description}"
+        if not self.subcommands:
+            # Leaf command: append own options to the header line
+            opts = _format_agent_options(self)
+            if opts:
+                header += f" Options: {opts}"
+        print(header)
+        lines = _collect_agent_lines(self, prefix="")
+        if lines:
+            print()
+            print("\n".join(lines))
+
     def command(self, *names: str) -> "Callable[[Callable], Command]":
         """Register a subcommand on this command using the decorator API.
 
@@ -282,6 +302,46 @@ def _arg_section_label(arg: "Argument") -> str:
     inner = "|".join(arg.choices) if arg.choices else arg.name
     suffix = "..." if arg.variadic else ""
     return escape(f"[{inner}{suffix}]")
+
+
+def _collect_agent_lines(cmd: "Command", prefix: str) -> list[str]:
+    """Recursively collect flattened command lines for agent help."""
+    lines: list[str] = []
+    seen_ids: set[int] = set()
+    for name, sub in cmd.subcommands.items():
+        if id(sub) in seen_ids:  # skip alias entries (same object under multiple keys)
+            continue
+        seen_ids.add(id(sub))
+        if name in _AGENT_HIDDEN_SUBCOMMANDS:
+            continue
+        path = f"{prefix}{name}" if prefix else name
+        if sub.subcommands:
+            # Non-leaf: recurse, don't emit a line for the group itself
+            lines.extend(_collect_agent_lines(sub, path + " "))
+        else:
+            # Leaf command
+            line = f"{path} - {sub.short_description}"
+            opts = _format_agent_options(sub)
+            if opts:
+                line += f" Options: {opts}"
+            lines.append(line)
+    return lines
+
+
+def _format_agent_options(cmd: "Command") -> str:
+    """Format user-defined options for agent help output."""
+    parts: list[str] = []
+    for name, opt in cmd.options.items():
+        flag = f"--{opt.name.replace('_', '-')}"
+        if opt.converter is bool:
+            parts.append(flag)
+        else:
+            type_name = opt.converter.__name__.upper()
+            part = f"{flag} {type_name}"
+            if opt.default is not None and opt.default != "":
+                part += f" (default: {opt.default!r})"
+            parts.append(part)
+    return ", ".join(parts)
 
 
 def _get_choices(converter) -> list[str] | None:
