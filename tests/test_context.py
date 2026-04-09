@@ -51,3 +51,32 @@ def test_contains():
     ctx = Context({"verbose": 1})
     assert "verbose" in ctx
     assert "missing" not in ctx
+
+
+from xclif.context import get_context, _set_context
+
+
+def test_get_context_outside_dispatch():
+    """get_context() raises RuntimeError when no dispatch is active."""
+    with pytest.raises(RuntimeError, match="outside of command dispatch"):
+        get_context()
+
+
+def test_set_and_get_context():
+    """get_context() returns the Context set by _set_context()."""
+    ctx = Context({"verbose": 2})
+    token = _set_context(ctx)
+    try:
+        assert get_context() is ctx
+        assert get_context().verbosity == 2
+    finally:
+        _set_context(None, token)
+
+
+def test_context_reset():
+    """After reset, get_context() raises again."""
+    ctx = Context({"verbose": 1})
+    token = _set_context(ctx)
+    _set_context(None, token)
+    with pytest.raises(RuntimeError):
+        get_context()
