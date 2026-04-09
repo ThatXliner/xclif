@@ -62,14 +62,14 @@ from difflib import get_close_matches
 from typing import TYPE_CHECKING
 
 from xclif.config import resolve_key
-from xclif.definition import Argument, Option
+from xclif.definition import Argument, _DefinitionOption
 from xclif.errors import UsageError
 
 if TYPE_CHECKING:
     from xclif.command import Command
 
 
-def _build_alias_map(options: dict[str, Option]) -> dict[str, str]:
+def _build_alias_map(options: dict[str, _DefinitionOption]) -> dict[str, str]:
     """Build a mapping from short alias → param key."""
     alias_map: dict[str, str] = {}
     for long_name, option in options.items():
@@ -78,7 +78,7 @@ def _build_alias_map(options: dict[str, Option]) -> dict[str, str]:
     return alias_map
 
 
-def _build_flag_map(options: dict[str, Option]) -> dict[str, str]:
+def _build_flag_map(options: dict[str, _DefinitionOption]) -> dict[str, str]:
     """Build a mapping from CLI flag name (underscored) → param key.
 
     Handles Option(name=...) overrides: --dry-run maps to param key dry_run,
@@ -96,7 +96,7 @@ def _type_name(converter: type) -> str:
     return getattr(converter, "__name__", str(converter))
 
 
-def _suggest_option(name: str, options: dict[str, Option]) -> str | None:
+def _suggest_option(name: str, options: dict[str, _DefinitionOption]) -> str | None:
     """Suggest a close match for an unknown option name."""
     candidates = [f"--{opt.name.replace('_', '-')}" for opt in options.values()]
     matches = get_close_matches(name, candidates, n=1, cutoff=0.6)
@@ -104,7 +104,7 @@ def _suggest_option(name: str, options: dict[str, Option]) -> str | None:
 
 
 def _parse_token_stream(
-    options: dict[str, Option],
+    options: dict[str, _DefinitionOption],
     subcommands: dict[str, "Command"],
     args: list[str],
 ) -> tuple[list[str], dict[str, list], int | None]:
@@ -359,7 +359,7 @@ def _parse_bool_string(raw: str, source: str) -> bool:
 
 def _resolve_with_config(
     name: str,
-    option_or_arg: "Option | Argument",
+    option_or_arg: "_DefinitionOption | Argument",
     context: dict,
 ) -> object:
     """Try to resolve a WithConfig parameter from env var or config file.

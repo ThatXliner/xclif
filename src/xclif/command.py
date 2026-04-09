@@ -8,7 +8,7 @@ __all__ = ["Command", "command"]
 
 from xclif.annotations import annotation2converter, is_list_type, unwrap_param_metadata
 from xclif.constants import INITIAL_LEFT_PADDING, NAME_DESC_PADDING, NO_DESC
-from xclif.definition import IMPLICIT_OPTIONS, Argument, Option
+from xclif.definition import IMPLICIT_OPTIONS, Argument, _DefinitionOption
 from xclif.errors import UsageError
 from xclif.parser import parse_and_execute_impl
 
@@ -38,9 +38,9 @@ class Command:
     name: str
     run: Callable[..., int]
     arguments: list[Argument] = field(default_factory=list)
-    options: dict[str, Option] = field(default_factory=dict)
+    options: dict[str, _DefinitionOption] = field(default_factory=dict)
     subcommands: dict[str, "Command"] = field(default_factory=dict)
-    implicit_options: dict[str, Option] = field(default_factory=dict)
+    implicit_options: dict[str, _DefinitionOption] = field(default_factory=dict)
     version: str | None = None
     aliases: list[str] = field(default_factory=list)
 
@@ -64,7 +64,7 @@ class Command:
                 f"subcommand {existing.name!r}"
             )
 
-    def _format_option_label(self, name: str, option: Option) -> str:
+    def _format_option_label(self, name: str, option: _DefinitionOption) -> str:
         """Format an option name with its aliases for display."""
         parts = [f"--{option.name.replace('_', '-')}"]
         parts.extend(option.aliases)
@@ -390,7 +390,7 @@ def _auto_alias(name: str, taken: set[str]) -> list[str]:
     return []
 
 
-def extract_parameters(function: Callable) -> tuple[list[Argument], dict[str, Option]]:
+def extract_parameters(function: Callable) -> tuple[list[Argument], dict[str, _DefinitionOption]]:
     """Extract arguments and options from a function's signature."""
     signature = inspect.signature(function, eval_str=True)
     arguments = []
@@ -455,7 +455,7 @@ def extract_parameters(function: Callable) -> tuple[list[Argument], dict[str, Op
             description = opt_meta.description if opt_meta and opt_meta.description else NO_DESC
             cli_name = opt_meta.name if opt_meta and opt_meta.name else name
             aliases = _auto_alias(cli_name, taken_aliases)
-            options[name] = Option(cli_name, converter, description, default, is_list=list_valued, aliases=aliases, config=with_config, choices=_get_choices(converter))
+            options[name] = _DefinitionOption(cli_name, converter, description, default, is_list=list_valued, aliases=aliases, config=with_config, choices=_get_choices(converter))
     return arguments, options
 
 

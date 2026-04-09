@@ -4,7 +4,7 @@ import pytest
 
 from xclif import WithConfig
 from xclif.command import Command
-from xclif.definition import Argument, Option
+from xclif.definition import Argument, _DefinitionOption
 from xclif.validation import check_with_config_conflicts
 
 
@@ -36,10 +36,10 @@ def test_conflict_different_types_config_key():
 def test_conflict_different_types_env_var():
     """Same param name across commands + different types raises (same auto-env-var)."""
     cmd1 = Command("greet", lambda: None, options={
-        "name": Option("name", str, "desc", config=WithConfig()),
+        "name": _DefinitionOption("name", str, "desc", config=WithConfig()),
     })
     cmd2 = Command("farewell", lambda: None, options={
-        "name": Option("name", int, "desc", config=WithConfig()),
+        "name": _DefinitionOption("name", int, "desc", config=WithConfig()),
     })
     root = Command("app", lambda: 0, subcommands={"greet": cmd1, "farewell": cmd2})
     with pytest.raises(ValueError, match="WithConfig conflict"):
@@ -49,10 +49,10 @@ def test_conflict_different_types_env_var():
 def test_conflict_error_message_suggests_fix():
     """Error message includes actionable fix suggestion."""
     cmd1 = Command("greet", lambda: None, options={
-        "name": Option("name", str, "desc", config=WithConfig()),
+        "name": _DefinitionOption("name", str, "desc", config=WithConfig()),
     })
     cmd2 = Command("farewell", lambda: None, options={
-        "name": Option("name", int, "desc", config=WithConfig()),
+        "name": _DefinitionOption("name", int, "desc", config=WithConfig()),
     })
     root = Command("app", lambda: 0, subcommands={"greet": cmd1, "farewell": cmd2})
     with pytest.raises(ValueError, match="To fix"):
@@ -71,10 +71,10 @@ def test_no_with_config_params_no_error():
 def test_conflict_same_param_name_different_types():
     """Two sibling commands with the same param name but different WithConfig types conflict."""
     cmd1 = Command("a", lambda: None, options={
-        "count": Option("count", str, "desc", config=WithConfig()),
+        "count": _DefinitionOption("count", str, "desc", config=WithConfig()),
     })
     cmd2 = Command("b", lambda: None, options={
-        "count": Option("count", int, "desc", config=WithConfig()),
+        "count": _DefinitionOption("count", int, "desc", config=WithConfig()),
     })
     root = Command("app", lambda: 0, subcommands={"a": cmd1, "b": cmd2})
     with pytest.raises(ValueError, match="WithConfig conflict"):

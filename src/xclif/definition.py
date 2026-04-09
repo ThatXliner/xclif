@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Callable
 
-__all__ = ["Argument", "Option", "IMPLICIT_OPTIONS"]
+__all__ = ["Argument", "_DefinitionOption", "IMPLICIT_OPTIONS"]
 
 if TYPE_CHECKING:
     from xclif import WithConfig
@@ -32,7 +32,7 @@ class Argument[T]:
 
 
 @dataclass
-class Option[T]:
+class _DefinitionOption[T]:
     """A named CLI option (``--flag`` or ``--name value``) on a command.
 
     Created automatically from a function signature by the :func:`~xclif.command.command`
@@ -61,8 +61,8 @@ class Option[T]:
 # never forwarded as kwargs to command.run().
 #
 # NOTE: --version is NOT here — it is injected by Cli onto the root command only.
-IMPLICIT_OPTIONS: dict[str, Option] = {
-    "help": Option("help", bool, "Show this help message and exit", aliases=["-h"]),
-    "verbose": Option("verbose", bool, "Increase log verbosity (repeatable up to 3 times)", cascading=True, aliases=["-v"]),
-    "colors": Option("colors", str, "Control color output (always|never|auto)", cascading=True),
+IMPLICIT_OPTIONS: dict[str, _DefinitionOption] = {
+    "help": _DefinitionOption("help", bool, "Show this help message and exit", aliases=["-h"]),
+    "verbose": _DefinitionOption("verbose", bool, "Increase log verbosity (repeatable up to 3 times)", cascading=True, aliases=["-v"]),
+    "colors": _DefinitionOption("colors", str, "Control color output (always|never|auto)", cascading=True),
 }

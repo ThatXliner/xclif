@@ -6,7 +6,7 @@ from unittest.mock import patch
 from xclif import Cli, WithConfig
 from xclif import Arg, Option as OptionMeta
 from xclif.command import Command, command, extract_parameters
-from xclif.definition import Argument, Option
+from xclif.definition import Argument, _DefinitionOption
 
 
 def test_with_config_getitem_still_works():
@@ -118,7 +118,7 @@ def test_full_priority_cli_over_env_over_config_over_default(tmp_path, monkeypat
     greet_cmd = Command(
         "greet",
         lambda greeting="default": received.update(greeting=greeting) or 0,
-        options={"greeting": Option("greeting", str, "desc", "default", config=WithConfig())},
+        options={"greeting": _DefinitionOption("greeting", str, "desc", "default", config=WithConfig())},
     )
     root.subcommands["greet"] = greet_cmd
 
@@ -207,7 +207,7 @@ def test_local_config_overrides_user_config(tmp_path, monkeypatch):
     greet_cmd = Command(
         "greet",
         lambda greeting="default": received.update(greeting=greeting) or 0,
-        options={"greeting": Option("greeting", str, "desc", "default", config=WithConfig())},
+        options={"greeting": _DefinitionOption("greeting", str, "desc", "default", config=WithConfig())},
     )
     root.subcommands["greet"] = greet_cmd
 
@@ -241,8 +241,8 @@ def test_local_config_merges_with_user_config(tmp_path, monkeypatch):
         "greet",
         lambda greeting="default", name="nobody": received.update(greeting=greeting, name=name) or 0,
         options={
-            "greeting": Option("greeting", str, "desc", "default", config=WithConfig()),
-            "name": Option("name", str, "desc", "nobody", config=WithConfig()),
+            "greeting": _DefinitionOption("greeting", str, "desc", "default", config=WithConfig()),
+            "name": _DefinitionOption("name", str, "desc", "nobody", config=WithConfig()),
         },
     )
     root.subcommands["greet"] = greet_cmd
@@ -272,7 +272,7 @@ def test_local_config_not_loaded_when_not_set(tmp_path, monkeypatch):
     greet_cmd = Command(
         "greet",
         lambda greeting="default": received.update(greeting=greeting) or 0,
-        options={"greeting": Option("greeting", str, "desc", "default", config=WithConfig())},
+        options={"greeting": _DefinitionOption("greeting", str, "desc", "default", config=WithConfig())},
     )
     root.subcommands["greet"] = greet_cmd
 
@@ -319,7 +319,7 @@ def test_local_config_json(tmp_path, monkeypatch):
     greet_cmd = Command(
         "greet",
         lambda greeting="default": received.update(greeting=greeting) or 0,
-        options={"greeting": Option("greeting", str, "desc", "default", config=WithConfig())},
+        options={"greeting": _DefinitionOption("greeting", str, "desc", "default", config=WithConfig())},
     )
     root.subcommands["greet"] = greet_cmd
 

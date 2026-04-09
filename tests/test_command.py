@@ -6,7 +6,7 @@ import pytest
 
 from xclif.command import Command, command, extract_parameters
 from xclif.constants import NO_DESC
-from xclif.definition import Argument, Option
+from xclif.definition import Argument, _DefinitionOption
 from xclif import WithConfig
 from xclif import Arg, Option as OptionMeta
 from xclif.annotations import unwrap_param_metadata
@@ -259,15 +259,15 @@ def test_argument_short_description():
 
 
 def test_option_short_description():
-    opt = Option("verbose", bool, "First line.\nSecond line.")
+    opt = _DefinitionOption("verbose", bool, "First line.\nSecond line.")
     assert opt.short_description == "First line."
 
 
 def test_option_default_any_type():
-    opt = Option("count", int, "A count", 42)
+    opt = _DefinitionOption("count", int, "A count", 42)
     assert opt.default == 42
 
-    opt2 = Option("items", list, "Items", [1, 2, 3])
+    opt2 = _DefinitionOption("items", list, "Items", [1, 2, 3])
     assert opt2.default == [1, 2, 3]
 
 
@@ -487,7 +487,7 @@ def test_argument_config_field_default_none():
 
 
 def test_option_config_field_default_none():
-    opt = Option("name", str, "desc")
+    opt = _DefinitionOption("name", str, "desc")
     assert opt.config is None
 
 
@@ -500,7 +500,7 @@ def test_argument_config_field_set():
 
 def test_option_config_field_set():
     wc = WithConfig()
-    opt = Option("name", str, "desc", config=wc)
+    opt = _DefinitionOption("name", str, "desc", config=wc)
     assert opt.config is wc
     assert isinstance(opt.config, WithConfig)
 

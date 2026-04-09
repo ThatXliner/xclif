@@ -4,7 +4,7 @@ import pytest
 
 from xclif import WithConfig
 from xclif.command import Command
-from xclif.definition import Argument, Option
+from xclif.definition import Argument, _DefinitionOption
 from xclif.errors import UsageError
 from xclif.parser import _parse_token_stream, parse_and_execute_impl
 
@@ -14,15 +14,15 @@ from xclif.parser import _parse_token_stream, parse_and_execute_impl
 # ---------------------------------------------------------------------------
 
 
-def _opt(name: str, typ: type, default=None, aliases=None) -> Option:
-    return Option(name, typ, "desc", default=default, aliases=aliases or [])
+def _opt(name: str, typ: type, default=None, aliases=None) -> _DefinitionOption:
+    return _DefinitionOption(name, typ, "desc", default=default, aliases=aliases or [])
 
 
-def _bool_opts(*names: str) -> dict[str, Option]:
+def _bool_opts(*names: str) -> dict[str, _DefinitionOption]:
     return {n: _opt(n, bool) for n in names}
 
 
-def _str_opts(*names: str) -> dict[str, Option]:
+def _str_opts(*names: str) -> dict[str, _DefinitionOption]:
     return {n: _opt(n, str) for n in names}
 
 
@@ -289,7 +289,7 @@ def test_leaf_option_passed():
     def run(greeting: str = "hi") -> None:
         received["greeting"] = greeting
 
-    cmd = Command("test", run, options={"greeting": Option("greeting", str, "desc", "hi")})
+    cmd = Command("test", run, options={"greeting": _DefinitionOption("greeting", str, "desc", "hi")})
     parse_and_execute_impl(["--greeting", "hello"], cmd)
     assert received["greeting"] == "hello"
 
@@ -300,7 +300,7 @@ def test_leaf_option_default_used():
     def run(greeting: str = "hi") -> None:
         received["greeting"] = greeting
 
-    cmd = Command("test", run, options={"greeting": Option("greeting", str, "desc", "hi")})
+    cmd = Command("test", run, options={"greeting": _DefinitionOption("greeting", str, "desc", "hi")})
     parse_and_execute_impl([], cmd)
     assert received["greeting"] == "hi"
 
@@ -321,7 +321,7 @@ def test_leaf_interspersed_option_and_positional():
     cmd = Command(
         "test", run,
         arguments=[Argument("name", str, "desc")],
-        options={"greeting": Option("greeting", str, "desc", "hi")},
+        options={"greeting": _DefinitionOption("greeting", str, "desc", "hi")},
     )
     parse_and_execute_impl(["--greeting", "hey", "Alice"], cmd)
     assert received == {"name": "Alice", "greeting": "hey"}
@@ -333,7 +333,7 @@ def test_leaf_equals_form_option():
     def run(greeting: str = "hi") -> None:
         received["greeting"] = greeting
 
-    cmd = Command("test", run, options={"greeting": Option("greeting", str, "desc", "hi")})
+    cmd = Command("test", run, options={"greeting": _DefinitionOption("greeting", str, "desc", "hi")})
     parse_and_execute_impl(["--greeting=hey"], cmd)
     assert received["greeting"] == "hey"
 
@@ -393,7 +393,7 @@ def test_variadic_with_options():
     cmd = Command(
         "rm", run,
         arguments=[Argument("files", str, "Files", variadic=True)],
-        options={"recursive": Option("recursive", str, "Recursive", "false")},
+        options={"recursive": _DefinitionOption("recursive", str, "Recursive", "false")},
     )
     parse_and_execute_impl(["--recursive", "true", "a.py", "b.py"], cmd)
     assert received == {"files": ["a.py", "b.py"], "recursive": "true"}
@@ -449,7 +449,7 @@ def test_implicit_options_not_forwarded_to_run():
 def test_version_flag_prints_and_returns_zero(capsys):
     cmd = Command("myapp", lambda: 0, version="1.2.3")
     # Inject --version into implicit options (normally done by Cli)
-    cmd.implicit_options["version"] = Option("version", bool, "Show version")
+    cmd.implicit_options["version"] = _DefinitionOption("version", bool, "Show version")
     result = parse_and_execute_impl(["--version"], cmd)
     assert result == 0
     out = capsys.readouterr().out
@@ -589,7 +589,7 @@ def test_list_option_single_value():
 
     cmd = Command(
         "test", run,
-        options={"tags": Option("tags", str, "desc", [], is_list=True)},
+        options={"tags": _DefinitionOption("tags", str, "desc", [], is_list=True)},
     )
     parse_and_execute_impl(["--tags", "a"], cmd)
     assert received["tags"] == ["a"]
@@ -603,7 +603,7 @@ def test_list_option_multiple_values():
 
     cmd = Command(
         "test", run,
-        options={"tags": Option("tags", str, "desc", [], is_list=True)},
+        options={"tags": _DefinitionOption("tags", str, "desc", [], is_list=True)},
     )
     parse_and_execute_impl(["--tags", "a", "--tags", "b", "--tags", "c"], cmd)
     assert received["tags"] == ["a", "b", "c"]
@@ -617,7 +617,7 @@ def test_list_option_default_empty():
 
     cmd = Command(
         "test", run,
-        options={"tags": Option("tags", str, "desc", [], is_list=True)},
+        options={"tags": _DefinitionOption("tags", str, "desc", [], is_list=True)},
     )
     parse_and_execute_impl([], cmd)
     assert received["tags"] == []
@@ -653,7 +653,7 @@ def test_option_resolved_from_env(monkeypatch):
 
     cmd = Command(
         "test", run,
-        options={"greeting": Option("greeting", str, "desc", "hi", config=WithConfig())},
+        options={"greeting": _DefinitionOption("greeting", str, "desc", "hi", config=WithConfig())},
     )
     context = {"env_prefix": "MYAPP", "config_data": {}}
     parse_and_execute_impl([], cmd, context)
@@ -671,7 +671,7 @@ def test_option_cli_overrides_env(monkeypatch):
 
     cmd = Command(
         "test", run,
-        options={"greeting": Option("greeting", str, "desc", "hi", config=WithConfig())},
+        options={"greeting": _DefinitionOption("greeting", str, "desc", "hi", config=WithConfig())},
     )
     context = {"env_prefix": "MYAPP", "config_data": {}}
     parse_and_execute_impl(["--greeting", "from_cli"], cmd, context)
@@ -687,7 +687,7 @@ def test_option_resolved_from_config():
 
     cmd = Command(
         "test", run,
-        options={"greeting": Option("greeting", str, "desc", "hi", config=WithConfig())},
+        options={"greeting": _DefinitionOption("greeting", str, "desc", "hi", config=WithConfig())},
     )
     context = {"env_prefix": "MYAPP", "config_data": {"greeting": "from_config"}}
     parse_and_execute_impl([], cmd, context)
@@ -705,7 +705,7 @@ def test_option_env_overrides_config(monkeypatch):
 
     cmd = Command(
         "test", run,
-        options={"greeting": Option("greeting", str, "desc", "hi", config=WithConfig())},
+        options={"greeting": _DefinitionOption("greeting", str, "desc", "hi", config=WithConfig())},
     )
     context = {"env_prefix": "MYAPP", "config_data": {"greeting": "from_config"}}
     parse_and_execute_impl([], cmd, context)
@@ -721,7 +721,7 @@ def test_option_falls_back_to_default():
 
     cmd = Command(
         "test", run,
-        options={"greeting": Option("greeting", str, "desc", "hi", config=WithConfig())},
+        options={"greeting": _DefinitionOption("greeting", str, "desc", "hi", config=WithConfig())},
     )
     context = {"env_prefix": "MYAPP", "config_data": {}}
     parse_and_execute_impl([], cmd, context)
@@ -782,7 +782,7 @@ def test_option_int_from_env(monkeypatch):
 
     cmd = Command(
         "test", run,
-        options={"count": Option("count", int, "desc", 0, config=WithConfig())},
+        options={"count": _DefinitionOption("count", int, "desc", 0, config=WithConfig())},
     )
     context = {"env_prefix": "MYAPP", "config_data": {}}
     parse_and_execute_impl([], cmd, context)
@@ -798,7 +798,7 @@ def test_no_config_context_skips_resolution():
 
     cmd = Command(
         "test", run,
-        options={"greeting": Option("greeting", str, "desc", "hi", config=WithConfig())},
+        options={"greeting": _DefinitionOption("greeting", str, "desc", "hi", config=WithConfig())},
     )
     parse_and_execute_impl([], cmd)
     assert received["greeting"] == "hi"
@@ -815,7 +815,7 @@ def test_with_config_bool_env_false(monkeypatch):
 
     cmd = Command(
         "greet", run,
-        options={"verbose": Option("verbose", bool, "desc", False, config=WithConfig())},
+        options={"verbose": _DefinitionOption("verbose", bool, "desc", False, config=WithConfig())},
     )
     context = {"env_prefix": "MYAPP", "config_data": {}}
     parse_and_execute_impl([], cmd, context)
@@ -833,7 +833,7 @@ def test_with_config_bool_env_true(monkeypatch):
 
     cmd = Command(
         "greet", run,
-        options={"verbose": Option("verbose", bool, "desc", False, config=WithConfig())},
+        options={"verbose": _DefinitionOption("verbose", bool, "desc", False, config=WithConfig())},
     )
     context = {"env_prefix": "MYAPP", "config_data": {}}
     parse_and_execute_impl([], cmd, context)
@@ -845,7 +845,7 @@ def test_with_config_bool_env_invalid(monkeypatch):
     monkeypatch.setenv("MYAPP_VERBOSE", "maybe")
     cmd = Command(
         "greet", lambda verbose=False: 0,
-        options={"verbose": Option("verbose", bool, "desc", False, config=WithConfig())},
+        options={"verbose": _DefinitionOption("verbose", bool, "desc", False, config=WithConfig())},
     )
     context = {"env_prefix": "MYAPP", "config_data": {}}
     with pytest.raises(UsageError, match="Invalid boolean value"):
@@ -863,7 +863,7 @@ def test_with_config_list_option_wraps_scalar(monkeypatch):
 
     cmd = Command(
         "publish", run,
-        options={"tag": Option("tag", str, "desc", [], is_list=True, config=WithConfig())},
+        options={"tag": _DefinitionOption("tag", str, "desc", [], is_list=True, config=WithConfig())},
     )
     context = {"env_prefix": "MYAPP", "config_data": {}}
     parse_and_execute_impl([], cmd, context)
