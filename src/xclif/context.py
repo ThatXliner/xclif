@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextvars import ContextVar
 from dataclasses import dataclass
 
 
@@ -43,3 +44,33 @@ class Context:
 
     def __contains__(self, key: object) -> bool:
         return key in self._data
+
+
+_context_var: ContextVar[Context] = ContextVar("xclif_context")
+
+
+def get_context() -> Context:
+    """Return the :class:`Context` for the current command dispatch.
+
+    Raises :class:`RuntimeError` if called outside of command dispatch
+    (i.e., no command is currently being executed by the framework).
+    """
+    try:
+        return _context_var.get()
+    except LookupError:
+        raise RuntimeError(
+            "get_context() called outside of command dispatch. "
+            "It can only be used inside a command's run() function "
+            "or code called from it."
+        ) from None
+
+
+def _set_context(ctx: Context | None, token: object | None = None) -> object:
+    """Set or reset the dispatch context. Internal use only.
+
+    Returns a token that can be passed back to reset the contextvar.
+    """
+    if token is not None:
+        _context_var.reset(token)
+        return None
+    return _context_var.set(ctx)
