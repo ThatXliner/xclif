@@ -223,11 +223,12 @@ class Command:
 
             myapp: My application.
 
-            greet - Greet someone. Options: --name STR, --template STR (default: 'Hello, {}!')
+            greet NAME - Greet someone. Options: --template STR (default: 'Hello, {}!')
             config get - Print the current config.
-            config set - Set config values.
+            config set KEY VALUE - Set config values.
         """
-        header = f"{self.name}: {self.short_description}"
+        args = _format_agent_args(self)
+        header = f"{self.name}{args}: {self.short_description}"
         if not self.subcommands:
             # Leaf command: append own options to the header line
             opts = _format_agent_options(self)
@@ -336,7 +337,8 @@ def _collect_agent_lines(cmd: "Command", prefix: str) -> list[str]:
             lines.extend(_collect_agent_lines(sub, path + " "))
         else:
             # Leaf command
-            line = f"{path} - {sub.short_description}"
+            args = _format_agent_args(sub)
+            line = f"{path}{args} - {sub.short_description}"
             opts = _format_agent_options(sub)
             if opts:
                 line += f" Options: {opts}"
@@ -358,6 +360,19 @@ def _format_agent_options(cmd: "Command") -> str:
                 part += f" (default: {opt.default!r})"
             parts.append(part)
     return ", ".join(parts)
+
+
+def _format_agent_args(cmd: "Command") -> str:
+    """Format positional arguments for agent help, e.g. ' NAME FILE...'."""
+    if not cmd.arguments:
+        return ""
+    parts: list[str] = []
+    for arg in cmd.arguments:
+        label = arg.name.upper()
+        if arg.variadic:
+            label += "..."
+        parts.append(label)
+    return " " + " ".join(parts)
 
 
 def _get_choices(converter) -> list[str] | None:

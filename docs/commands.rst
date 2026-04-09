@@ -189,9 +189,9 @@ produces::
 
    myapp: My application.
 
-   greet - Greet someone. Options: --name STR, --template STR (default: 'Hello, {}!')
+   greet NAME - Greet someone. Options: --template STR (default: 'Hello, {}!')
    config get - Print the current config.
-   config set - Set config values.
+   config set KEY VALUE - Set config values.
 
 Detection uses Rich's ``Console.is_terminal``, which respects ``FORCE_COLOR``,
 ``TTY_COMPATIBLE``, and other standard environment variables. To force Rich output
