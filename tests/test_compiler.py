@@ -173,7 +173,11 @@ def test_from_manifest_preserves_all_command_fields(tmp_path):
 
     def _assert_commands_equal(cmd_r: Command, cmd_m: Command, path: str = "root"):
         assert cmd_r.name == cmd_m.name, f"{path}: name mismatch"
-        assert cmd_r.run is cmd_m.run, f"{path}: run callable differs"
+        # Use qualname comparison, not identity — dynamically-generated
+        # commands (e.g. completions) produce new closures per Cli instance.
+        assert cmd_r.run.__qualname__ == cmd_m.run.__qualname__, (
+            f"{path}: run callable differs"
+        )
         assert cmd_r.arguments == cmd_m.arguments, f"{path}: arguments differ"
         assert cmd_r.options == cmd_m.options, f"{path}: options differ"
         assert cmd_r.implicit_options == cmd_m.implicit_options, (
