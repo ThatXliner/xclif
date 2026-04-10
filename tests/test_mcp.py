@@ -116,3 +116,26 @@ def test_wrapper_list_option():
 def get_origin_safe(tp):
     from typing import get_origin
     return get_origin(tp)
+
+
+def test_serve_mcp_stdio_missing_dep_error(monkeypatch):
+    """serve_mcp_stdio raises SystemExit with xclif[mcp] instructions when mcp missing."""
+    import builtins
+    real_import = builtins.__import__
+
+    def mock_import(name, *args, **kwargs):
+        if name == "mcp.server.fastmcp":
+            raise ImportError(f"mocked: no module named {name!r}")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", mock_import)
+
+    import importlib
+    import xclif.mcp as mcp_module
+    importlib.reload(mcp_module)
+
+    from xclif.command import Command
+    root = Command("myapp", lambda: 0)
+    with pytest.raises(SystemExit) as exc_info:
+        mcp_module.serve_mcp_stdio(root)
+    assert "xclif[mcp]" in str(exc_info.value)
