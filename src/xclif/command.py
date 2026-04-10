@@ -17,17 +17,20 @@ _AGENT_HIDDEN_SUBCOMMANDS = {"completions"}
 
 def _rprint(*args, **kwargs) -> None:
     import rich
+
     rich.print(*args, **kwargs)
 
 
 def _get_console(**kwargs) -> "Console":
     from rich.console import Console
+
     return Console(**kwargs)
 
 
 def _help_console(*, force_rich: bool = False, force_plain: bool = False) -> "Console":
     """Return a Console configured for the requested help mode."""
     from rich.console import Console
+
     if force_plain:
         return Console(no_color=True, highlight=False, soft_wrap=True)
     if force_rich:
@@ -80,7 +83,9 @@ class Command:
         parts.extend(option.aliases)
         return ", ".join(parts)
 
-    def print_short_help(self, *, force_rich: bool = False, force_plain: bool = False) -> None:
+    def print_short_help(
+        self, *, force_rich: bool = False, force_plain: bool = False
+    ) -> None:
         """Print a compact one-screen help summary to stdout."""
         if not force_rich and not force_plain and not _get_console().is_terminal:
             self.print_agent_help()
@@ -89,15 +94,14 @@ class Command:
 
         console = _help_console(force_rich=force_rich, force_plain=force_plain)
         all_options = {**self.implicit_options, **self.options}
-        alias_suffix = f" [dim]({', '.join(self.aliases)})[/dim]" if self.aliases else ""
+        alias_suffix = (
+            f" [dim]({', '.join(self.aliases)})[/dim]" if self.aliases else ""
+        )
         help_text = (
             (self.short_description + "\n" if self.short_description else "")
             + f"[bold]Usage:[/bold] [cyan]{self.name}[/cyan]{alias_suffix} [dim]{escape('[OPTIONS]')}[/dim]"
             + (" " if self.arguments else "")
-            + " ".join(
-                _arg_markup(x)
-                for x in self.arguments
-            )
+            + " ".join(_arg_markup(x) for x in self.arguments)
             + "\n\n"
         )
 
@@ -155,7 +159,9 @@ class Command:
         )
         console.print(help_text)
 
-    def print_long_help(self, *, force_rich: bool = False, force_plain: bool = False) -> None:
+    def print_long_help(
+        self, *, force_rich: bool = False, force_plain: bool = False
+    ) -> None:
         """Print the full help page (including the long description) to stdout."""
         if not force_rich and not force_plain and not _get_console().is_terminal:
             self.print_agent_help()
@@ -171,14 +177,13 @@ class Command:
             console.print(Markdown(self.description))
             console.print()
 
-        alias_suffix = f" [dim]({', '.join(self.aliases)})[/dim]" if self.aliases else ""
+        alias_suffix = (
+            f" [dim]({', '.join(self.aliases)})[/dim]" if self.aliases else ""
+        )
         help_text = (
             f"[bold]Usage:[/bold] [cyan]{self.name}[/cyan]{alias_suffix} [dim]{escape('[OPTIONS]')}[/dim]"
             + (" " if self.arguments else "")
-            + " ".join(
-                _arg_markup(x)
-                for x in self.arguments
-            )
+            + " ".join(_arg_markup(x) for x in self.arguments)
             + "\n\n"
         )
 
@@ -219,7 +224,9 @@ class Command:
                 + "\n".join(
                     " " * INITIAL_LEFT_PADDING
                     + f"[dim cyan]{_arg_section_label(x).ljust(pad_length + NAME_DESC_PADDING)}[/dim cyan]"
-                    + _dim_description(textwrap.indent(x.description, ' ' * indent_width).strip())
+                    + _dim_description(
+                        textwrap.indent(x.description, " " * indent_width).strip()
+                    )
                     for x in self.arguments
                 )
                 + "\n\n"
@@ -273,6 +280,7 @@ class Command:
         compiler (``xclif compile``) instead, which pre-builds a static
         manifest and avoids the filesystem walk cost of ``Cli.from_routes``.
         """
+
         def _decorator(func: Callable) -> "Command":
             cmd = command(*names)(func)
             self._assert_no_arguments(adding=cmd.name)
@@ -282,6 +290,7 @@ class Command:
                 self._assert_no_collision(alias, registering=cmd.name)
                 self.subcommands[alias] = cmd
             return cmd
+
         return _decorator
 
     def group(self, name: str) -> "Command":
@@ -296,7 +305,9 @@ class Command:
         self.subcommands[name] = cmd
         return cmd
 
-    def execute(self, args: list[str] | None = None, context: dict | None = None) -> int:
+    def execute(
+        self, args: list[str] | None = None, context: dict | None = None
+    ) -> int:
         """Parse *args* and run the appropriate subcommand, returning an exit code.
 
         When *args* is ``None``, ``sys.argv[1:]`` is used. Pass an explicit
@@ -305,12 +316,14 @@ class Command:
             assert my_command.execute(["greet", "Alice"]) == 0
         """
         try:
-            return parse_and_execute_impl(sys.argv[1:] if args is None else args, self, context)
+            return parse_and_execute_impl(
+                sys.argv[1:] if args is None else args, self, context
+            )
         except UsageError as exc:
             _rprint(f"[bold red]Error:[/bold red] {exc}", file=sys.stderr)
             if exc.hint:
                 _rprint(f"[dim]{exc.hint}[/dim]", file=sys.stderr)
-            _rprint(f"[dim]For more information, try '--help'.[/dim]", file=sys.stderr)
+            _rprint(f"\n\nFor more information, try [bold cyan]{self.name} --help[/bold cyan].", file=sys.stderr)
             return 2
 
     @property
@@ -358,6 +371,7 @@ def _arg_label(arg: "Argument") -> str:
 def _arg_markup(arg: "Argument") -> str:
     """Return a Rich-safe bracketed label for an argument, e.g. '[bash|zsh|fish]' or '[NAME]'."""
     from rich.markup import escape
+
     inner = _arg_label(arg)
     suffix = "..." if arg.variadic else ""
     return escape(f"[{inner}{suffix}]")
@@ -366,6 +380,7 @@ def _arg_markup(arg: "Argument") -> str:
 def _arg_section_label(arg: "Argument") -> str:
     """Return a Rich-safe label for the Arguments section listing, e.g. '[bash|zsh|fish]' or '[name]'."""
     from rich.markup import escape
+
     inner = "|".join(arg.choices) if arg.choices else arg.name
     suffix = "..." if arg.variadic else ""
     return escape(f"[{inner}{suffix}]")
@@ -440,7 +455,9 @@ def _auto_alias(name: str, taken: set[str]) -> list[str]:
     return []
 
 
-def extract_parameters(function: Callable) -> tuple[list[Argument], dict[str, _DefinitionOption]]:
+def extract_parameters(
+    function: Callable,
+) -> tuple[list[Argument], dict[str, _DefinitionOption]]:
     """Extract arguments and options from a function's signature."""
     signature = inspect.signature(function, eval_str=True)
     arguments = []
@@ -464,7 +481,11 @@ def extract_parameters(function: Callable) -> tuple[list[Argument], dict[str, _D
             arguments.append(Argument(name, converter, NO_DESC, variadic=True))
             continue
 
-        if parameter.kind in (parameter.VAR_KEYWORD, parameter.POSITIONAL_ONLY, parameter.KEYWORD_ONLY):
+        if parameter.kind in (
+            parameter.VAR_KEYWORD,
+            parameter.POSITIONAL_ONLY,
+            parameter.KEYWORD_ONLY,
+        ):
             msg = f"{'**kwargs' if parameter.kind == parameter.VAR_KEYWORD else 'Positional-only and keyword-only'} parameters are currently unsupported"
             raise TypeError(msg)
 
@@ -481,7 +502,9 @@ def extract_parameters(function: Callable) -> tuple[list[Argument], dict[str, _D
 
         # Unwrap all Annotated metadata: Arg, Option (annotation), WithConfig
         raw_annotation = parameter.annotation
-        inner_type, arg_meta, opt_meta, with_config = unwrap_param_metadata(raw_annotation)
+        inner_type, arg_meta, opt_meta, with_config = unwrap_param_metadata(
+            raw_annotation
+        )
 
         converter = annotation2converter(inner_type)
         if converter is None:
@@ -492,20 +515,43 @@ def extract_parameters(function: Callable) -> tuple[list[Argument], dict[str, _D
 
         if is_argument:
             if opt_meta is not None:
-                msg = f"Option() used on argument parameter '{name}' — use Arg() instead"
+                msg = (
+                    f"Option() used on argument parameter '{name}' — use Arg() instead"
+                )
                 raise ValueError(msg)
-            description = arg_meta.description if arg_meta and arg_meta.description else NO_DESC
+            description = (
+                arg_meta.description if arg_meta and arg_meta.description else NO_DESC
+            )
             display_name = arg_meta.name if arg_meta and arg_meta.name else name
-            arguments.append(Argument(display_name, converter, description, config=with_config, choices=_get_choices(converter)))
+            arguments.append(
+                Argument(
+                    display_name,
+                    converter,
+                    description,
+                    config=with_config,
+                    choices=_get_choices(converter),
+                )
+            )
         else:
             if arg_meta is not None:
                 msg = f"Arg() used on option parameter '{name}' — use Option() instead"
                 raise ValueError(msg)
             default = parameter.default
-            description = opt_meta.description if opt_meta and opt_meta.description else NO_DESC
+            description = (
+                opt_meta.description if opt_meta and opt_meta.description else NO_DESC
+            )
             cli_name = opt_meta.name if opt_meta and opt_meta.name else name
             aliases = _auto_alias(cli_name, taken_aliases)
-            options[name] = _DefinitionOption(cli_name, converter, description, default, is_list=list_valued, aliases=aliases, config=with_config, choices=_get_choices(converter))
+            options[name] = _DefinitionOption(
+                cli_name,
+                converter,
+                description,
+                default,
+                is_list=list_valued,
+                aliases=aliases,
+                config=with_config,
+                choices=_get_choices(converter),
+            )
     return arguments, options
 
 
