@@ -116,6 +116,68 @@ def get_origin_safe(tp):
     return get_origin(tp)
 
 
+# --- Cli injection ---
+
+def test_mcp_subcommand_injected_when_mcp_installed():
+    """When mcp package is available, Cli injects mcp subcommand."""
+    pytest.importorskip("mcp")  # skip if mcp not installed
+    from xclif import Cli
+    from xclif.command import Command
+
+    def root_run(): pass
+    root = Command("myapp", root_run)
+    cli = Cli(root_command=root)
+    assert "mcp" in cli.root_command.subcommands
+
+
+def test_mcp_subcommand_absent_when_mcp_missing(monkeypatch):
+    """When mcp package is not importable, Cli silently skips injection."""
+    import builtins
+    real_import = builtins.__import__
+
+    def mock_import(name, *args, **kwargs):
+        if name == "mcp" or name.startswith("mcp."):
+            raise ImportError(f"mocked: no module named {name!r}")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", mock_import)
+
+    # Re-import Cli with mcp blocked — need to reload the module
+    import importlib
+    import xclif
+    importlib.reload(xclif)
+    from xclif import Cli
+    from xclif.command import Command
+
+    def root_run(): pass
+    root = Command("myapp", root_run)
+    cli = Cli(root_command=root)
+    assert "mcp" not in cli.root_command.subcommands
+
+
+def test_mcp_hidden_from_agent_help(capsys):
+    """mcp subcommand does not appear in agent help output."""
+    pytest.importorskip("mcp")
+    from xclif import Cli
+    from xclif.command import Command
+
+    def root_run():
+        """My app."""
+    root = Command("myapp", root_run)
+
+    def greet(name: str):
+        """Greet someone."""
+    from xclif.command import command
+    greet_cmd = command("greet")(greet)
+    root.subcommands["greet"] = greet_cmd
+
+    cli = Cli(root_command=root)
+    cli.root_command.print_agent_help()
+    captured = capsys.readouterr()
+    assert "mcp" not in captured.out
+    assert "greet" in captured.out
+
+
 def test_serve_mcp_stdio_missing_dep_error(monkeypatch):
     """serve_mcp_stdio raises SystemExit with xclif[mcp] instructions when mcp missing."""
     import builtins
