@@ -313,5 +313,5 @@ def test_wrapper_error_raises_runtime_error():
     cmd = Command("greet", run, [Argument("name", str, "")], {})
     wrapper = _build_tool_wrapper("greet", cmd)
     # Call with missing required arg — execute returns exit code 2
-    with pytest.raises(RuntimeError):
+    with pytest.raises(RuntimeError, match="name"):
         wrapper()  # no 'name' argument provided
