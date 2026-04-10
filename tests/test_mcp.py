@@ -228,3 +228,90 @@ def test_cli_serve_mcp_missing_dep_raises(monkeypatch):
     with pytest.raises(SystemExit) as exc_info:
         cli.serve_mcp()
     assert "xclif[mcp]" in str(exc_info.value)
+
+
+# --- Integration: wrapper dispatch ---
+
+def test_wrapper_dispatch_positional():
+    """Wrapper correctly passes positional args to execute()."""
+    from xclif.definition import Argument
+
+    outputs = []
+
+    def run(name: str):
+        outputs.append(name)
+        return 0
+
+    cmd = Command("greet", run, [Argument("name", str, "")], {})
+    wrapper = _build_tool_wrapper("greet", cmd)
+    result = wrapper(name="Alice")
+    assert outputs == ["Alice"]
+    assert isinstance(result, str)
+
+
+def test_wrapper_dispatch_option():
+    """Wrapper correctly passes options as --flag value."""
+    from xclif.definition import Argument, _DefinitionOption
+
+    received = {}
+
+    def run(name: str, loud: bool = False):
+        received["name"] = name
+        received["loud"] = loud
+        return 0
+
+    cmd = Command(
+        "greet", run,
+        [Argument("name", str, "")],
+        {"loud": _DefinitionOption("loud", bool, "", default=False)},
+    )
+    wrapper = _build_tool_wrapper("greet", cmd)
+    wrapper(name="Alice", loud=True)
+    assert received == {"name": "Alice", "loud": True}
+
+
+def test_wrapper_output_captured():
+    """Wrapper returns stdout output as a string."""
+    from xclif.definition import Argument
+
+    def run(name: str):
+        print(f"Hello, {name}!")
+        return 0
+
+    cmd = Command("greet", run, [Argument("name", str, "")], {})
+    wrapper = _build_tool_wrapper("greet", cmd)
+    result = wrapper(name="World")
+    assert result == "Hello, World!\n"
+
+
+def test_wrapper_list_option_dispatch():
+    """List options are passed as repeated --flag val."""
+    from xclif.definition import _DefinitionOption
+
+    received = {}
+
+    def run(tags: list = None):
+        received["tags"] = tags
+        return 0
+
+    cmd = Command(
+        "tag", run, [],
+        {"tags": _DefinitionOption("tags", str, "", default=None, is_list=True)},
+    )
+    wrapper = _build_tool_wrapper("tag", cmd)
+    wrapper(tags=["a", "b"])
+    assert received["tags"] == ["a", "b"]
+
+
+def test_wrapper_error_raises_runtime_error():
+    """Wrapper raises RuntimeError on non-zero exit (bad args)."""
+    from xclif.definition import Argument
+
+    def run(name: str):
+        return 0
+
+    cmd = Command("greet", run, [Argument("name", str, "")], {})
+    wrapper = _build_tool_wrapper("greet", cmd)
+    # Call with missing required arg — execute returns exit code 2
+    with pytest.raises(RuntimeError):
+        wrapper()  # no 'name' argument provided
