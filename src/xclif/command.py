@@ -310,6 +310,7 @@ class Command:
             _rprint(f"[bold red]Error:[/bold red] {exc}", file=sys.stderr)
             if exc.hint:
                 _rprint(f"[dim]{exc.hint}[/dim]", file=sys.stderr)
+            _rprint(f"[dim]For more information, try '--help'.[/dim]", file=sys.stderr)
             return 2
 
     @property
