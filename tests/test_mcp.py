@@ -199,3 +199,32 @@ def test_serve_mcp_stdio_missing_dep_error(monkeypatch):
     with pytest.raises(SystemExit) as exc_info:
         mcp_module.serve_mcp_stdio(root)
     assert "xclif[mcp]" in str(exc_info.value)
+
+
+def test_cli_serve_mcp_missing_dep_raises(monkeypatch):
+    """Cli.serve_mcp() raises SystemExit with install instructions when mcp missing."""
+    pytest.importorskip("mcp")  # only run if mcp is installed (we'll mock it out)
+    import builtins
+    real_import = builtins.__import__
+
+    def mock_import(name, *args, **kwargs):
+        if name == "mcp.server.fastmcp":
+            raise ImportError(f"mocked: no module named {name!r}")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", mock_import)
+
+    from xclif import Cli
+    from xclif.command import Command
+
+    def root_run(): pass
+    root = Command("myapp", root_run)
+    cli = Cli(root_command=root)
+
+    import xclif.mcp as mcp_module
+    import importlib
+    importlib.reload(mcp_module)
+
+    with pytest.raises(SystemExit) as exc_info:
+        cli.serve_mcp()
+    assert "xclif[mcp]" in str(exc_info.value)

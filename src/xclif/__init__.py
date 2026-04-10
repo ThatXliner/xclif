@@ -184,11 +184,12 @@ class Cli:
         # Add mcp subcommand (only if mcp optional dep is installed)
         try:
             import mcp as _mcp_pkg  # noqa: F401
+        except ImportError:
+            pass  # mcp optional dep not installed; subcommand silently absent
+        else:
             from xclif.mcp import make_mcp_command
             self.root_command._assert_no_arguments(adding="mcp")
             self.root_command.subcommands["mcp"] = make_mcp_command(self.root_command)
-        except ImportError:
-            pass  # mcp optional dep not installed; subcommand silently absent
 
     def _finalize(self) -> None:
         # """Inject config subcommand and validate WithConfig conflicts. Idempotent."""
