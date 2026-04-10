@@ -56,6 +56,7 @@ Single occurrences still produce a one-element list (never unwrapped).
 """
 from __future__ import annotations
 
+import inspect
 import os
 from collections import defaultdict
 from difflib import get_close_matches
@@ -317,11 +318,12 @@ def parse_and_execute_impl(
         raise UsageError(f"Missing required argument(s): {', '.join(missing)}")
 
     # Convert variadic remainder
+    variadic_items: list = []
     if variadic_arg:
         remaining = positionals[len(fixed_args) :]
         for raw in remaining:
             try:
-                converted_args.append(variadic_arg.converter(raw))
+                variadic_items.append(variadic_arg.converter(raw))
             except (ValueError, TypeError):
                 raise UsageError(
                     f"Invalid value {raw!r} for argument '{variadic_arg.name}': expected {_type_name(variadic_arg.converter)}"
@@ -348,6 +350,27 @@ def parse_and_execute_impl(
 
     token = _set_context(Context(new_context))
     try:
+        if variadic_arg:
+            # When a variadic *args parameter exists, interleave fixed args and
+            # options in signature order, then append variadic items positionally.
+            # Passing options as **kwargs alongside extra positionals causes
+            # "got multiple values" if option parameters sit between fixed args
+            # and *args in the function signature.
+            sig = inspect.signature(command.run)
+            positional_call: list = []
+            remaining_kwargs: dict = dict(user_kwargs)
+            fixed_iter = iter(converted_args)
+            arg_names = {a.name for a in fixed_args}
+            for param_name, param in sig.parameters.items():
+                if param.kind == param.VAR_POSITIONAL:
+                    break
+                if param.kind == param.VAR_KEYWORD:
+                    break
+                if param_name in arg_names:
+                    positional_call.append(next(fixed_iter))
+                elif param_name in remaining_kwargs:
+                    positional_call.append(remaining_kwargs.pop(param_name))
+            return command.run(*positional_call, *variadic_items, **remaining_kwargs) or 0
         return command.run(*converted_args, **user_kwargs) or 0
     finally:
         _reset_context(token)

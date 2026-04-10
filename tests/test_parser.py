@@ -399,6 +399,27 @@ def test_variadic_with_options():
     assert received == {"files": ["a.py", "b.py"], "recursive": "true"}
 
 
+def test_variadic_with_interleaved_options():
+    """Options between fixed args and *args in the signature must not collide."""
+    received = {}
+
+    def run(dest: str, recursive: str = "false", *files: str) -> None:
+        received["dest"] = dest
+        received["recursive"] = recursive
+        received["files"] = list(files)
+
+    cmd = Command(
+        "cp", run,
+        arguments=[
+            Argument("dest", str, "Destination"),
+            Argument("files", str, "Files", variadic=True),
+        ],
+        options={"recursive": _DefinitionOption("recursive", str, "Recursive", "false")},
+    )
+    parse_and_execute_impl(["target/", "a.py", "b.py"], cmd)
+    assert received == {"dest": "target/", "recursive": "false", "files": ["a.py", "b.py"]}
+
+
 def test_variadic_with_double_dash():
     received = []
 
