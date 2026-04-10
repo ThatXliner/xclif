@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.4.2 — Terminal soft wrap behavior changes (2026-04-10)
+
 ## 0.4.1 — Minor adjustments in help text system (2026-04-08)
 
 ### Added
