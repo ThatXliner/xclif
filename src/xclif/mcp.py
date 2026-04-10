@@ -61,7 +61,7 @@ def _build_tool_wrapper(tool_name: str, cmd: "Command"):
 
     # Positional arguments → required parameters (no default)
     for arg in cmd.arguments:
-        annotation = _converter_to_annotation(arg.converter)
+        annotation = _converter_to_annotation(arg.converter, is_list=arg.variadic)
         params.append(
             inspect.Parameter(
                 arg.name,

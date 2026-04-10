@@ -111,6 +111,21 @@ def test_wrapper_list_option():
     assert get_origin_safe(params[0].annotation) is list
 
 
+def test_wrapper_signature_variadic_arg():
+    """Variadic positional argument maps to list[T] annotation."""
+    from xclif.definition import Argument
+    from xclif.mcp import _build_tool_wrapper
+
+    def run(*names): pass
+    cmd = make_cmd("greet", run, arguments=[Argument("names", str, "Names", variadic=True)])
+    wrapper = _build_tool_wrapper("greet", cmd)
+    sig = inspect.signature(wrapper)
+    params = list(sig.parameters.values())
+    assert params[0].name == "names"
+    from typing import get_origin
+    assert get_origin(params[0].annotation) is list
+
+
 def get_origin_safe(tp):
     from typing import get_origin
     return get_origin(tp)

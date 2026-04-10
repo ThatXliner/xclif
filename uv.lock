@@ -1406,6 +1406,7 @@ mcp = [
 [package.dev-dependencies]
 dev = [
     { name = "click" },
+    { name = "mcp" },
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "typer" },
@@ -1429,6 +1430,7 @@ provides-extras = ["mcp"]
 [package.metadata.requires-dev]
 dev = [
     { name = "click", specifier = ">=8.3.1" },
+    { name = "mcp", specifier = ">=1.27.0" },
     { name = "pytest", specifier = ">=8.0" },
     { name = "pytest-cov", specifier = ">=7.0.0" },
     { name = "typer", specifier = ">=0.24.1" },
