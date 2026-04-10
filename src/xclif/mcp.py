@@ -53,6 +53,9 @@ def _build_tool_wrapper(tool_name: str, cmd: "Command"):
     FastMCP inspects the signature to derive the JSON Schema for the tool.
     The wrapper converts incoming kwargs back to an argv list, calls
     cmd.execute(), captures stdout, and returns it as a string.
+
+    Note: stderr is captured and raised as RuntimeError on non-zero exit.
+    This prevents xclif error output from bleeding into the MCP stdio transport.
     """
     params: list[inspect.Parameter] = []
 
@@ -81,10 +84,13 @@ def _build_tool_wrapper(tool_name: str, cmd: "Command"):
 
     def _wrapper(**kwargs: Any) -> str:
         argv = _kwargs_to_argv(cmd, kwargs)
-        buf = io.StringIO()
-        with contextlib.redirect_stdout(buf):
-            cmd.execute(argv)
-        return buf.getvalue()
+        stdout_buf = io.StringIO()
+        stderr_buf = io.StringIO()
+        with contextlib.redirect_stdout(stdout_buf), contextlib.redirect_stderr(stderr_buf):
+            exit_code = cmd.execute(argv)
+        if exit_code != 0:
+            raise RuntimeError(stderr_buf.getvalue().strip() or f"Command failed with exit code {exit_code}")
+        return stdout_buf.getvalue()
 
     _wrapper.__name__ = tool_name
     _wrapper.__signature__ = inspect.Signature(params)

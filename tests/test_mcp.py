@@ -1,7 +1,5 @@
 """Tests for MCP server integration."""
 import inspect
-import io
-import contextlib
 
 import pytest
 
@@ -87,7 +85,7 @@ def test_wrapper_signature_option_with_default():
     assert params[1].default is False
 
 
-def test_wrapper_captures_stdout(capsys):
+def test_wrapper_captures_stdout():
     from xclif.definition import Argument
     def run(name: str):
         print(f"hello {name}")
