@@ -98,6 +98,22 @@ def _type_name(converter: type) -> str:
     return getattr(converter, "__name__", str(converter))
 
 
+def _convert_option_value(option: _DefinitionOption, raw: str) -> object:
+    """Convert and validate a raw option value."""
+    try:
+        value = option.converter(raw)
+    except (ValueError, TypeError):
+        raise UsageError(
+            f"Invalid value {raw!r} for option '--{option.name.replace('_', '-')}': expected {_type_name(option.converter)}"
+        )
+    if option.choices is not None and value not in option.choices:
+        raise UsageError(
+            f"Invalid value {raw!r} for option '--{option.name.replace('_', '-')}': "
+            f"expected one of: {', '.join(option.choices)}"
+        )
+    return value
+
+
 def _suggest_option(name: str, options: dict[str, _DefinitionOption]) -> str | None:
     """Suggest a close match for an unknown option name."""
     candidates = [f"--{opt.name.replace('_', '-')}" for opt in options.values()]
@@ -149,12 +165,7 @@ def _parse_token_stream(
                 option = options[name]
                 if option.converter is bool:
                     raise UsageError(f"Boolean flag {name_part!r} does not take a value")
-                try:
-                    parsed_opts[name].append(option.converter(value))
-                except (ValueError, TypeError):
-                    raise UsageError(
-                        f"Invalid value {value!r} for option '--{option.name.replace('_', '-')}': expected {_type_name(option.converter)}"
-                    )
+                parsed_opts[name].append(_convert_option_value(option, value))
             else:
                 flag = token.removeprefix("--").replace("-", "_")
                 name = flag_map.get(flag)
@@ -171,12 +182,7 @@ def _parse_token_stream(
                     if i + 1 >= len(args):
                         raise UsageError(f"Option {token!r} requires a value")
                     i += 1
-                    try:
-                        parsed_opts[name].append(option.converter(args[i]))
-                    except (ValueError, TypeError):
-                        raise UsageError(
-                            f"Invalid value {args[i]!r} for option '--{option.name.replace('_', '-')}': expected {_type_name(option.converter)}"
-                        )
+                    parsed_opts[name].append(_convert_option_value(option, args[i]))
 
         elif token.startswith("-") and len(token) > 1:
             # Short option: -v  or  -n value
@@ -192,12 +198,7 @@ def _parse_token_stream(
                 if i + 1 >= len(args):
                     raise UsageError(f"Option {token!r} requires a value")
                 i += 1
-                try:
-                    parsed_opts[long_name].append(option.converter(args[i]))
-                except (ValueError, TypeError):
-                    raise UsageError(
-                        f"Invalid value {args[i]!r} for option '--{long_name.replace('_', '-')}': expected {_type_name(option.converter)}"
-                    )
+                parsed_opts[long_name].append(_convert_option_value(option, args[i]))
 
         elif token in subcommands:
             # Subcommand name — stop scanning, hand off tail

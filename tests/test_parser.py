@@ -475,6 +475,23 @@ def test_implicit_options_take_precedence_over_direct_user_collision(capsys):
     assert capsys.readouterr().out != ""
 
 
+def test_colors_rejects_invalid_value():
+    cmd = Command("test", lambda: 0)
+    with pytest.raises(UsageError, match="expected one of: always, never, auto"):
+        parse_and_execute_impl(["--colors", "sometimes"], cmd)
+
+
+def test_colors_rejects_invalid_equals_value():
+    cmd = Command("test", lambda: 0)
+    with pytest.raises(UsageError, match="expected one of: always, never, auto"):
+        parse_and_execute_impl(["--colors=sometimes"], cmd)
+
+
+def test_colors_accepts_valid_value():
+    cmd = Command("test", lambda: 0)
+    assert parse_and_execute_impl(["--colors", "never"], cmd) == 0
+
+
 # ---------------------------------------------------------------------------
 # parse_and_execute_impl — --version
 # ---------------------------------------------------------------------------
