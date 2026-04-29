@@ -462,6 +462,19 @@ def test_implicit_options_not_forwarded_to_run():
     assert "help" not in received_kwargs
 
 
+def test_implicit_options_take_precedence_over_direct_user_collision(capsys):
+    cmd = Command(
+        "test",
+        lambda help="user": 0,
+        options={"help": _DefinitionOption("help", str, "desc")},
+    )
+
+    result = parse_and_execute_impl(["--help"], cmd)
+
+    assert result == 0
+    assert capsys.readouterr().out != ""
+
+
 # ---------------------------------------------------------------------------
 # parse_and_execute_impl — --version
 # ---------------------------------------------------------------------------

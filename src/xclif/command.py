@@ -541,6 +541,9 @@ def extract_parameters(
                 opt_meta.description if opt_meta and opt_meta.description else NO_DESC
             )
             cli_name = opt_meta.name if opt_meta and opt_meta.name else name
+            if cli_name.replace("-", "_") in IMPLICIT_OPTIONS:
+                msg = f"Cannot use `{cli_name}` as an option name (overrides an implicit option automatically created by Xclif)"
+                raise ValueError(msg)
             aliases = _auto_alias(cli_name, taken_aliases)
             options[name] = _DefinitionOption(
                 cli_name,

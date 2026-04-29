@@ -227,7 +227,7 @@ def parse_and_execute_impl(
     # Merge all option namespaces for scanning: user options + implicit options.
     # We keep them logically separate (implicit_options vs options on Command)
     # but the scanner needs to see both so it knows the arity of every token.
-    all_options = {**command.implicit_options, **command.options}
+    all_options = {**command.options, **command.implicit_options}
 
     positionals, parsed_opts, subcmd_index = _parse_token_stream(
         all_options, command.subcommands, args
