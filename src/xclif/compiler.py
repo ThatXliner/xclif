@@ -28,6 +28,7 @@ import types
 from pathlib import Path
 
 from xclif.command import Command
+from xclif.importer import is_private_route_module
 
 __all__ = ["compile_routes"]
 
@@ -89,6 +90,8 @@ def compile_routes(routes: types.ModuleType, output_dir: Path | None = None) -> 
         routes.__path__,
         routes.__name__ + ".",
     ):
+        if is_private_route_module(mod_name.removeprefix(routes.__name__ + ".")):
+            continue
         mod = importlib.import_module(mod_name)
         attr = _find_command_attr(mod)
         if attr is not None:

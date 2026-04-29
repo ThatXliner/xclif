@@ -118,6 +118,5 @@ utilities in a sibling module *outside* the routes package and import from there
 If you put a utility module *inside* the routes package, it will be imported on every invocation
 even when the user runs a completely unrelated command.
 
-**Prefix private modules with ``_`` (future support).** Xclif does not yet filter private modules,
-but following the convention now means your code will benefit automatically once support is added.
-Until then, keep helper code outside the routes package entirely.
+**Prefix private modules with ``_``.** Xclif skips route modules and packages whose names start
+with ``_``, so helper code can live inside the routes package without being registered as commands.
