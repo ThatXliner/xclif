@@ -167,7 +167,7 @@ class Cli:
     local_config: str | None = None
     config_command: bool = True
     discover_plugins: bool = True
-    discover_path_plugins: bool = True
+    discover_path_plugins: bool = False
     _config_data: dict = field(default_factory=dict, init=False, repr=False)
     _config_dir: "Path | None" = field(default=None, init=False, repr=False)
     _finalized: bool = field(default=False, init=False, repr=False)
