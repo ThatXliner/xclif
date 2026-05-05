@@ -944,13 +944,9 @@ def test_with_config_positional_no_double_conversion():
 # ---------------------------------------------------------------------------
 
 
-def test_lazy_path_plugin_dispatches_to_external(tmp_path, monkeypatch):
+def test_lazy_path_plugin_dispatches_to_external(tmp_path, monkeypatch, make_plugin_exe):
     """Unknown first arg matching a PATH plugin delegates to external exe."""
-    import sys
-
-    script = tmp_path / "myapp-deploy"
-    script.write_text("#!/bin/sh\nexit 0\n")
-    script.chmod(0o755)
+    make_plugin_exe("myapp", "deploy")
     monkeypatch.setenv("PATH", str(tmp_path))
 
     cmd = Command("myapp", lambda: 0)
@@ -959,12 +955,16 @@ def test_lazy_path_plugin_dispatches_to_external(tmp_path, monkeypatch):
     assert result == 0
 
 
-def test_lazy_path_plugin_passes_args_through(tmp_path, monkeypatch):
+def test_lazy_path_plugin_passes_args_through(tmp_path, monkeypatch, make_plugin_exe):
     """Remaining args after the plugin name are forwarded to the subprocess."""
     trace_file = tmp_path / "trace"
-    script = tmp_path / "myapp-deploy"
-    script.write_text("#!/bin/sh\necho \"$@\" > " + str(trace_file) + "\n")
-    script.chmod(0o755)
+    import sys
+
+    if sys.platform == "win32":
+        content = f"@echo %* > {trace_file}\n"
+    else:
+        content = f"#!/bin/sh\necho \"$@\" > {trace_file}\n"
+    make_plugin_exe("myapp", "deploy", content=content)
     monkeypatch.setenv("PATH", str(tmp_path))
 
     cmd = Command("myapp", lambda: 0)
@@ -985,11 +985,9 @@ def test_lazy_path_plugin_does_not_fire_for_known_subcommand():
     assert received == ["ran"]
 
 
-def test_lazy_path_plugin_requires_flag(tmp_path, monkeypatch):
+def test_lazy_path_plugin_requires_flag(tmp_path, monkeypatch, make_plugin_exe):
     """PATH plugin lookup is skipped when _discover_path_plugins is not set."""
-    script = tmp_path / "myapp-deploy"
-    script.write_text("#!/bin/sh\nexit 0\n")
-    script.chmod(0o755)
+    make_plugin_exe("myapp", "deploy")
     monkeypatch.setenv("PATH", str(tmp_path))
 
     sub = Command("status", lambda: 0)

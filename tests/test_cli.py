@@ -313,13 +313,9 @@ def test_cli_discover_plugins_false_suppresses_discovery():
 # ---------------------------------------------------------------------------
 
 
-def test_cli_path_plugin_delegates_to_external_exe(tmp_path):
+def test_cli_path_plugin_delegates_to_external_exe(tmp_path, make_plugin_exe):
     """An unknown root subcommand triggers PATH-based plugin lookup."""
-    import sys
-
-    exe = tmp_path / "myapp-deploy"
-    exe.write_text("#!/bin/sh\nexit 0\n")
-    exe.chmod(0o755)
+    make_plugin_exe("myapp", "deploy")
 
     sub = Command("status", lambda: 0)
     root = Command("myapp", lambda: 0, subcommands={"status": sub})
@@ -331,11 +327,9 @@ def test_cli_path_plugin_delegates_to_external_exe(tmp_path):
     assert result == 0
 
 
-def test_cli_path_plugin_does_not_interfere_with_known_subcommand(tmp_path):
+def test_cli_path_plugin_does_not_interfere_with_known_subcommand(tmp_path, make_plugin_exe):
     """A known subcommand is dispatched normally, not overridden by PATH plugins."""
-    exe = tmp_path / "myapp-greet"
-    exe.write_text("#!/bin/sh\nexit 1\n")
-    exe.chmod(0o755)
+    make_plugin_exe("myapp", "greet")
 
     received = []
     root = Command("myapp", lambda: 0, subcommands={
@@ -348,13 +342,9 @@ def test_cli_path_plugin_does_not_interfere_with_known_subcommand(tmp_path):
     assert received == ["ran"]
 
 
-def test_cli_discover_path_plugins_false_suppresses_discovery(tmp_path):
+def test_cli_discover_path_plugins_false_suppresses_discovery(tmp_path, make_plugin_exe):
     """discover_path_plugins=False prevents PATH lookup for unknown commands."""
-    import sys
-
-    exe = tmp_path / "myapp-deploy"
-    exe.write_text("#!/bin/sh\nexit 0\n")
-    exe.chmod(0o755)
+    make_plugin_exe("myapp", "deploy")
 
     sub = Command("status", lambda: 0)
     root = Command("myapp", lambda: 0, subcommands={"status": sub})

@@ -1,7 +1,6 @@
 """Tests for xclif.plugins — entry-point-based subcommand discovery."""
 
 import logging
-
 from unittest.mock import MagicMock, patch
 
 from xclif.command import Command
@@ -86,11 +85,9 @@ def test_discover_subcommands_returns_empty_dict_when_no_entry_points():
 # ---------------------------------------------------------------------------
 
 
-def test_find_path_plugin_finds_executable_in_path(tmp_path):
+def test_find_path_plugin_finds_executable_in_path(tmp_path, make_plugin_exe):
     """find_path_plugin finds {root}-{cmd} executable in PATH."""
-    exe = tmp_path / "myapp-deploy"
-    exe.write_text("#!/bin/sh")
-    exe.chmod(0o755)
+    exe = make_plugin_exe("myapp", "deploy")
 
     with patch.dict("os.environ", {"PATH": str(tmp_path)}):
         from xclif.plugins import find_path_plugin
