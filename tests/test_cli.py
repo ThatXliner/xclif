@@ -9,6 +9,7 @@ import pytest
 
 from xclif import Cli, command
 from xclif.command import Command
+from xclif.errors import UsageError
 
 
 # ---------------------------------------------------------------------------
@@ -308,48 +309,55 @@ def test_cli_discover_plugins_false_suppresses_discovery():
 
 
 # ---------------------------------------------------------------------------
-# Plugin discovery — PATH-based (Git-style)
+# Plugin discovery — PATH-based (Git-style, lazy)
 # ---------------------------------------------------------------------------
 
 
-def test_cli_discovers_path_plugins(tmp_path):
-    """PATH-based plugins are mounted as subcommands on root."""
+def test_cli_path_plugin_delegates_to_external_exe(tmp_path):
+    """An unknown root subcommand triggers PATH-based plugin lookup."""
+    import sys
+
     exe = tmp_path / "myapp-deploy"
-    exe.write_text("#!/bin/sh")
+    exe.write_text("#!/bin/sh\nexit 0\n")
     exe.chmod(0o755)
 
-    root = Command("myapp", lambda: 0)
-    cli = Cli(root_command=root)
+    sub = Command("status", lambda: 0)
+    root = Command("myapp", lambda: 0, subcommands={"status": sub})
     with patch.dict("os.environ", {"PATH": str(tmp_path)}):
-        cli._finalize()
+        result = root.execute(["deploy"], context={
+            "env_prefix": "MYAPP", "config_data": {},
+            "_discover_path_plugins": True, "_root_name": "myapp",
+        })
+    assert result == 0
 
-    assert "deploy" in cli.root_command.subcommands
 
-
-def test_cli_path_plugins_does_not_override_user_subcommand(tmp_path):
-    """PATH-based plugin with a colliding name is silently skipped."""
+def test_cli_path_plugin_does_not_interfere_with_known_subcommand(tmp_path):
+    """A known subcommand is dispatched normally, not overridden by PATH plugins."""
     exe = tmp_path / "myapp-greet"
-    exe.write_text("#!/bin/sh")
+    exe.write_text("#!/bin/sh\nexit 1\n")
     exe.chmod(0o755)
 
-    user_cmd = Command("greet", lambda: 0)
-    root = Command("myapp", lambda: 0, subcommands={"greet": user_cmd})
-    cli = Cli(root_command=root)
+    received = []
+    root = Command("myapp", lambda: 0, subcommands={
+        "greet": Command("greet", lambda: (received.append("ran"), 0)[1]),
+    })
     with patch.dict("os.environ", {"PATH": str(tmp_path)}):
-        cli._finalize()
+        result = root.execute(["greet"])
 
-    assert cli.root_command.subcommands["greet"] is user_cmd
+    assert result == 0
+    assert received == ["ran"]
 
 
 def test_cli_discover_path_plugins_false_suppresses_discovery(tmp_path):
-    """Setting discover_path_plugins=False prevents PATH scanning."""
+    """discover_path_plugins=False prevents PATH lookup for unknown commands."""
+    import sys
+
     exe = tmp_path / "myapp-deploy"
-    exe.write_text("#!/bin/sh")
+    exe.write_text("#!/bin/sh\nexit 0\n")
     exe.chmod(0o755)
 
-    root = Command("myapp", lambda: 0)
-    cli = Cli(root_command=root, discover_path_plugins=False)
+    sub = Command("status", lambda: 0)
+    root = Command("myapp", lambda: 0, subcommands={"status": sub})
     with patch.dict("os.environ", {"PATH": str(tmp_path)}):
-        cli._finalize()
-
-    assert "deploy" not in cli.root_command.subcommands
+        result = root.execute(["deploy"])
+    assert result == 2  # UsageError caught → exit code 2

@@ -248,14 +248,6 @@ class Cli:
                 if name not in self.root_command.subcommands:
                     self.root_command.subcommands[name] = cmd
 
-        # Discover PATH-based plugins (Git-style: xclif-foo in PATH → xclif foo)
-        if self.discover_path_plugins:
-            from xclif.plugins import discover_path_subcommands
-
-            for name, cmd in discover_path_subcommands(self.root_command.name).items():
-                if name not in self.root_command.subcommands:
-                    self.root_command.subcommands[name] = cmd
-
     def serve_mcp(self) -> None:
         """Start an MCP stdio server exposing all leaf commands as tools.
 
@@ -274,7 +266,13 @@ class Cli:
                 cli()
         """
         self._finalize()
-        context = {"env_prefix": self.env_prefix, "config_data": self._config_data}
+        context: dict = {
+            "env_prefix": self.env_prefix,
+            "config_data": self._config_data,
+        }
+        if self.discover_path_plugins:
+            context["_discover_path_plugins"] = True
+            context["_root_name"] = self.root_command.name
         sys.exit(self.root_command.execute(context=context))
 
     def add_command(self, path: list[str], command: Command) -> None:

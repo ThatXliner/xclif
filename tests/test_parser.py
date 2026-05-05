@@ -940,31 +940,60 @@ def test_with_config_positional_no_double_conversion():
 
 
 # ---------------------------------------------------------------------------
-# PATH-based plugin short-circuit
+# Lazy PATH-based plugin discovery
 # ---------------------------------------------------------------------------
 
 
-def test_path_plugin_short_circuits_to_subprocess():
-    """A Command with _path_plugin_exe delegates to subprocess."""
-    import subprocess
+def test_lazy_path_plugin_dispatches_to_external(tmp_path, monkeypatch):
+    """Unknown first arg matching a PATH plugin delegates to external exe."""
+    import sys
 
-    cmd = Command("deploy", lambda: 0)
-    cmd._path_plugin_exe = "/bin/echo"
-
-    result = parse_and_execute_impl(["hello", "world"], cmd)
-    assert result == 0  # echo exits 0
-
-
-def test_path_plugin_passes_args_unchanged(tmp_path):
-    """Arguments are passed through to the external executable as-is."""
-    trace_file = tmp_path / "trace"
-    script = tmp_path / "capture_args"
-    script.write_text(f"#!/bin/sh\necho \"$@\" > {trace_file}\n")
+    script = tmp_path / "myapp-deploy"
+    script.write_text("#!/bin/sh\nexit 0\n")
     script.chmod(0o755)
+    monkeypatch.setenv("PATH", str(tmp_path))
 
-    cmd = Command("test", lambda: 0)
-    cmd._path_plugin_exe = str(script)
+    cmd = Command("myapp", lambda: 0)
+    context = {"_discover_path_plugins": True, "_root_name": "myapp"}
+    result = parse_and_execute_impl(["deploy", "--env", "prod"], cmd, context)
+    assert result == 0
 
-    result = parse_and_execute_impl(["--foo", "bar"], cmd)
+
+def test_lazy_path_plugin_passes_args_through(tmp_path, monkeypatch):
+    """Remaining args after the plugin name are forwarded to the subprocess."""
+    trace_file = tmp_path / "trace"
+    script = tmp_path / "myapp-deploy"
+    script.write_text("#!/bin/sh\necho \"$@\" > " + str(trace_file) + "\n")
+    script.chmod(0o755)
+    monkeypatch.setenv("PATH", str(tmp_path))
+
+    cmd = Command("myapp", lambda: 0)
+    context = {"_discover_path_plugins": True, "_root_name": "myapp"}
+    result = parse_and_execute_impl(["deploy", "--foo", "bar"], cmd, context)
     assert result == 0
     assert trace_file.read_text().strip() == "--foo bar"
+
+
+def test_lazy_path_plugin_does_not_fire_for_known_subcommand():
+    """Known subcommands are dispatched normally, not overridden by PATH plugins."""
+    received = []
+    sub = Command("status", lambda: (received.append("ran"), 0)[1])
+    cmd = Command("myapp", lambda: 0, subcommands={"status": sub})
+    context = {"_discover_path_plugins": True, "_root_name": "myapp"}
+    result = parse_and_execute_impl(["status"], cmd, context)
+    assert result == 0
+    assert received == ["ran"]
+
+
+def test_lazy_path_plugin_requires_flag(tmp_path, monkeypatch):
+    """PATH plugin lookup is skipped when _discover_path_plugins is not set."""
+    script = tmp_path / "myapp-deploy"
+    script.write_text("#!/bin/sh\nexit 0\n")
+    script.chmod(0o755)
+    monkeypatch.setenv("PATH", str(tmp_path))
+
+    sub = Command("status", lambda: 0)
+    cmd = Command("myapp", lambda: 0, subcommands={"status": sub})
+    context = {"_root_name": "myapp"}  # no _discover_path_plugins
+    with pytest.raises(UsageError, match="Unknown subcommand"):
+        parse_and_execute_impl(["deploy"], cmd, context)

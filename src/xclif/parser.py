@@ -222,16 +222,24 @@ def parse_and_execute_impl(
     `context` carries cascading option values resolved by ancestor commands.
     It is never passed as kwargs to command.run() — it is a separate concern.
     """
-    # Short-circuit: PATH-based plugin subcommands hand off to external executable.
-    # This runs before any parsing so flags like --help are passed through raw.
-    path_exe = getattr(command, "_path_plugin_exe", None)
-    if path_exe is not None:
-        import subprocess
-
-        return subprocess.call([path_exe, *args])
-
     if context is None:
         context = {}
+
+    # Lazy PATH-based plugin discovery (Git-style): when the first arg isn't
+    # a known subcommand, check for ``{root}-{name}`` in PATH and delegate.
+    if (
+        args
+        and context.get("_discover_path_plugins")
+        and context.get("_root_name")
+        and args[0] not in command.subcommands
+    ):
+        from xclif.plugins import find_path_plugin
+
+        exe = find_path_plugin(context["_root_name"], args[0])
+        if exe is not None:
+            import subprocess
+
+            return subprocess.call([exe, *args[1:]], shell=False)
 
     # Merge all option namespaces for scanning: user options + implicit options.
     # We keep them logically separate (implicit_options vs options on Command)
