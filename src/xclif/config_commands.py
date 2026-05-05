@@ -100,9 +100,19 @@ def make_config_command(config_dir: Path) -> "Command":
         print(f"Set {key!r} = {value!r}")
         return 0
 
-    def path_run() -> int:
-        """Print the config file directory path."""
-        print(str(config_dir))
+    def path_run(dir: bool = False) -> int:
+        """Print the config file path (or directory with --dir)."""
+        if dir:
+            print(str(config_dir))
+            return 0
+        toml_path = config_dir / "config.toml"
+        json_path = config_dir / "config.json"
+        if toml_path.is_file():
+            print(str(toml_path))
+        elif json_path.is_file():
+            print(str(json_path))
+        else:
+            print(str(toml_path))  # default path if no file exists yet
         return 0
 
     def config_run() -> int:
