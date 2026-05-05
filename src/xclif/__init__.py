@@ -181,6 +181,16 @@ class Cli:
         )
         self.root_command.version = self.version
 
+        # Add mcp subcommand (only if mcp optional dep is installed)
+        try:
+            import mcp as _mcp_pkg  # noqa: F401
+        except ImportError:
+            pass  # mcp optional dep not installed; subcommand silently absent
+        else:
+            from xclif.mcp import make_mcp_command
+            self.root_command._assert_no_arguments(adding="mcp")
+            self.root_command.subcommands["mcp"] = make_mcp_command(self.root_command)
+
     def _finalize(self) -> None:
         # """Inject config subcommand and validate WithConfig conflicts. Idempotent."""
         if self._finalized:
@@ -202,6 +212,15 @@ class Cli:
 
         # Validate WithConfig conflicts
         check_with_config_conflicts(self.root_command, self.env_prefix)
+
+    def serve_mcp(self) -> None:
+        """Start an MCP stdio server exposing all leaf commands as tools.
+
+        Requires the optional 'mcp' package: pip install xclif[mcp]
+        """
+        self._finalize()
+        from xclif.mcp import serve_mcp_stdio
+        serve_mcp_stdio(self.root_command)
 
     def __call__(self) -> NoReturn:
         """Parse ``sys.argv`` and dispatch to the appropriate command, then exit.

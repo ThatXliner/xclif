@@ -12,7 +12,7 @@ from xclif.definition import IMPLICIT_OPTIONS, Argument, _DefinitionOption
 from xclif.errors import UsageError
 from xclif.parser import parse_and_execute_impl
 
-_AGENT_HIDDEN_SUBCOMMANDS = {"completions"}
+_AGENT_HIDDEN_SUBCOMMANDS = {"completions", "mcp"}
 
 
 def _rprint(*args, **kwargs) -> None:

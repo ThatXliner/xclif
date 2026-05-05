@@ -33,16 +33,23 @@ Homepage = "https://github.com/ThatXliner/xclif"
 Documentation = "https://xclif.readthedocs.io/en/latest/index.html"
 Repository = "https://github.com/ThatXliner/xclif"
 
+[project.optional-dependencies]
+mcp = [
+    "mcp>=1.27.0",
+]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["src"]
 
 [dependency-groups]
 dev = [
     "click>=8.3.1",
+    "mcp>=1.27.0",
     "pytest>=8.0",
     "pytest-cov>=7.0.0",
     "typer>=0.24.1",
