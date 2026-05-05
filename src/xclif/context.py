@@ -16,8 +16,8 @@ class Context:
         ctx.verbosity  # int (0–3)
         ctx.colors     # "always" | "never" | "auto"
 
-    User-defined cascading options (once supported) are accessible via
-    dict-style lookup::
+    User-defined cascading options (marked with ``Cascade()``) are accessible
+    via dict-style lookup::
 
         ctx["my_option"]
         ctx.get("my_option", default)

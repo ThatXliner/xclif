@@ -486,7 +486,7 @@ def extract_parameters(
             if parameter.annotation is inspect.Parameter.empty:
                 msg = f"Variadic argument {name!r} has no type hint"
                 raise ValueError(msg)
-            inner_type, _, _, _ = unwrap_param_metadata(parameter.annotation)
+            inner_type, _, _, _, _ = unwrap_param_metadata(parameter.annotation)
             converter = annotation2converter(inner_type)
             if converter is None:
                 msg = "Unsupported type"
@@ -513,9 +513,9 @@ def extract_parameters(
             msg = f"Argument {name!r} has no type hint"
             raise ValueError(msg)
 
-        # Unwrap all Annotated metadata: Arg, Option (annotation), WithConfig
+        # Unwrap all Annotated metadata: Arg, Option (annotation), WithConfig, Cascade
         raw_annotation = parameter.annotation
-        inner_type, arg_meta, opt_meta, with_config = unwrap_param_metadata(
+        inner_type, arg_meta, opt_meta, with_config, cascade = unwrap_param_metadata(
             raw_annotation
         )
 
@@ -563,6 +563,7 @@ def extract_parameters(
                 converter,
                 description,
                 default,
+                cascading=cascade,
                 is_list=list_valued,
                 aliases=aliases,
                 config=with_config,

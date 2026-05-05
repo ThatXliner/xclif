@@ -273,6 +273,19 @@ def parse_and_execute_impl(
             else:
                 new_context[name] = values[-1]  # last wins
 
+    # Cascade user-defined options marked with Cascade()
+    for name, option in command.options.items():
+        if option.cascading:
+            if name in parsed_opts:
+                values = parsed_opts[name]
+                new_context[name] = values[-1]  # last wins
+            else:
+                resolved = _resolve_with_config(name, option, new_context)
+                if resolved is not _CONFIG_MISSING:
+                    new_context[name] = resolved
+                elif option.default is not None:
+                    new_context[name] = option.default
+
     # --- Dispatch ---
 
     if subcmd_index is not None:

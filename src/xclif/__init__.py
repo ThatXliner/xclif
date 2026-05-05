@@ -12,7 +12,7 @@ from xclif.importer import get_modules
 
 __version__ = "0.4.3"
 
-__all__ = ["Arg", "Cli", "Context", "Option", "WithConfig", "__version__", "command", "get_context"]
+__all__ = ["Arg", "Cascade", "Cli", "Context", "Option", "WithConfig", "__version__", "command", "get_context"]
 
 
 @dataclass(frozen=True)
@@ -43,6 +43,21 @@ class Arg:
 
     description: str | None = None
     name: str | None = None  # display name in help (e.g. "FILE")
+
+
+@dataclass(frozen=True)
+class Cascade:
+    """Annotation metadata to cascade an option to subcommands.
+
+    Use inside ``Annotated`` to make an option's value available to all
+    subcommands via ``get_context()``::
+
+        def root(
+            base_url: Annotated[str, WithConfig(), Cascade()] = DEFAULT_BASE_URL,
+        ) -> None: ...
+
+    Subcommands can then use ``get_context()["base_url"]``.
+    """
 
 
 @dataclass(frozen=True)

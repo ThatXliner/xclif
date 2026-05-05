@@ -52,21 +52,22 @@ def is_list_type(x) -> bool:
 
 
 def unwrap_param_metadata(annotation):
-    """Extract Arg, Option, and WithConfig from an Annotated annotation.
+    """Extract Arg, Option, WithConfig, and Cascade from an Annotated annotation.
 
-    Returns (inner_type, arg_meta, option_meta, with_config).
-    For plain (non-Annotated) types, returns (annotation, None, None, None).
+    Returns (inner_type, arg_meta, option_meta, with_config, cascade).
+    For plain (non-Annotated) types, returns (annotation, None, None, None, False).
     """
-    from xclif import Arg, Option, WithConfig
+    from xclif import Arg, Cascade, Option, WithConfig
 
     if get_origin(annotation) is not Annotated:
-        return annotation, None, None, None
+        return annotation, None, None, None, False
 
     args = get_args(annotation)
     inner_type = args[0]
     arg_meta = None
     opt_meta = None
     with_config = None
+    cascade = False
 
     for metadata in args[1:]:
         if isinstance(metadata, Arg):
@@ -75,5 +76,7 @@ def unwrap_param_metadata(annotation):
             opt_meta = metadata
         elif isinstance(metadata, WithConfig):
             with_config = metadata
+        elif isinstance(metadata, Cascade):
+            cascade = True
 
-    return inner_type, arg_meta, opt_meta, with_config
+    return inner_type, arg_meta, opt_meta, with_config, cascade

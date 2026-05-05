@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### Added
+- `Cascade` annotation: mark options with `Cascade()` to propagate their values to subcommands, accessible via `get_context()["option_name"]`. Designed for configurable multi-level CLIs — declare on the root command and read in any subcommand.
+
+## 0.4.4 — MCP server mode and error UX polish (2026-05-05)
+
+### Added
+- MCP server mode: auto-expose CLI commands as MCP tools. Calling `xclif.mcp.serve(app)` serves your CLI as Model Context Protocol tools for AI agents. (#56)
+- `show_no_description` option on `@command()`: set to `False` to suppress the default "No description provided" placeholder. (#62)
+- Config `path` command now prints the config file path (not just its parent directory). New `--dir` flag returns the config directory instead.
+- Validation of `--colors` option values: invalid values now raise a clear error instead of being silently accepted. (#52)
+- Detection of implicit option collisions: user-defined options that shadow framework-owned implicit options (`--help`, `--verbose`, `--colors`) are now caught with an actionable error at command construction. (#58)
+- Private route modules (names starting with `_`) are now filtered out during route discovery. (#53)
+- Error messages now include `"For more information, try --help"` on usage errors, using the command name with bold cyan formatting for the copy-pasteable hint.
+
 ## 0.4.3 — Fixed positional args crash (2026-04-10)
 
 ### Fixed
