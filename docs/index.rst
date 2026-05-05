@@ -25,6 +25,7 @@ file-based routing and a decorator-based API.
    config
    flat-api
    compiler
+   mcp
 
 .. toctree::
    :maxdepth: 1

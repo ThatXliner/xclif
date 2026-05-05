@@ -572,13 +572,22 @@ def extract_parameters(
     return arguments, options
 
 
-def command(*names: str) -> Callable[[Callable], Command]:
+def command(
+    *names: str,
+    show_no_description: bool | None = None,
+) -> Callable[[Callable], Command]:
     """Convert a function into an `xclif.Command`.
 
     Names are optional. The first name is the canonical command name; any
     additional names become aliases (alternative names that resolve to the
     same command). When no names are given, the function name is used
     (or the module name when the function is called ``_``).
+
+    Args:
+        show_no_description:
+            When ``False``, suppress the "No description" placeholder in help
+            output when no docstring is provided. When ``None`` (the default),
+            uses the framework default (``True`` for backward compatibility).
     """
 
     def _decorator(func: Callable) -> Command:
@@ -592,6 +601,9 @@ def command(*names: str) -> Callable[[Callable], Command]:
             command_name = func.__name__
             aliases = []
         arguments, options = extract_parameters(func)
-        return Command(command_name, func, arguments, options, aliases=aliases)
+        kwargs = dict(aliases=aliases)
+        if show_no_description is not None:
+            kwargs["show_no_description"] = show_no_description
+        return Command(command_name, func, arguments, options, **kwargs)
 
     return _decorator

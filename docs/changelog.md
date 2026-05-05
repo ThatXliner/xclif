@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Added
+- `show_no_description` option on `@command()` decorator and `Cli` class: suppress "No description" placeholder per-command or globally
+- `Cli(mcp_command=False)` option to suppress auto-injected `mcp` subcommand even when `mcp` package is installed
+- Documentation for `Cascade` annotation (user-defined cascading options) and MCP server mode
+
 ## 0.5.0 — Cascade, MCP server mode, and error UX polish (2026-05-05)
 
 ### Added
