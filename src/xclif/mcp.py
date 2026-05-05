@@ -95,6 +95,9 @@ def _build_tool_wrapper(tool_name: str, cmd: "Command"):
     _wrapper.__name__ = tool_name
     _wrapper.__signature__ = inspect.Signature(params)
     _wrapper.__annotations__ = {p.name: p.annotation for p in params}
+    # TODO: set return_annotation=str on the signature above; the current
+    # code drops the `'return': str` annotation from _wrapper. No downstream
+    # breakage today since FastMCP only inspects the input schema.
     return _wrapper
 
 
