@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.4.4 — MCP server mode and error UX polish (2026-05-05)
+## 0.4.4 — Cascade, MCP server mode, and error UX polish (2026-05-05)
 
 ### Added
 - `Cascade` annotation: mark options with `Cascade()` to propagate their values to subcommands, accessible via `get_context()["option_name"]`. Designed for configurable multi-level CLIs — declare on the root command and read in any subcommand.
