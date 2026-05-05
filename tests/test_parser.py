@@ -399,6 +399,27 @@ def test_variadic_with_options():
     assert received == {"files": ["a.py", "b.py"], "recursive": "true"}
 
 
+def test_variadic_with_interleaved_options():
+    """Options between fixed args and *args in the signature must not collide."""
+    received = {}
+
+    def run(dest: str, recursive: str = "false", *files: str) -> None:
+        received["dest"] = dest
+        received["recursive"] = recursive
+        received["files"] = list(files)
+
+    cmd = Command(
+        "cp", run,
+        arguments=[
+            Argument("dest", str, "Destination"),
+            Argument("files", str, "Files", variadic=True),
+        ],
+        options={"recursive": _DefinitionOption("recursive", str, "Recursive", "false")},
+    )
+    parse_and_execute_impl(["target/", "a.py", "b.py"], cmd)
+    assert received == {"dest": "target/", "recursive": "false", "files": ["a.py", "b.py"]}
+
+
 def test_variadic_with_double_dash():
     received = []
 
@@ -439,6 +460,36 @@ def test_implicit_options_not_forwarded_to_run():
     parse_and_execute_impl(["--verbose"], cmd)
     assert "verbose" not in received_kwargs
     assert "help" not in received_kwargs
+
+
+def test_implicit_options_take_precedence_over_direct_user_collision(capsys):
+    cmd = Command(
+        "test",
+        lambda help="user": 0,
+        options={"help": _DefinitionOption("help", str, "desc")},
+    )
+
+    result = parse_and_execute_impl(["--help"], cmd)
+
+    assert result == 0
+    assert capsys.readouterr().out != ""
+
+
+def test_colors_rejects_invalid_value():
+    cmd = Command("test", lambda: 0)
+    with pytest.raises(UsageError, match="expected one of: always, never, auto"):
+        parse_and_execute_impl(["--colors", "sometimes"], cmd)
+
+
+def test_colors_rejects_invalid_equals_value():
+    cmd = Command("test", lambda: 0)
+    with pytest.raises(UsageError, match="expected one of: always, never, auto"):
+        parse_and_execute_impl(["--colors=sometimes"], cmd)
+
+
+def test_colors_accepts_valid_value():
+    cmd = Command("test", lambda: 0)
+    assert parse_and_execute_impl(["--colors", "never"], cmd) == 0
 
 
 # ---------------------------------------------------------------------------

@@ -67,6 +67,12 @@ def test_implicit_option_name_raises():
         extract_parameters(f)
 
 
+def test_implicit_option_cli_name_override_raises():
+    def f(foo: Annotated[str, OptionMeta(name="help")] = "bar") -> None: ...
+    with pytest.raises(ValueError, match="implicit option"):
+        extract_parameters(f)
+
+
 def test_keyword_only_param_raises():
     def f(*, name: str) -> None: ...
     with pytest.raises(TypeError, match="unsupported"):

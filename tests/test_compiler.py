@@ -67,6 +67,49 @@ def test_compile_manifest_imports_all_route_modules(tmp_path):
     assert "greeter.routes.config.read" in source  # module is named read.py even though command is "get"
 
 
+def test_compile_routes_skips_private_modules(tmp_path, monkeypatch):
+    pkg = tmp_path / "private_compile_fixture"
+    pkg.mkdir()
+    (pkg / "__init__.py").write_text(
+        "from xclif import command\n\n"
+        "@command('app')\n"
+        "def app() -> None: ...\n",
+        encoding="utf-8",
+    )
+    (pkg / "public.py").write_text(
+        "from xclif import command\n\n"
+        "@command()\n"
+        "def public() -> None: ...\n",
+        encoding="utf-8",
+    )
+    (pkg / "_private.py").write_text(
+        "from xclif import command\n\n"
+        "@command()\n"
+        "def private() -> None: ...\n",
+        encoding="utf-8",
+    )
+    private_group = pkg / "_internal"
+    private_group.mkdir()
+    (private_group / "__init__.py").write_text("", encoding="utf-8")
+    (private_group / "hidden.py").write_text(
+        "from xclif import command\n\n"
+        "@command()\n"
+        "def hidden() -> None: ...\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.syspath_prepend(str(tmp_path))
+    importlib.invalidate_caches()
+    routes = importlib.import_module("private_compile_fixture")
+
+    out = compile_routes(routes, output_dir=tmp_path)
+    source = out.read_text(encoding="utf-8")
+
+    assert "private_compile_fixture.public" in source
+    assert "private_compile_fixture._private" not in source
+    assert "private_compile_fixture._internal" not in source
+
+
 # ---------------------------------------------------------------------------
 # compile_routes — error cases
 # ---------------------------------------------------------------------------

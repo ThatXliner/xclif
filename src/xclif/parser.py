@@ -56,6 +56,7 @@ Single occurrences still produce a one-element list (never unwrapped).
 """
 from __future__ import annotations
 
+import inspect
 import os
 from collections import defaultdict
 from difflib import get_close_matches
@@ -95,6 +96,22 @@ def _build_flag_map(options: dict[str, _DefinitionOption]) -> dict[str, str]:
 def _type_name(converter: type) -> str:
     """Return a human-readable name for a type converter."""
     return getattr(converter, "__name__", str(converter))
+
+
+def _convert_option_value(option: _DefinitionOption, raw: str) -> object:
+    """Convert and validate a raw option value."""
+    try:
+        value = option.converter(raw)
+    except (ValueError, TypeError):
+        raise UsageError(
+            f"Invalid value {raw!r} for option '--{option.name.replace('_', '-')}': expected {_type_name(option.converter)}"
+        )
+    if option.choices is not None and value not in option.choices:
+        raise UsageError(
+            f"Invalid value {raw!r} for option '--{option.name.replace('_', '-')}': "
+            f"expected one of: {', '.join(option.choices)}"
+        )
+    return value
 
 
 def _suggest_option(name: str, options: dict[str, _DefinitionOption]) -> str | None:
@@ -148,12 +165,7 @@ def _parse_token_stream(
                 option = options[name]
                 if option.converter is bool:
                     raise UsageError(f"Boolean flag {name_part!r} does not take a value")
-                try:
-                    parsed_opts[name].append(option.converter(value))
-                except (ValueError, TypeError):
-                    raise UsageError(
-                        f"Invalid value {value!r} for option '--{option.name.replace('_', '-')}': expected {_type_name(option.converter)}"
-                    )
+                parsed_opts[name].append(_convert_option_value(option, value))
             else:
                 flag = token.removeprefix("--").replace("-", "_")
                 name = flag_map.get(flag)
@@ -170,12 +182,7 @@ def _parse_token_stream(
                     if i + 1 >= len(args):
                         raise UsageError(f"Option {token!r} requires a value")
                     i += 1
-                    try:
-                        parsed_opts[name].append(option.converter(args[i]))
-                    except (ValueError, TypeError):
-                        raise UsageError(
-                            f"Invalid value {args[i]!r} for option '--{option.name.replace('_', '-')}': expected {_type_name(option.converter)}"
-                        )
+                    parsed_opts[name].append(_convert_option_value(option, args[i]))
 
         elif token.startswith("-") and len(token) > 1:
             # Short option: -v  or  -n value
@@ -191,12 +198,7 @@ def _parse_token_stream(
                 if i + 1 >= len(args):
                     raise UsageError(f"Option {token!r} requires a value")
                 i += 1
-                try:
-                    parsed_opts[long_name].append(option.converter(args[i]))
-                except (ValueError, TypeError):
-                    raise UsageError(
-                        f"Invalid value {args[i]!r} for option '--{long_name.replace('_', '-')}': expected {_type_name(option.converter)}"
-                    )
+                parsed_opts[long_name].append(_convert_option_value(option, args[i]))
 
         elif token in subcommands:
             # Subcommand name — stop scanning, hand off tail
@@ -226,7 +228,7 @@ def parse_and_execute_impl(
     # Merge all option namespaces for scanning: user options + implicit options.
     # We keep them logically separate (implicit_options vs options on Command)
     # but the scanner needs to see both so it knows the arity of every token.
-    all_options = {**command.implicit_options, **command.options}
+    all_options = {**command.options, **command.implicit_options}
 
     positionals, parsed_opts, subcmd_index = _parse_token_stream(
         all_options, command.subcommands, args
@@ -317,11 +319,12 @@ def parse_and_execute_impl(
         raise UsageError(f"Missing required argument(s): {', '.join(missing)}")
 
     # Convert variadic remainder
+    variadic_items: list = []
     if variadic_arg:
         remaining = positionals[len(fixed_args) :]
         for raw in remaining:
             try:
-                converted_args.append(variadic_arg.converter(raw))
+                variadic_items.append(variadic_arg.converter(raw))
             except (ValueError, TypeError):
                 raise UsageError(
                     f"Invalid value {raw!r} for argument '{variadic_arg.name}': expected {_type_name(variadic_arg.converter)}"
@@ -348,6 +351,27 @@ def parse_and_execute_impl(
 
     token = _set_context(Context(new_context))
     try:
+        if variadic_arg:
+            # When a variadic *args parameter exists, interleave fixed args and
+            # options in signature order, then append variadic items positionally.
+            # Passing options as **kwargs alongside extra positionals causes
+            # "got multiple values" if option parameters sit between fixed args
+            # and *args in the function signature.
+            sig = inspect.signature(command.run)
+            positional_call: list = []
+            remaining_kwargs: dict = dict(user_kwargs)
+            fixed_iter = iter(converted_args)
+            arg_names = {a.name for a in fixed_args}
+            for param_name, param in sig.parameters.items():
+                if param.kind == param.VAR_POSITIONAL:
+                    break
+                if param.kind == param.VAR_KEYWORD:
+                    break
+                if param_name in arg_names:
+                    positional_call.append(next(fixed_iter))
+                elif param_name in remaining_kwargs:
+                    positional_call.append(remaining_kwargs.pop(param_name))
+            return command.run(*positional_call, *variadic_items, **remaining_kwargs) or 0
         return command.run(*converted_args, **user_kwargs) or 0
     finally:
         _reset_context(token)

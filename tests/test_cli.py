@@ -1,5 +1,6 @@
 """Unit tests for xclif.Cli and the from_routes routing system."""
 
+import importlib
 import types
 from pathlib import Path
 from unittest.mock import patch
@@ -170,6 +171,48 @@ def test_from_routes_greeter_config_has_set_and_get():
     config = cli.root_command.subcommands["config"]
     assert "set" in config.subcommands
     assert "get" in config.subcommands
+
+
+def test_from_routes_skips_private_modules(tmp_path, monkeypatch):
+    pkg = tmp_path / "private_routes_fixture"
+    pkg.mkdir()
+    (pkg / "__init__.py").write_text(
+        "from xclif import command\n\n"
+        "@command('app')\n"
+        "def app() -> None: ...\n",
+        encoding="utf-8",
+    )
+    (pkg / "public.py").write_text(
+        "from xclif import command\n\n"
+        "@command()\n"
+        "def public() -> None: ...\n",
+        encoding="utf-8",
+    )
+    (pkg / "_private.py").write_text(
+        "from xclif import command\n\n"
+        "@command()\n"
+        "def private() -> None: ...\n",
+        encoding="utf-8",
+    )
+    private_group = pkg / "_internal"
+    private_group.mkdir()
+    (private_group / "__init__.py").write_text("", encoding="utf-8")
+    (private_group / "hidden.py").write_text(
+        "from xclif import command\n\n"
+        "@command()\n"
+        "def hidden() -> None: ...\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.syspath_prepend(str(tmp_path))
+    importlib.invalidate_caches()
+    routes = importlib.import_module("private_routes_fixture")
+
+    cli = Cli.from_routes(routes)
+
+    assert "public" in cli.root_command.subcommands
+    assert "_private" not in cli.root_command.subcommands
+    assert "_internal" not in cli.root_command.subcommands
 
 
 def test_cli_default_env_prefix():

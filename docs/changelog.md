@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 0.4.3 — Fixed positional args crash (2026-04-10)
+
+### Fixed
+- Parser crash when variadic args appear after options in function signature. Options are now interleaved with fixed positional args in signature order before appending variadic items, preventing positional/keyword argument conflicts.
+
 ## 0.4.2 — Terminal soft wrap behavior changes (2026-04-10)
 
 ## 0.4.1 — Minor adjustments in help text system (2026-04-08)

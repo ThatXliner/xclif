@@ -10,7 +10,7 @@ from xclif.context import Context, get_context
 from xclif.definition import _DefinitionOption
 from xclif.importer import get_modules
 
-__version__ = "0.4.2"
+__version__ = "0.4.3"
 
 __all__ = ["Arg", "Cli", "Context", "Option", "WithConfig", "__version__", "command", "get_context"]
 

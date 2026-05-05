@@ -28,7 +28,7 @@ jobs:
       - name: Run test suite
         run: just test
       - name: Upload to CodeCov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
   build:
     runs-on: ubuntu-latest
     steps:
