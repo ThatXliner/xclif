@@ -1,13 +1,9 @@
 # Changelog
 
-## Unreleased
-
-### Added
-- `Cascade` annotation: mark options with `Cascade()` to propagate their values to subcommands, accessible via `get_context()["option_name"]`. Designed for configurable multi-level CLIs — declare on the root command and read in any subcommand.
-
 ## 0.4.4 — MCP server mode and error UX polish (2026-05-05)
 
 ### Added
+- `Cascade` annotation: mark options with `Cascade()` to propagate their values to subcommands, accessible via `get_context()["option_name"]`. Designed for configurable multi-level CLIs — declare on the root command and read in any subcommand.
 - MCP server mode: auto-expose CLI commands as MCP tools. Calling `xclif.mcp.serve(app)` serves your CLI as Model Context Protocol tools for AI agents. (#56)
 - `show_no_description` option on `@command()`: set to `False` to suppress the default "No description provided" placeholder. (#62)
 - Config `path` command now prints the config file path (not just its parent directory). New `--dir` flag returns the config directory instead.
