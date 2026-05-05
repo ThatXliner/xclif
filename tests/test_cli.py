@@ -9,7 +9,6 @@ import pytest
 
 from xclif import Cli, command
 from xclif.command import Command
-from xclif.errors import UsageError
 
 
 # ---------------------------------------------------------------------------

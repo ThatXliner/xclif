@@ -26,12 +26,7 @@ def discover_subcommands() -> dict[str, Command]:
     from xclif.command import Command
 
     commands: dict[str, Command] = {}
-    try:
-        eps = importlib.metadata.entry_points(group=EP_GROUP)
-    except TypeError:
-        # entry_points(group=...) may raise TypeError on older Python builds
-        # or in environments where the importlib.metadata API is unavailable.
-        return commands
+    eps = importlib.metadata.entry_points(group=EP_GROUP)
 
     for ep in eps:
         try:
@@ -58,6 +53,11 @@ def find_path_plugin(root_name: str, command_name: str) -> str | None:
     """Find ``{root_name}-{command_name}`` executable in PATH (Git-style).
 
     Uses ``shutil.which`` for cross-platform executable resolution,
-    handling ``PATHEXT`` on Windows automatically.
+    handling ``PATHEXT`` on Windows automatically.  Returns ``None``
+    when ``PATH`` is not set.
     """
+    import os
+
+    if "PATH" not in os.environ:
+        return None
     return shutil.which(f"{root_name}-{command_name}")

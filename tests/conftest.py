@@ -4,7 +4,6 @@ Adds the examples to sys.path so integration tests can import them
 without installing them as packages.
 """
 
-import os
 import stat
 import sys
 from pathlib import Path

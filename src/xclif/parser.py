@@ -238,8 +238,11 @@ def parse_and_execute_impl(
         exe = find_path_plugin(context["_root_name"], args[0])
         if exe is not None:
             import subprocess
+            import sys
 
-            return subprocess.call([exe, *args[1:]], shell=False)
+            # On Windows, .bat/.cmd files require shell=True (WinError 193 otherwise)
+            shell = sys.platform == "win32" and exe.lower().endswith((".bat", ".cmd"))
+            return subprocess.call([exe, *args[1:]], shell=shell)
 
     # Merge all option namespaces for scanning: user options + implicit options.
     # We keep them logically separate (implicit_options vs options on Command)
