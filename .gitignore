@@ -215,3 +215,7 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 .DS_Store
+
+# Git worktrees
+.worktrees/
+
