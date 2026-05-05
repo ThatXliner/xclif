@@ -166,6 +166,8 @@ class Cli:
     config_name: str | None = None
     local_config: str | None = None
     config_command: bool = True
+    discover_plugins: bool = True
+    discover_path_plugins: bool = True
     _config_data: dict = field(default_factory=dict, init=False, repr=False)
     _config_dir: "Path | None" = field(default=None, init=False, repr=False)
     _finalized: bool = field(default=False, init=False, repr=False)
@@ -237,6 +239,22 @@ class Cli:
 
         # Validate WithConfig conflicts
         check_with_config_conflicts(self.root_command, self.env_prefix)
+
+        # Discover plugin subcommands from entry points (Python packaging)
+        if self.discover_plugins:
+            from xclif.plugins import discover_subcommands
+
+            for name, cmd in discover_subcommands().items():
+                if name not in self.root_command.subcommands:
+                    self.root_command.subcommands[name] = cmd
+
+        # Discover PATH-based plugins (Git-style: xclif-foo in PATH → xclif foo)
+        if self.discover_path_plugins:
+            from xclif.plugins import discover_path_subcommands
+
+            for name, cmd in discover_path_subcommands(self.root_command.name).items():
+                if name not in self.root_command.subcommands:
+                    self.root_command.subcommands[name] = cmd
 
     def serve_mcp(self) -> None:
         """Start an MCP stdio server exposing all leaf commands as tools.

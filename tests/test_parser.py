@@ -937,3 +937,34 @@ def test_with_config_positional_no_double_conversion():
     parse_and_execute_impl([], cmd, context)
     assert received["count"] == 42
     assert isinstance(received["count"], int)
+
+
+# ---------------------------------------------------------------------------
+# PATH-based plugin short-circuit
+# ---------------------------------------------------------------------------
+
+
+def test_path_plugin_short_circuits_to_subprocess():
+    """A Command with _path_plugin_exe delegates to subprocess."""
+    import subprocess
+
+    cmd = Command("deploy", lambda: 0)
+    cmd._path_plugin_exe = "/bin/echo"
+
+    result = parse_and_execute_impl(["hello", "world"], cmd)
+    assert result == 0  # echo exits 0
+
+
+def test_path_plugin_passes_args_unchanged(tmp_path):
+    """Arguments are passed through to the external executable as-is."""
+    trace_file = tmp_path / "trace"
+    script = tmp_path / "capture_args"
+    script.write_text(f"#!/bin/sh\necho \"$@\" > {trace_file}\n")
+    script.chmod(0o755)
+
+    cmd = Command("test", lambda: 0)
+    cmd._path_plugin_exe = str(script)
+
+    result = parse_and_execute_impl(["--foo", "bar"], cmd)
+    assert result == 0
+    assert trace_file.read_text().strip() == "--foo bar"

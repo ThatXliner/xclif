@@ -3,7 +3,7 @@
 import importlib
 import types
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -253,3 +253,103 @@ def test_cli_missing_config_file_is_empty(tmp_path):
     with patch("platformdirs.user_config_dir", return_value=str(tmp_path)):
         cli = Cli(root_command=root)
     assert cli._config_data == {}
+
+
+# ---------------------------------------------------------------------------
+# Plugin discovery — entry points
+# ---------------------------------------------------------------------------
+
+
+def test_cli_discovers_plugin_subcommands():
+    """Plugin subcommands discovered via entry points are mounted on root."""
+    mock_cmd = Command("myplugin", lambda: 0)
+    mock_ep = MagicMock()
+    mock_ep.name = "myplugin"
+    mock_ep.load.return_value = mock_cmd
+
+    root = Command("myapp", lambda: 0)
+    cli = Cli(root_command=root)
+    with patch("importlib.metadata.entry_points", return_value=[mock_ep]):
+        cli._finalize()
+
+    assert "myplugin" in cli.root_command.subcommands
+    assert cli.root_command.subcommands["myplugin"] is mock_cmd
+
+
+def test_cli_plugin_does_not_override_user_subcommand():
+    """A plugin with the same name as a user subcommand is silently skipped."""
+    mock_cmd = Command("greet", lambda: 0)
+    mock_ep = MagicMock()
+    mock_ep.name = "greet"
+    mock_ep.load.return_value = mock_cmd
+
+    user_cmd = Command("greet", lambda: 0)
+    root = Command("myapp", lambda: 0, subcommands={"greet": user_cmd})
+    cli = Cli(root_command=root)
+    with patch("importlib.metadata.entry_points", return_value=[mock_ep]):
+        cli._finalize()
+
+    assert cli.root_command.subcommands["greet"] is user_cmd
+
+
+def test_cli_discover_plugins_false_suppresses_discovery():
+    """Setting discover_plugins=False prevents entry point scanning."""
+    mock_cmd = Command("myplugin", lambda: 0)
+    mock_ep = MagicMock()
+    mock_ep.name = "myplugin"
+    mock_ep.load.return_value = mock_cmd
+
+    root = Command("myapp", lambda: 0)
+    cli = Cli(root_command=root, discover_plugins=False)
+    with patch("importlib.metadata.entry_points", return_value=[mock_ep]):
+        cli._finalize()
+
+    assert "myplugin" not in cli.root_command.subcommands
+
+
+# ---------------------------------------------------------------------------
+# Plugin discovery — PATH-based (Git-style)
+# ---------------------------------------------------------------------------
+
+
+def test_cli_discovers_path_plugins(tmp_path):
+    """PATH-based plugins are mounted as subcommands on root."""
+    exe = tmp_path / "myapp-deploy"
+    exe.write_text("#!/bin/sh")
+    exe.chmod(0o755)
+
+    root = Command("myapp", lambda: 0)
+    cli = Cli(root_command=root)
+    with patch.dict("os.environ", {"PATH": str(tmp_path)}):
+        cli._finalize()
+
+    assert "deploy" in cli.root_command.subcommands
+
+
+def test_cli_path_plugins_does_not_override_user_subcommand(tmp_path):
+    """PATH-based plugin with a colliding name is silently skipped."""
+    exe = tmp_path / "myapp-greet"
+    exe.write_text("#!/bin/sh")
+    exe.chmod(0o755)
+
+    user_cmd = Command("greet", lambda: 0)
+    root = Command("myapp", lambda: 0, subcommands={"greet": user_cmd})
+    cli = Cli(root_command=root)
+    with patch.dict("os.environ", {"PATH": str(tmp_path)}):
+        cli._finalize()
+
+    assert cli.root_command.subcommands["greet"] is user_cmd
+
+
+def test_cli_discover_path_plugins_false_suppresses_discovery(tmp_path):
+    """Setting discover_path_plugins=False prevents PATH scanning."""
+    exe = tmp_path / "myapp-deploy"
+    exe.write_text("#!/bin/sh")
+    exe.chmod(0o755)
+
+    root = Command("myapp", lambda: 0)
+    cli = Cli(root_command=root, discover_path_plugins=False)
+    with patch.dict("os.environ", {"PATH": str(tmp_path)}):
+        cli._finalize()
+
+    assert "deploy" not in cli.root_command.subcommands
