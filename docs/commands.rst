@@ -31,6 +31,19 @@ This produces::
      --colors       Control color output (always|never|auto)
      --loud, -l     No description
 
+To suppress **"No description"** placeholders in help output, pass ``show_no_description=False``
+when constructing the :class:`~xclif.command.Command`:
+
+.. code-block:: python
+
+   from xclif.command import Command
+
+   cmd = Command("foo", lambda: 0, show_no_description=False)
+
+This omits the description line entirely from help, subcommand listings, and agent output
+when no docstring or description was provided. The default is ``True`` for backward
+compatibility.
+
 Markdown descriptions
 ---------------------
 

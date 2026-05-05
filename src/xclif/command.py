@@ -56,6 +56,7 @@ class Command:
     implicit_options: dict[str, _DefinitionOption] = field(default_factory=dict)
     version: str | None = None
     aliases: list[str] = field(default_factory=list)
+    show_no_description: bool = True
 
     def __post_init__(self) -> None:
         if not self.implicit_options:
@@ -97,8 +98,11 @@ class Command:
         alias_suffix = (
             f" [dim]({', '.join(self.aliases)})[/dim]" if self.aliases else ""
         )
+        desc_header = self.short_description
+        if desc_header == NO_DESC and not self.show_no_description:
+            desc_header = ""
         help_text = (
-            (self.short_description + "\n" if self.short_description else "")
+            (desc_header + "\n" if desc_header else "")
             + f"[bold]Usage:[/bold] [cyan]{self.name}[/cyan]{alias_suffix} [dim]{escape('[OPTIONS]')}[/dim]"
             + (" " if self.arguments else "")
             + " ".join(_arg_markup(x) for x in self.arguments)
@@ -130,7 +134,7 @@ class Command:
                     " " * INITIAL_LEFT_PADDING
                     + f"[cyan]{name}[/cyan]"
                     + f"[dim]{escape(_subcmd_args_suffix(cmd)).ljust(pad_length + NAME_DESC_PADDING - len(name))}[/dim]"
-                    + _dim_description(cmd.short_description)
+                    + _dim_description(cmd.short_description, show_no_desc=self.show_no_description)
                     for name, cmd in self.subcommands.items()
                     if name == cmd.name  # skip alias entries
                 )
@@ -142,7 +146,7 @@ class Command:
                 + "\n".join(
                     " " * INITIAL_LEFT_PADDING
                     + f"[dim cyan]{_arg_section_label(x).ljust(pad_length + NAME_DESC_PADDING)}[/dim cyan]"
-                    + _dim_description(x.description)
+                    + _dim_description(x.description, show_no_desc=self.show_no_description)
                     for x in self.arguments
                 )
                 + "\n\n"
@@ -152,7 +156,7 @@ class Command:
             + "\n".join(
                 " " * INITIAL_LEFT_PADDING
                 + f"[cyan]{option_labels[name].ljust(pad_length + NAME_DESC_PADDING)}[/cyan]"
-                + _dim_description(opt.description)
+                + _dim_description(opt.description, show_no_desc=self.show_no_description)
                 for name, opt in all_options.items()
             )
             + "\n\n"
@@ -173,7 +177,7 @@ class Command:
         all_options = {**self.implicit_options, **self.options}
 
         # Render the description as Markdown for rich formatting
-        if self.short_description:
+        if self.short_description and (self.show_no_description or self.description != NO_DESC):
             console.print(Markdown(self.description))
             console.print()
 
@@ -211,7 +215,7 @@ class Command:
                     " " * INITIAL_LEFT_PADDING
                     + f"[cyan]{name}[/cyan]"
                     + f"[dim]{escape(_subcmd_args_suffix(cmd)).ljust(pad_length + NAME_DESC_PADDING - len(name))}[/dim]"
-                    + _dim_description(cmd.short_description)
+                    + _dim_description(cmd.short_description, show_no_desc=self.show_no_description)
                     for name, cmd in self.subcommands.items()
                     if name == cmd.name  # skip alias entries
                 )
@@ -225,7 +229,8 @@ class Command:
                     " " * INITIAL_LEFT_PADDING
                     + f"[dim cyan]{_arg_section_label(x).ljust(pad_length + NAME_DESC_PADDING)}[/dim cyan]"
                     + _dim_description(
-                        textwrap.indent(x.description, " " * indent_width).strip()
+                        textwrap.indent(x.description, " " * indent_width).strip(),
+                        show_no_desc=self.show_no_description,
                     )
                     for x in self.arguments
                 )
@@ -236,7 +241,7 @@ class Command:
             + "\n".join(
                 " " * INITIAL_LEFT_PADDING
                 + f"[cyan]{option_labels[name].ljust(pad_length + NAME_DESC_PADDING)}[/cyan]"
-                + _dim_description(opt.description)
+                + _dim_description(opt.description, show_no_desc=self.show_no_description)
                 for name, opt in all_options.items()
             )
             + "\n\n"
@@ -260,7 +265,10 @@ class Command:
             config set KEY VALUE - Set config values.
         """
         args = _format_agent_args(self)
-        header = f"{self.name}{args}: {self.short_description}"
+        desc = self.short_description
+        if desc == NO_DESC and not self.show_no_description:
+            desc = ""
+        header = f"{self.name}{args}" + (f": {desc}" if desc else "")
         if not self.subcommands:
             # Leaf command: append own options to the header line
             opts = _format_agent_options(self)
@@ -337,8 +345,10 @@ class Command:
         return self.description.split("\n")[0]
 
 
-def _dim_description(desc: str) -> str:
+def _dim_description(desc: str, show_no_desc: bool = True) -> str:
     """Return Rich markup for a description, italicizing 'No description'."""
+    if not show_no_desc and desc == NO_DESC:
+        return ""
     if desc == NO_DESC:
         return f"[dim italic]{desc}[/dim italic]"
     return f"[dim]{desc}[/dim]"
@@ -403,7 +413,10 @@ def _collect_agent_lines(cmd: "Command", prefix: str) -> list[str]:
         else:
             # Leaf command
             args = _format_agent_args(sub)
-            line = f"{path}{args} - {sub.short_description}"
+            sub_desc = sub.short_description
+            if sub_desc == NO_DESC and not sub.show_no_description:
+                sub_desc = ""
+            line = f"{path}{args}" + (f" - {sub_desc}" if sub_desc else "")
             opts = _format_agent_options(sub)
             if opts:
                 line += f" Options: {opts}"
