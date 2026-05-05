@@ -49,15 +49,25 @@ class Arg:
 class Cascade:
     """Annotation metadata to cascade an option to subcommands.
 
-    Use inside ``Annotated`` to make an option's value available to all
+    Use as a type wrapper to make an option's value available to all
     subcommands via ``get_context()``::
 
         def root(
-            base_url: Annotated[str, WithConfig(), Cascade()] = DEFAULT_BASE_URL,
+            base_url: Cascade[WithConfig[str]] = DEFAULT_BASE_URL,
         ) -> None: ...
 
     Subcommands can then use ``get_context()["base_url"]``.
     """
+
+    def __class_getitem__(cls, item: type) -> type:
+        from typing import Annotated, get_args, get_origin
+
+        # If item is already Annotated (e.g. WithConfig[str]), add Cascade()
+        if get_origin(item) is Annotated:
+            args = get_args(item)
+            return Annotated[args[0], *args[1:], cls()]
+        # Plain type — just wrap with Cascade
+        return Annotated[item, cls()]
 
 
 @dataclass(frozen=True)
