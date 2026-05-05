@@ -82,6 +82,11 @@ No default → positional argument. Has default → `--template` option. Docstri
 - **Plugin discovery** (planned) — third-party subcommands via entry points (like Git or cargo)
 - **Easy testing** — `command.execute(["greet", "Alice"])` with explicit arg lists, no mocking needed
 
+## Notable projects
+
+- [`git-worm`](https://github.com/ThatXliner/git-worm), the better Git worktree manager
+- [`cb`](https://codeberg.org/thatxliner/codeberg-cli), like `gh` but for [Codeberg](https://codeberg.org/)
+
 ## Performance
 
 > Performance is not a primary focus of Xclif. If startup latency is a hard constraint, Python is probably the wrong tool for the job. These numbers are here for fun. That being said, we do recommend switching to a manifest-based setup for large codebases.
