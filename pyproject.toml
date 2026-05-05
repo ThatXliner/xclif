@@ -1,6 +1,6 @@
 [project]
 name = "xclif"
-version = "0.4.3"
+version = "0.5.0"
 description = "Xliner's CLI Framework"
 readme = "README.md"
 license = "MIT"
