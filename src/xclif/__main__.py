@@ -33,6 +33,87 @@ def compile(routes_module: str, output: str = "") -> None:
     print(f"Written: {output_path}")
 
 
+@root.command("from-swagger")
+def from_swagger(spec: str, base_url: str = "", output: str = "") -> None:
+    """Build an xclif CLI from an OpenAPI/Swagger JSON spec.
+
+    Parses SPEC (a local JSON file or HTTP(S) URL) and prints the
+    generated command tree.  Use ``Cli.from_swagger()`` in code to use
+    the generated CLI programmatically.
+    """
+    from xclif.from_swagger import _build_command_tree, load_spec
+
+    spec_data = load_spec(spec)
+    root_cmd = _build_command_tree(spec_data)
+
+    if output:
+        _generate_swagger_cli(output, root_cmd, base_url)
+    else:
+        # Print the command tree
+        _print_command_tree(root_cmd)
+
+    print(f"\nLoaded {len(spec_data.get('paths', {}))} path(s) from {spec!r}")
+
+
+def _print_command_tree(cmd: Command, indent: int = 0) -> None:
+    """Print a tree view of the command hierarchy."""
+    prefix = "  " * indent
+    desc = cmd.short_description
+    if desc and desc != "No description":
+        print(f"{prefix}{cmd.name}  # {desc}")
+    else:
+        print(f"{prefix}{cmd.name}")
+    seen: set[int] = set()
+    for name, sub in cmd.subcommands.items():
+        if id(sub) not in seen:
+            seen.add(id(sub))
+            _print_command_tree(sub, indent + 1)
+
+
+def _generate_swagger_cli(output: str, root_cmd: Command, base_url: str) -> None:
+    """Generate a standalone Python CLI script from the swagger-derived command tree."""
+    # Simple code generation for the static manifest + CLI entry point
+    output_path = Path(output)
+    root_name = root_cmd.name
+
+    lines = [
+        "#!/usr/bin/env python3",
+        f'"""CLI generated from Swagger spec — {root_name}."""',
+        "",
+        "from pathlib import Path",
+        "",
+        "from xclif import Cli, command",
+        "from xclif.command import Command",
+        "from xclif.from_swagger import _build_command_tree, load_spec",
+        "",
+        f'SPEC_PATH = Path(__file__).with_suffix(".json")',
+        "",
+        "def main() -> None:",
+        "    if SPEC_PATH.is_file():",
+        "        cli = Cli.from_swagger(str(SPEC_PATH)",
+    ]
+
+    if base_url:
+        lines.append(f"            base_url={base_url!r},")
+
+    lines.extend([
+        "        )",
+        "        cli()",
+        "    else:",
+        f'        print(f"Error: spec file not found: {{SPEC_PATH}}")',
+        "        sys.exit(1)",
+        "",
+        "",
+        'if __name__ == "__main__":',
+        "    import sys",
+        "    main()",
+    ])
+
+    output_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    output_path.chmod(0o755)
+    print(f"Generated CLI script: {output}")
+
+
 cli = Cli(root_command=root)
 
 if __name__ == "__main__":

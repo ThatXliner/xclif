@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+- `Cli.from_swagger()`: build a fully functional CLI from any OpenAPI 3.0 JSON spec. Each endpoint becomes a subcommand with path params as positional args, query params as options, and built-in HTTP execution via stdlib `urllib`. Root-level cascading options for `--api-key`, `--base-url`, `--timeout`, `--insecure`, and `--raw`.
+- `xclif from-swagger <spec>` CLI subcommand: inspect or generate a CLI script from an OpenAPI spec.
+
 ## 0.5.1 — Configurations for MCP (2026-05-05)
 
 ### Added

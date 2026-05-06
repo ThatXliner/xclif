@@ -345,6 +345,122 @@ class Cli:
         return build_fn(version=version, env_prefix=env_prefix, config_name=config_name, local_config=local_config, show_no_description=show_no_description)
 
     @classmethod
+    def from_swagger(
+        cls,
+        spec: str | Path,
+        *,
+        base_url: str | None = None,
+        version: str | None = None,
+        env_prefix: str | None = None,
+        config_name: str | None = None,
+        local_config: str | None = None,
+        show_no_description: bool | None = None,
+    ) -> Self:
+        """Build a :class:`Cli` from an OpenAPI/Swagger JSON spec.
+
+        Each API endpoint becomes a subcommand: path parameters become
+        positional arguments, query parameters become CLI options, and
+        request bodies are accepted via ``--data``.
+
+        The CLI makes real HTTP requests using ``urllib``. Root-level
+        cascading options control connectivity:
+
+        * ``--api-key`` — API key for authentication (also settable via
+          ``<ENV_PREFIX>_API_KEY``)
+        * ``--api-key-header`` — header name for the API key (default:
+          ``Authorization``)
+        * ``--base-url`` — override the base URL from the spec
+        * ``--timeout`` — request timeout in seconds (default: ``30``)
+        * ``--insecure`` — skip SSL verification
+        * ``--raw`` — raw response output (no JSON formatting)
+
+        Parameters
+        ----------
+        spec:
+            Path or URL to a JSON OpenAPI 3.0 spec.
+        base_url:
+            Override the API base URL. Uses the first ``servers[0].url``
+            from the spec by default.
+        version:
+            Version string for ``--version``. Auto-detected from package
+            metadata when *None*.
+        env_prefix:
+            Prefix for environment-variable overrides. Defaults to the
+            uppercased root command name.
+        config_name:
+            App name for config directory resolution. Defaults to the root
+            command name.
+        """
+        from xclif.from_swagger import _build_command_tree, load_spec
+
+        spec_data = load_spec(spec)
+        root = _build_command_tree(spec_data)
+
+        # Determine default base_url from spec servers
+        servers = spec_data.get("servers", [])
+        default_base_url: str = servers[0].get("url", "") if servers else ""
+
+        # Override with explicit base_url if provided
+        if base_url is not None:
+            default_base_url = base_url
+
+        # Add root-level cascading options
+        root.options["api_key"] = _DefinitionOption(
+            "api_key",
+            str,
+            "API key for authentication",
+            default="",
+            cascading=True,
+            config=WithConfig(),
+        )
+        root.options["api_key_header"] = _DefinitionOption(
+            "api_key_header",
+            str,
+            "Header name for the API key",
+            default="Authorization",
+            cascading=True,
+        )
+        root.options["timeout"] = _DefinitionOption(
+            "timeout",
+            int,
+            "Request timeout in seconds",
+            default=30,
+            cascading=True,
+        )
+        root.options["insecure"] = _DefinitionOption(
+            "insecure",
+            bool,
+            "Skip SSL verification",
+            default=False,
+            cascading=True,
+        )
+        root.options["raw"] = _DefinitionOption(
+            "raw",
+            bool,
+            "Raw response output (no JSON formatting)",
+            default=False,
+            cascading=True,
+        )
+        root.options["base_url"] = _DefinitionOption(
+            "base_url",
+            str,
+            "Base URL for the API",
+            default=default_base_url,
+            cascading=True,
+        )
+
+        result = cls(
+            root_command=root,
+            version=version,
+            env_prefix=env_prefix,
+            config_name=config_name,
+            local_config=local_config,
+            show_no_description=show_no_description,
+        )
+        result._finalize()
+        return result
+
+    @classmethod
     def from_routes(
         cls,
         routes: types.ModuleType,
