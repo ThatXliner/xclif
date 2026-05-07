@@ -205,11 +205,12 @@ class Cli:
             if local_data:
                 self._config_data = _deep_merge(self._config_data, local_data)
 
-        # Add completions subcommand
+        # Add completions subcommand (skip if user already defined one)
         self.root_command._assert_no_arguments(adding="completions")
-        self.root_command.subcommands["completions"] = make_completions_command(
-            self.root_command
-        )
+        if "completions" not in self.root_command.subcommands:
+            self.root_command.subcommands["completions"] = make_completions_command(
+                self.root_command
+            )
 
         # Inject --version as an implicit option on root command only
         self.root_command.implicit_options["version"] = _DefinitionOption(
@@ -228,7 +229,8 @@ class Cli:
             else:
                 from xclif.mcp import make_mcp_command
                 self.root_command._assert_no_arguments(adding="mcp")
-                self.root_command.subcommands["mcp"] = make_mcp_command(self.root_command)
+                if "mcp" not in self.root_command.subcommands:
+                    self.root_command.subcommands["mcp"] = make_mcp_command(self.root_command)
 
     def _apply_show_no_description(self, cmd: Command) -> None:
         """Recursively apply Cli-level show_no_description default to the tree."""
