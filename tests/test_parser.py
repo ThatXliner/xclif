@@ -42,6 +42,13 @@ def test_bool_flag_repeated():
     assert opts["verbose"] == [True, True]
 
 
+def test_short_bool_flag_cluster_repeats_flag():
+    opts_def = {"verbose": _opt("verbose", bool, aliases=["-v"])}
+    _, opts, idx = _parse_token_stream(opts_def, {}, ["-vvv"])
+    assert opts["verbose"] == [True, True, True]
+    assert idx is None
+
+
 def test_bool_flag_empty():
     pos, opts, idx = _parse_token_stream(_bool_opts("verbose"), {}, [])
     assert pos == []

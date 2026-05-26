@@ -9,10 +9,24 @@ from xclif.command import Command, command
 from xclif.context import Context, get_context
 from xclif.definition import _DefinitionOption
 from xclif.importer import get_modules
+from xclif.logging import configure_logging, get_logger, level_from_verbosity
 
 __version__ = "0.5.1"
 
-__all__ = ["Arg", "Cascade", "Cli", "Context", "Option", "WithConfig", "__version__", "command", "get_context"]
+__all__ = [
+    "Arg",
+    "Cascade",
+    "Cli",
+    "Context",
+    "Option",
+    "WithConfig",
+    "__version__",
+    "command",
+    "configure_logging",
+    "get_context",
+    "get_logger",
+    "level_from_verbosity",
+]
 
 
 @dataclass(frozen=True)

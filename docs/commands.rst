@@ -193,8 +193,36 @@ automatically inherited by all subcommands. So ``myapp --verbose subcommand`` an
 ``myapp subcommand --verbose`` are equivalent, and ``myapp -vv subcommand`` gives
 the subcommand a verbosity level of 2.
 
-Accessing verbosity and context
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Logging and verbosity
+~~~~~~~~~~~~~~~~~~~~~
+
+Xclif configures Python's standard ``logging`` system before command handlers
+run. Use ordinary loggers in your command modules:
+
+.. code-block:: python
+
+   from xclif import command, get_logger
+
+   log = get_logger(__name__)
+
+   @command()
+   def deploy(target: str) -> None:
+       log.info("Connecting to %s", target)
+       log.debug("Resolved deployment plan")
+       ...
+
+By default, warnings and errors are shown. ``-v`` enables ``INFO`` logs,
+``-vv`` enables ``DEBUG`` logs, and ``-vvv`` enables every record that reaches
+the configured logger. Log output uses Rich on stderr and follows
+``--colors=always|never|auto``.
+
+If your application has already configured logging handlers, Xclif respects
+them and only updates the logger level. Call
+:func:`~xclif.logging.configure_logging` directly with ``force=True`` if you
+want to replace existing handlers with Xclif's Rich handler.
+
+Accessing context
+~~~~~~~~~~~~~~~~~
 
 Use :func:`~xclif.context.get_context` to access the current verbosity level,
 color mode, and other cascading state from anywhere in your code — no need to
@@ -221,6 +249,7 @@ The :class:`~xclif.context.Context` object provides typed properties for
 built-in options:
 
 - ``ctx.verbosity`` — ``int`` (0–3), from ``-v`` / ``-vv`` / ``-vvv``
+- ``ctx.log_level`` — standard ``logging`` level implied by ``ctx.verbosity``
 - ``ctx.colors`` — ``str`` (``"always"`` / ``"never"`` / ``"auto"``)
 
 .. note::

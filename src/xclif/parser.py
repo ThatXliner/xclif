@@ -66,6 +66,7 @@ from xclif.config import resolve_key
 from xclif.definition import Argument, _DefinitionOption
 from xclif.errors import UsageError
 from xclif.context import Context, _reset_context, _set_context
+from xclif.logging import configure_logging
 
 if TYPE_CHECKING:
     from xclif.command import Command
@@ -187,6 +188,9 @@ def _parse_token_stream(
         elif token.startswith("-") and len(token) > 1:
             # Short option: -v  or  -n value
             if token not in alias_map:
+                if _parse_short_bool_cluster(token, alias_map, options, parsed_opts):
+                    i += 1
+                    continue
                 raise UsageError(f"Unknown option {token!r}")
             long_name = alias_map[token]
             option = options[long_name]
@@ -210,6 +214,33 @@ def _parse_token_stream(
         i += 1
 
     return positionals, parsed_opts, None
+
+
+def _parse_short_bool_cluster(
+    token: str,
+    alias_map: dict[str, str],
+    options: dict[str, _DefinitionOption],
+    parsed_opts: dict[str, list],
+) -> bool:
+    """Parse clustered boolean flags such as ``-vvv``.
+
+    Value-taking options are intentionally excluded because ``-abc value`` is
+    ambiguous without a larger short-option grammar.
+    """
+    if len(token) <= 2:
+        return False
+
+    names: list[str] = []
+    for char in token[1:]:
+        alias = f"-{char}"
+        name = alias_map.get(alias)
+        if name is None or options[name].converter is not bool:
+            return False
+        names.append(name)
+
+    for name in names:
+        parsed_opts[name].append(True)
+    return True
 
 
 def parse_and_execute_impl(
@@ -361,6 +392,11 @@ def parse_and_execute_impl(
                 user_kwargs[name] = resolved
             elif option.default is not None:
                 user_kwargs[name] = option.default
+
+    configure_logging(
+        verbosity=new_context.get("verbose", 0),
+        colors=new_context.get("colors", "auto"),
+    )
 
     token = _set_context(Context(new_context))
     try:

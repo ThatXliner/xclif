@@ -35,6 +35,13 @@ class Context:
         """Color mode: ``"always"``, ``"never"``, or ``"auto"``."""
         return self._data.get("colors", "auto")
 
+    @property
+    def log_level(self) -> int:
+        """Standard logging level implied by :attr:`verbosity`."""
+        from xclif.logging import level_from_verbosity
+
+        return level_from_verbosity(self.verbosity)
+
     def __getitem__(self, key: str) -> object:
         return self._data[key]
 
