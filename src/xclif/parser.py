@@ -466,9 +466,9 @@ def _resolve_with_config(
     env_prefix = context.get("env_prefix")
     config_data = context.get("config_data", {})
 
-    # Try env var
-    env_var = f"{env_prefix}_{name.upper()}" if env_prefix else None
-    if env_var:
+    # Try env var (prefixed takes priority)
+    if env_prefix:
+        env_var = f"{env_prefix}_{name.upper()}"
         raw = os.environ.get(env_var)
         if raw is not None:
             if option_or_arg.converter is bool:
@@ -480,6 +480,20 @@ def _resolve_with_config(
                     f"Invalid value {raw!r} from env var '{env_var}': "
                     f"expected {_type_name(option_or_arg.converter)}"
                 )
+
+    # Try unprefixed env var (lower priority than prefixed)
+    unprefixed = name.upper()
+    raw = os.environ.get(unprefixed)
+    if raw is not None:
+        if option_or_arg.converter is bool:
+            return _parse_bool_string(raw, f"env var '{unprefixed}'")
+        try:
+            return option_or_arg.converter(raw)
+        except (ValueError, TypeError):
+            raise UsageError(
+                f"Invalid value {raw!r} from env var '{unprefixed}': "
+                f"expected {_type_name(option_or_arg.converter)}"
+            )
 
     # Try config file
     config_key = name
