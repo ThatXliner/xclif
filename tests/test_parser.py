@@ -575,6 +575,7 @@ def test_alias_help_shows_aliases_in_usage(capsys, monkeypatch):
     import sys
     from rich.console import Console
     monkeypatch.setattr(sys.modules["xclif.command"], "_get_console", lambda **kw: Console(force_terminal=True))
+    monkeypatch.setattr("xclif.agents.is_agent", lambda: False)
 
     child = Command("greet", lambda: 0, aliases=["g", "gr"])
     child.print_short_help()
@@ -586,6 +587,7 @@ def test_alias_not_shown_in_parent_subcommand_list(capsys, monkeypatch):
     import sys
     from rich.console import Console
     monkeypatch.setattr(sys.modules["xclif.command"], "_get_console", lambda **kw: Console(force_terminal=True))
+    monkeypatch.setattr("xclif.agents.is_agent", lambda: False)
 
     child = Command("greet", lambda: 0, aliases=["g"])
     parent = Command("parent", lambda: 0, subcommands={"greet": child, "g": child})

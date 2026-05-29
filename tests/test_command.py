@@ -236,6 +236,7 @@ def test_print_long_help_renders_markdown(capsys, monkeypatch):
     import sys
     from rich.console import Console
     monkeypatch.setattr(sys.modules["xclif.command"], "_get_console", lambda **kw: Console(force_terminal=True))
+    monkeypatch.setattr("xclif.agents.is_agent", lambda: False)
 
     @command()
     def greet(name: str) -> None:
@@ -821,14 +822,9 @@ def test_agent_help_subcommand_with_arguments(capsys):
 
 def _patch_console_non_tty(monkeypatch):
     """Patch _get_console to report non-TTY."""
-    import sys
-    _cmd_module = sys.modules["xclif.command"]
-    monkeypatch.setattr(_cmd_module, "_get_console", lambda **kw: type("C", (), {"is_terminal": False})())
-
-
-def test_print_short_help_dispatches_agent_when_not_tty(capsys, monkeypatch):
-    """print_short_help uses agent format when Console reports non-TTY."""
-    _patch_console_non_tty(monkeypatch)
+def test_print_short_help_dispatches_agent_when_detected(capsys, monkeypatch):
+    """print_short_help uses agent format when is_agent() returns True."""
+    monkeypatch.setattr("xclif.agents.is_agent", lambda: True)
     root = Command("app", lambda: 0)
     root.run.__doc__ = "My app."
 
@@ -844,9 +840,9 @@ def test_print_short_help_dispatches_agent_when_not_tty(capsys, monkeypatch):
     assert "[b]" not in out
 
 
-def test_print_long_help_dispatches_agent_when_not_tty(capsys, monkeypatch):
-    """print_long_help uses agent format when Console reports non-TTY."""
-    _patch_console_non_tty(monkeypatch)
+def test_print_long_help_dispatches_agent_when_detected(capsys, monkeypatch):
+    """print_long_help uses agent format when is_agent() returns True."""
+    monkeypatch.setattr("xclif.agents.is_agent", lambda: True)
 
     @command()
     def mytool(name: str) -> None:
