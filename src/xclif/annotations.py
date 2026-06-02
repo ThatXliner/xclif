@@ -1,10 +1,11 @@
+from pathlib import Path
 from typing import Annotated, Callable, Literal, get_args, get_origin
 
 __all__ = ["annotation2converter", "is_list_type", "unwrap_param_metadata", "unwrap_with_config"]
 
-type ScalarParameterTypes = str | int | float | bool
+type ScalarParameterTypes = str | int | float | bool | Path
 type ParameterTypes = ScalarParameterTypes | list[ScalarParameterTypes]
-_default_converters = {str: str, int: int, float: float, bool: bool}
+_default_converters = {str: str, int: int, float: float, bool: bool, Path: Path}
 
 
 def unwrap_with_config(annotation) -> tuple[type, "WithConfig | None"]:

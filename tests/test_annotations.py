@@ -1,5 +1,6 @@
 """Unit tests for xclif.annotations."""
 import pytest
+from pathlib import Path
 from typing import Literal
 from xclif.annotations import annotation2converter
 
@@ -30,3 +31,12 @@ def test_literal_single_value():
 def test_non_literal_unchanged():
     assert annotation2converter(str) is str
     assert annotation2converter(int) is int
+
+
+def test_path_converter():
+    conv = annotation2converter(Path)
+    assert conv("/tmp/x") == Path("/tmp/x")
+
+
+def test_list_path_converter():
+    assert annotation2converter(list[Path]) is Path

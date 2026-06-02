@@ -19,6 +19,7 @@ __all__ = [
     "Cli",
     "Context",
     "Option",
+    "Path",
     "WithConfig",
     "__version__",
     "command",
