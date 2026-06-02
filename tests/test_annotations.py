@@ -1,5 +1,6 @@
 """Unit tests for xclif.annotations."""
 import pytest
+from pathlib import Path
 from typing import Literal, Optional, Union
 from xclif.annotations import annotation2converter
 
@@ -53,3 +54,12 @@ def test_ambiguous_union_unsupported():
     # More than one non-None member → cannot pick a converter.
     assert annotation2converter(int | str) is None
     assert annotation2converter(Union[int, str, None]) is None
+
+
+def test_path_converter():
+    conv = annotation2converter(Path)
+    assert conv("/tmp/x") == Path("/tmp/x")
+
+
+def test_list_path_converter():
+    assert annotation2converter(list[Path]) is Path

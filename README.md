@@ -1,3 +1,11 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/Dark-Banner.svg">
+    <source media="(prefers-color-scheme: light)" srcset="assets/Light-Banner.svg">
+    <img src="https://raw.githubusercontent.com/ThatXliner/xclif/main/assets/Light-Banner.svg" alt="Xclif — your directory structure is your CLI" width="640">
+  </picture>
+</p>
+
 # Xclif
 
 [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
