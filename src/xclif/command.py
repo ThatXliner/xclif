@@ -12,7 +12,7 @@ from xclif.definition import IMPLICIT_OPTIONS, Argument, _DefinitionOption
 from xclif.errors import UsageError
 from xclif.parser import parse_and_execute_impl
 
-_AGENT_HIDDEN_SUBCOMMANDS = {"completions"}
+_AGENT_HIDDEN_SUBCOMMANDS = {"completions", "mcp"}
 
 
 def _rprint(*args, **kwargs) -> None:
@@ -56,6 +56,7 @@ class Command:
     implicit_options: dict[str, _DefinitionOption] = field(default_factory=dict)
     version: str | None = None
     aliases: list[str] = field(default_factory=list)
+    show_no_description: bool = True
 
     def __post_init__(self) -> None:
         if not self.implicit_options:
@@ -87,7 +88,9 @@ class Command:
         self, *, force_rich: bool = False, force_plain: bool = False
     ) -> None:
         """Print a compact one-screen help summary to stdout."""
-        if not force_rich and not force_plain and not _get_console().is_terminal:
+        from .agents import is_agent
+
+        if not force_rich and not force_plain and is_agent():
             self.print_agent_help()
             return
         from rich.markup import escape
@@ -97,8 +100,11 @@ class Command:
         alias_suffix = (
             f" [dim]({', '.join(self.aliases)})[/dim]" if self.aliases else ""
         )
+        desc_header = self.short_description
+        if desc_header == NO_DESC and not self.show_no_description:
+            desc_header = ""
         help_text = (
-            (self.short_description + "\n" if self.short_description else "")
+            (desc_header + "\n" if desc_header else "")
             + f"[bold]Usage:[/bold] [cyan]{self.name}[/cyan]{alias_suffix} [dim]{escape('[OPTIONS]')}[/dim]"
             + (" " if self.arguments else "")
             + " ".join(_arg_markup(x) for x in self.arguments)
@@ -130,7 +136,7 @@ class Command:
                     " " * INITIAL_LEFT_PADDING
                     + f"[cyan]{name}[/cyan]"
                     + f"[dim]{escape(_subcmd_args_suffix(cmd)).ljust(pad_length + NAME_DESC_PADDING - len(name))}[/dim]"
-                    + _dim_description(cmd.short_description)
+                    + _dim_description(cmd.short_description, show_no_desc=self.show_no_description)
                     for name, cmd in self.subcommands.items()
                     if name == cmd.name  # skip alias entries
                 )
@@ -142,7 +148,7 @@ class Command:
                 + "\n".join(
                     " " * INITIAL_LEFT_PADDING
                     + f"[dim cyan]{_arg_section_label(x).ljust(pad_length + NAME_DESC_PADDING)}[/dim cyan]"
-                    + _dim_description(x.description)
+                    + _dim_description(x.description, show_no_desc=self.show_no_description)
                     for x in self.arguments
                 )
                 + "\n\n"
@@ -152,7 +158,7 @@ class Command:
             + "\n".join(
                 " " * INITIAL_LEFT_PADDING
                 + f"[cyan]{option_labels[name].ljust(pad_length + NAME_DESC_PADDING)}[/cyan]"
-                + _dim_description(opt.description)
+                + _dim_description(opt.description, show_no_desc=self.show_no_description)
                 for name, opt in all_options.items()
             )
             + "\n\n"
@@ -163,7 +169,9 @@ class Command:
         self, *, force_rich: bool = False, force_plain: bool = False
     ) -> None:
         """Print the full help page (including the long description) to stdout."""
-        if not force_rich and not force_plain and not _get_console().is_terminal:
+        from .agents import is_agent
+
+        if not force_rich and not force_plain and is_agent():
             self.print_agent_help()
             return
         from rich.markdown import Markdown
@@ -173,7 +181,7 @@ class Command:
         all_options = {**self.implicit_options, **self.options}
 
         # Render the description as Markdown for rich formatting
-        if self.short_description:
+        if self.short_description and (self.show_no_description or self.description != NO_DESC):
             console.print(Markdown(self.description))
             console.print()
 
@@ -211,7 +219,7 @@ class Command:
                     " " * INITIAL_LEFT_PADDING
                     + f"[cyan]{name}[/cyan]"
                     + f"[dim]{escape(_subcmd_args_suffix(cmd)).ljust(pad_length + NAME_DESC_PADDING - len(name))}[/dim]"
-                    + _dim_description(cmd.short_description)
+                    + _dim_description(cmd.short_description, show_no_desc=self.show_no_description)
                     for name, cmd in self.subcommands.items()
                     if name == cmd.name  # skip alias entries
                 )
@@ -225,7 +233,8 @@ class Command:
                     " " * INITIAL_LEFT_PADDING
                     + f"[dim cyan]{_arg_section_label(x).ljust(pad_length + NAME_DESC_PADDING)}[/dim cyan]"
                     + _dim_description(
-                        textwrap.indent(x.description, " " * indent_width).strip()
+                        textwrap.indent(x.description, " " * indent_width).strip(),
+                        show_no_desc=self.show_no_description,
                     )
                     for x in self.arguments
                 )
@@ -236,7 +245,7 @@ class Command:
             + "\n".join(
                 " " * INITIAL_LEFT_PADDING
                 + f"[cyan]{option_labels[name].ljust(pad_length + NAME_DESC_PADDING)}[/cyan]"
-                + _dim_description(opt.description)
+                + _dim_description(opt.description, show_no_desc=self.show_no_description)
                 for name, opt in all_options.items()
             )
             + "\n\n"
@@ -260,7 +269,10 @@ class Command:
             config set KEY VALUE - Set config values.
         """
         args = _format_agent_args(self)
-        header = f"{self.name}{args}: {self.short_description}"
+        desc = self.short_description
+        if desc == NO_DESC and not self.show_no_description:
+            desc = ""
+        header = f"{self.name}{args}" + (f": {desc}" if desc else "")
         if not self.subcommands:
             # Leaf command: append own options to the header line
             opts = _format_agent_options(self)
@@ -337,8 +349,10 @@ class Command:
         return self.description.split("\n")[0]
 
 
-def _dim_description(desc: str) -> str:
+def _dim_description(desc: str, show_no_desc: bool = True) -> str:
     """Return Rich markup for a description, italicizing 'No description'."""
+    if not show_no_desc and desc == NO_DESC:
+        return ""
     if desc == NO_DESC:
         return f"[dim italic]{desc}[/dim italic]"
     return f"[dim]{desc}[/dim]"
@@ -403,7 +417,10 @@ def _collect_agent_lines(cmd: "Command", prefix: str) -> list[str]:
         else:
             # Leaf command
             args = _format_agent_args(sub)
-            line = f"{path}{args} - {sub.short_description}"
+            sub_desc = sub.short_description
+            if sub_desc == NO_DESC and not sub.show_no_description:
+                sub_desc = ""
+            line = f"{path}{args}" + (f" - {sub_desc}" if sub_desc else "")
             opts = _format_agent_options(sub)
             if opts:
                 line += f" Options: {opts}"
@@ -473,7 +490,7 @@ def extract_parameters(
             if parameter.annotation is inspect.Parameter.empty:
                 msg = f"Variadic argument {name!r} has no type hint"
                 raise ValueError(msg)
-            inner_type, _, _, _ = unwrap_param_metadata(parameter.annotation)
+            inner_type, _, _, _, _ = unwrap_param_metadata(parameter.annotation)
             converter = annotation2converter(inner_type)
             if converter is None:
                 msg = "Unsupported type"
@@ -500,9 +517,9 @@ def extract_parameters(
             msg = f"Argument {name!r} has no type hint"
             raise ValueError(msg)
 
-        # Unwrap all Annotated metadata: Arg, Option (annotation), WithConfig
+        # Unwrap all Annotated metadata: Arg, Option (annotation), WithConfig, Cascade
         raw_annotation = parameter.annotation
-        inner_type, arg_meta, opt_meta, with_config = unwrap_param_metadata(
+        inner_type, arg_meta, opt_meta, with_config, cascade = unwrap_param_metadata(
             raw_annotation
         )
 
@@ -550,6 +567,7 @@ def extract_parameters(
                 converter,
                 description,
                 default,
+                cascading=cascade,
                 is_list=list_valued,
                 aliases=aliases,
                 config=with_config,
@@ -558,13 +576,22 @@ def extract_parameters(
     return arguments, options
 
 
-def command(*names: str) -> Callable[[Callable], Command]:
+def command(
+    *names: str,
+    show_no_description: bool | None = None,
+) -> Callable[[Callable], Command]:
     """Convert a function into an `xclif.Command`.
 
     Names are optional. The first name is the canonical command name; any
     additional names become aliases (alternative names that resolve to the
     same command). When no names are given, the function name is used
     (or the module name when the function is called ``_``).
+
+    Args:
+        show_no_description:
+            When ``False``, suppress the "No description" placeholder in help
+            output when no docstring is provided. When ``None`` (the default),
+            uses the framework default (``True`` for backward compatibility).
     """
 
     def _decorator(func: Callable) -> Command:
@@ -578,6 +605,9 @@ def command(*names: str) -> Callable[[Callable], Command]:
             command_name = func.__name__
             aliases = []
         arguments, options = extract_parameters(func)
-        return Command(command_name, func, arguments, options, aliases=aliases)
+        kwargs = dict(aliases=aliases)
+        if show_no_description is not None:
+            kwargs["show_no_description"] = show_no_description
+        return Command(command_name, func, arguments, options, **kwargs)
 
     return _decorator

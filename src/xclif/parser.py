@@ -66,6 +66,7 @@ from xclif.config import resolve_key
 from xclif.definition import Argument, _DefinitionOption
 from xclif.errors import UsageError
 from xclif.context import Context, _reset_context, _set_context
+from xclif.logging import configure_logging
 
 if TYPE_CHECKING:
     from xclif.command import Command
@@ -187,6 +188,9 @@ def _parse_token_stream(
         elif token.startswith("-") and len(token) > 1:
             # Short option: -v  or  -n value
             if token not in alias_map:
+                if _parse_short_bool_cluster(token, alias_map, options, parsed_opts):
+                    i += 1
+                    continue
                 raise UsageError(f"Unknown option {token!r}")
             long_name = alias_map[token]
             option = options[long_name]
@@ -210,6 +214,33 @@ def _parse_token_stream(
         i += 1
 
     return positionals, parsed_opts, None
+
+
+def _parse_short_bool_cluster(
+    token: str,
+    alias_map: dict[str, str],
+    options: dict[str, _DefinitionOption],
+    parsed_opts: dict[str, list],
+) -> bool:
+    """Parse clustered boolean flags such as ``-vvv``.
+
+    Value-taking options are intentionally excluded because ``-abc value`` is
+    ambiguous without a larger short-option grammar.
+    """
+    if len(token) <= 2:
+        return False
+
+    names: list[str] = []
+    for char in token[1:]:
+        alias = f"-{char}"
+        name = alias_map.get(alias)
+        if name is None or options[name].converter is not bool:
+            return False
+        names.append(name)
+
+    for name in names:
+        parsed_opts[name].append(True)
+    return True
 
 
 def parse_and_execute_impl(
@@ -272,6 +303,19 @@ def parse_and_execute_impl(
                 new_context[name] = existing + len(values)
             else:
                 new_context[name] = values[-1]  # last wins
+
+    # Cascade user-defined options marked with Cascade()
+    for name, option in command.options.items():
+        if option.cascading:
+            if name in parsed_opts:
+                values = parsed_opts[name]
+                new_context[name] = values[-1]  # last wins
+            else:
+                resolved = _resolve_with_config(name, option, new_context)
+                if resolved is not _CONFIG_MISSING:
+                    new_context[name] = resolved
+                elif option.default is not None:
+                    new_context[name] = option.default
 
     # --- Dispatch ---
 
@@ -349,6 +393,11 @@ def parse_and_execute_impl(
             elif option.default is not None:
                 user_kwargs[name] = option.default
 
+    configure_logging(
+        verbosity=new_context.get("verbose", 0),
+        colors=new_context.get("colors", "auto"),
+    )
+
     token = _set_context(Context(new_context))
     try:
         if variadic_arg:
@@ -417,9 +466,9 @@ def _resolve_with_config(
     env_prefix = context.get("env_prefix")
     config_data = context.get("config_data", {})
 
-    # Try env var
-    env_var = f"{env_prefix}_{name.upper()}" if env_prefix else None
-    if env_var:
+    # Try env var (prefixed takes priority)
+    if env_prefix:
+        env_var = f"{env_prefix}_{name.upper()}"
         raw = os.environ.get(env_var)
         if raw is not None:
             if option_or_arg.converter is bool:
@@ -431,6 +480,20 @@ def _resolve_with_config(
                     f"Invalid value {raw!r} from env var '{env_var}': "
                     f"expected {_type_name(option_or_arg.converter)}"
                 )
+
+    # Try unprefixed env var (lower priority than prefixed)
+    unprefixed = name.upper()
+    raw = os.environ.get(unprefixed)
+    if raw is not None:
+        if option_or_arg.converter is bool:
+            return _parse_bool_string(raw, f"env var '{unprefixed}'")
+        try:
+            return option_or_arg.converter(raw)
+        except (ValueError, TypeError):
+            raise UsageError(
+                f"Invalid value {raw!r} from env var '{unprefixed}': "
+                f"expected {_type_name(option_or_arg.converter)}"
+            )
 
     # Try config file
     config_key = name

@@ -16,8 +16,8 @@ class Context:
         ctx.verbosity  # int (0–3)
         ctx.colors     # "always" | "never" | "auto"
 
-    User-defined cascading options (once supported) are accessible via
-    dict-style lookup::
+    User-defined cascading options (marked with ``Cascade()``) are accessible
+    via dict-style lookup::
 
         ctx["my_option"]
         ctx.get("my_option", default)
@@ -34,6 +34,13 @@ class Context:
     def colors(self) -> str:
         """Color mode: ``"always"``, ``"never"``, or ``"auto"``."""
         return self._data.get("colors", "auto")
+
+    @property
+    def log_level(self) -> int:
+        """Standard logging level implied by :attr:`verbosity`."""
+        from xclif.logging import level_from_verbosity
+
+        return level_from_verbosity(self.verbosity)
 
     def __getitem__(self, key: str) -> object:
         return self._data[key]
