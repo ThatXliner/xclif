@@ -1,6 +1,7 @@
 """Tests for xclif.plugins — entry-point-based subcommand discovery."""
 
 import logging
+import os.path
 from unittest.mock import MagicMock, patch
 
 from xclif.command import Command
@@ -93,7 +94,11 @@ def test_find_path_plugin_finds_executable_in_path(tmp_path, make_plugin_exe):
         from xclif.plugins import find_path_plugin
         result = find_path_plugin("myapp", "deploy")
 
-    assert result == str(exe)
+    # Windows uppercases the extension via PATHEXT (e.g. ``.BAT``); compare
+    # with normcase so the case-insensitive filesystem match holds there
+    # while staying exact on POSIX.
+    assert result is not None
+    assert os.path.normcase(result) == os.path.normcase(str(exe))
 
 
 def test_find_path_plugin_returns_none_when_not_found(tmp_path):
