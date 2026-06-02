@@ -3,6 +3,8 @@
 ## Unreleased
 
 ### Added
+- `Cli.from_openapi()`: build a fully functional CLI from any OpenAPI 3.0 JSON spec. Each endpoint becomes a subcommand with path params as positional args, query params as options, and built-in HTTP execution via stdlib `urllib`. Root-level cascading options for `--api-key`, `--base-url`, `--timeout`, `--insecure`, and `--raw`.
+- `xclif from-openapi <spec>` CLI subcommand: inspect or generate a CLI script from an OpenAPI spec.
 - Logging mini-library: `get_logger()`, `configure_logging()`, `RichLogHandler`, and `level_from_verbosity()` provide standard `logging` integration with Rich stderr output wired to Xclif verbosity and color options.
 - Parser support for clustered repeated boolean short flags, including `-vv` and `-vvv` for verbosity.
 

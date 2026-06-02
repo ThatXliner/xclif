@@ -29,6 +29,7 @@ file-based routing and a decorator-based API.
    config
    flat-api
    compiler
+   openapi
    mcp
 
 .. toctree::
