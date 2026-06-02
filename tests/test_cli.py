@@ -44,6 +44,32 @@ def test_cli_completions_is_single_command_with_shell_arg():
     assert comp.arguments[0].choices == ["bash", "zsh", "fish"]
 
 
+def test_cli_does_not_overwrite_user_completions_command(capsys):
+    """A user-defined 'completions' subcommand is preserved (issue #61)."""
+    root = Command("myapp", lambda: 0)
+    user_completions = Command("completions", lambda: 42)
+    root.subcommands["completions"] = user_completions
+
+    cli = Cli(root_command=root)
+    assert cli.root_command.subcommands["completions"] is user_completions
+
+
+def test_cli_does_not_overwrite_user_mcp_command():
+    """A user-defined 'mcp' subcommand is preserved (issue #61)."""
+    root = Command("myapp", lambda: 0)
+    user_mcp = Command("mcp", lambda: 7)
+    root.subcommands["mcp"] = user_mcp
+
+    cli = Cli(root_command=root)
+    assert cli.root_command.subcommands["mcp"] is user_mcp
+
+
+def test_cli_completions_command_flag_suppresses_injection():
+    root = Command("myapp", lambda: 0)
+    cli = Cli(root_command=root, completions_command=False)
+    assert "completions" not in cli.root_command.subcommands
+
+
 def test_cli_add_command_single_level():
     root = Command("myapp", lambda: 0)
     cli = Cli(root_command=root)
@@ -96,12 +122,18 @@ def test_cli_add_command_direct_to_root_with_arguments_raises():
         cli.add_command(["sub"], Command("sub", lambda: 0))
 
 
-def test_cli_construction_with_root_having_arguments_raises():
+def test_cli_construction_with_positional_root_skips_injection():
+    """A root command with positional args is expressible; framework
+    subcommands are silently skipped rather than raising (issue #61)."""
+
     @command()
     def root(name: str) -> None: ...
 
-    with pytest.raises(ValueError, match="Cannot add subcommand"):
-        Cli(root_command=root)
+    cli = Cli(root_command=root)
+    assert "completions" not in cli.root_command.subcommands
+    assert "mcp" not in cli.root_command.subcommands
+    # --version implicit option is still injected
+    assert "version" in cli.root_command.implicit_options
 
 
 # ---------------------------------------------------------------------------

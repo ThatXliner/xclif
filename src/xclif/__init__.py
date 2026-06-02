@@ -9,10 +9,25 @@ from xclif.command import Command, command
 from xclif.context import Context, get_context
 from xclif.definition import _DefinitionOption
 from xclif.importer import get_modules
+from xclif.logging import configure_logging, get_logger, level_from_verbosity
 
-__version__ = "0.5.0"
+__version__ = "0.5.1"
 
-__all__ = ["Arg", "Cascade", "Cli", "Context", "Option", "WithConfig", "__version__", "command", "get_context"]
+__all__ = [
+    "Arg",
+    "Cascade",
+    "Cli",
+    "Context",
+    "Option",
+    "Path",
+    "WithConfig",
+    "__version__",
+    "command",
+    "configure_logging",
+    "get_context",
+    "get_logger",
+    "level_from_verbosity",
+]
 
 
 @dataclass(frozen=True)
@@ -158,6 +173,25 @@ class Cli:
         Whether to auto-inject the ``config`` subcommand when any parameter
         uses :class:`~xclif.config.WithConfig`.  *True* (the default) keeps
         the current behaviour; set to *False* to suppress it.
+    completions_command:
+        Whether to auto-inject the ``completions`` subcommand.  *True* (the
+        default) keeps the current behaviour; set to *False* to suppress it.
+        Injection is also skipped when the root command already defines a
+        ``completions`` subcommand or declares positional arguments (since a
+        command with positional args cannot have subcommands).
+    mcp_command:
+        Whether to auto-inject the ``mcp`` subcommand when the optional
+        ``mcp`` package is installed.  *True* (the default) keeps the
+        current behaviour; set to *False* to suppress it.  Injection is also
+        skipped when the root command already defines an ``mcp`` subcommand
+        or declares positional arguments.
+    show_no_description:
+        Default value for ``show_no_description`` on all commands in the
+        tree.  When ``False``, suppress the "No description" placeholder in
+        help output for commands without a docstring.  When ``None`` (the
+        default), each command uses its own setting (``True`` by default for
+        backward compatibility).  Per-command ``@command(show_no_description=...)``
+        overrides this default.
     """
 
     root_command: Command
@@ -168,6 +202,9 @@ class Cli:
     config_command: bool = True
     discover_plugins: bool = True
     discover_path_plugins: bool = False
+    completions_command: bool = True
+    mcp_command: bool = True
+    show_no_description: bool | None = None
     _config_data: dict = field(default_factory=dict, init=False, repr=False)
     _config_dir: "Path | None" = field(default=None, init=False, repr=False)
     _finalized: bool = field(default=False, init=False, repr=False)
@@ -194,11 +231,17 @@ class Cli:
             if local_data:
                 self._config_data = _deep_merge(self._config_data, local_data)
 
-        # Add completions subcommand
-        self.root_command._assert_no_arguments(adding="completions")
-        self.root_command.subcommands["completions"] = make_completions_command(
-            self.root_command
-        )
+        # Add completions subcommand.  Skip when disabled, when the user
+        # already defined a 'completions' subcommand, or when the root command
+        # takes positional arguments (which forbid subcommands entirely).
+        if (
+            self.completions_command
+            and "completions" not in self.root_command.subcommands
+            and not self.root_command.arguments
+        ):
+            self.root_command.subcommands["completions"] = make_completions_command(
+                self.root_command
+            )
 
         # Inject --version as an implicit option on root command only
         self.root_command.implicit_options["version"] = _DefinitionOption(
@@ -208,21 +251,40 @@ class Cli:
         )
         self.root_command.version = self.version
 
-        # Add mcp subcommand (only if mcp optional dep is installed)
-        try:
-            import mcp as _mcp_pkg  # noqa: F401
-        except ImportError:
-            pass  # mcp optional dep not installed; subcommand silently absent
-        else:
-            from xclif.mcp import make_mcp_command
-            self.root_command._assert_no_arguments(adding="mcp")
-            self.root_command.subcommands["mcp"] = make_mcp_command(self.root_command)
+        # Add mcp subcommand (only if mcp optional dep is installed).  Skip
+        # when the user already defined an 'mcp' subcommand or when the root
+        # command takes positional arguments.
+        if (
+            self.mcp_command
+            and "mcp" not in self.root_command.subcommands
+            and not self.root_command.arguments
+        ):
+            try:
+                import mcp as _mcp_pkg  # noqa: F401
+            except ImportError:
+                pass  # mcp optional dep not installed; subcommand silently absent
+            else:
+                from xclif.mcp import make_mcp_command
+                self.root_command.subcommands["mcp"] = make_mcp_command(self.root_command)
+
+    def _apply_show_no_description(self, cmd: Command) -> None:
+        """Recursively apply Cli-level show_no_description default to the tree."""
+        if self.show_no_description is not None:
+            cmd.show_no_description = self.show_no_description
+        seen: set[int] = set()
+        for sub in cmd.subcommands.values():
+            if id(sub) not in seen:
+                seen.add(id(sub))
+                self._apply_show_no_description(sub)
 
     def _finalize(self) -> None:
         # """Inject config subcommand and validate WithConfig conflicts. Idempotent."""
         if self._finalized:
             return
         self._finalized = True
+
+        # Apply Cli-level show_no_description default
+        self._apply_show_no_description(self.root_command)
 
         from xclif.config_commands import _has_with_config, make_config_command
         from xclif.validation import check_with_config_conflicts
@@ -303,6 +365,7 @@ class Cli:
         env_prefix: str | None = None,
         config_name: str | None = None,
         local_config: str | None = None,
+        show_no_description: bool | None = None,
     ) -> Self:
         """Load a pre-compiled manifest produced by ``xclif compile``.
 
@@ -330,7 +393,7 @@ class Cli:
         if version is None and manifest.__package__:
             package_name = manifest.__package__.split(".")[0]
             version = _detect_version(package_name)
-        return build_fn(version=version, env_prefix=env_prefix, config_name=config_name, local_config=local_config)
+        return build_fn(version=version, env_prefix=env_prefix, config_name=config_name, local_config=local_config, show_no_description=show_no_description)
 
     @classmethod
     def from_routes(
@@ -341,6 +404,7 @@ class Cli:
         env_prefix: str | None = None,
         config_name: str | None = None,
         local_config: str | None = None,
+        show_no_description: bool | None = None,
     ) -> Self:
         """Build a :class:`Cli` by walking a routes package at runtime.
 
@@ -394,6 +458,7 @@ class Cli:
             env_prefix=env_prefix,
             config_name=config_name,
             local_config=local_config,
+            show_no_description=show_no_description,
         )
         for path, module in get_modules(routes):
             members = inspect.getmembers(module, lambda x: isinstance(x, Command))

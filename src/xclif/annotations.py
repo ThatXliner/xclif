@@ -1,10 +1,12 @@
-from typing import Annotated, Callable, Literal, get_args, get_origin
+import types
+from pathlib import Path
+from typing import Annotated, Callable, Literal, Union, get_args, get_origin
 
-__all__ = ["annotation2converter", "is_list_type", "unwrap_param_metadata", "unwrap_with_config"]
+__all__ = ["annotation2converter", "is_list_type", "unwrap_list", "unwrap_param_metadata", "unwrap_with_config"]
 
-type ScalarParameterTypes = str | int | float | bool
+type ScalarParameterTypes = str | int | float | bool | Path
 type ParameterTypes = ScalarParameterTypes | list[ScalarParameterTypes]
-_default_converters = {str: str, int: int, float: float, bool: bool}
+_default_converters = {str: str, int: int, float: float, bool: bool, Path: Path}
 
 
 def unwrap_with_config(annotation) -> tuple[type, "WithConfig | None"]:
@@ -23,15 +25,43 @@ def unwrap_with_config(annotation) -> tuple[type, "WithConfig | None"]:
     return annotation, None
 
 
-def annotation2converter[T: ParameterTypes, Y](x: T) -> None | Callable[[T], Y]:
-    # Check for list[X] generics (e.g. list[str], list[int])
-    origin = get_origin(x)
-    if origin is list:
+def unwrap_optional(x):
+    """Unwrap Optional[X] / X | None to X.
+
+    Returns the single non-``None`` member of a ``Union`` (typing.Union or
+    PEP 604 ``X | None``). Non-unions and unions without exactly one non-None
+    member are returned unchanged.
+    """
+    if get_origin(x) in (Union, types.UnionType):
+        non_none = [a for a in get_args(x) if a is not type(None)]
+        if len(non_none) == 1:
+            return non_none[0]
+    return x
+
+
+def unwrap_list(x):
+    """Unwrap list[X] to X.
+
+    Returns the element type of a ``list[X]`` generic. Non-list annotations
+    and bare ``list`` (no element type) are returned unchanged.
+    """
+    if get_origin(x) is list:
         args = get_args(x)
-        if args and args[0] in _default_converters:
-            return _default_converters[args[0]]
+        if args:
+            return args[0]
+    return x
+
+
+def annotation2converter[T: ParameterTypes, Y](x: T) -> None | Callable[[T], Y]:
+    # Unwrap Optional[X] / X | None → inner type (nullable options)
+    x = unwrap_optional(x)
+    # Check for list[X] generics (e.g. list[str], list[int])
+    if get_origin(x) is list:
+        element = unwrap_list(x)
+        if element in _default_converters:
+            return _default_converters[element]
         return None
-    if origin is Literal:
+    if get_origin(x) is Literal:
         choices = get_args(x)
         if not all(isinstance(c, str) for c in choices):
             return None

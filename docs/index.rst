@@ -4,6 +4,10 @@ Xclif
 **Xclif** is an opinionated Python framework for building beautiful, scalable CLIs that feature
 file-based routing and a decorator-based API.
 
+.. image:: https://img.shields.io/badge/GitHub-ThatXliner/xclif-181717?logo=github
+   :target: https://github.com/ThatXliner/xclif
+   :alt: GitHub
+
 .. code-block:: bash
 
    pip install xclif
@@ -25,6 +29,7 @@ file-based routing and a decorator-based API.
    config
    flat-api
    compiler
+   mcp
 
 .. toctree::
    :maxdepth: 1

@@ -88,7 +88,9 @@ class Command:
         self, *, force_rich: bool = False, force_plain: bool = False
     ) -> None:
         """Print a compact one-screen help summary to stdout."""
-        if not force_rich and not force_plain and not _get_console().is_terminal:
+        from .agents import is_agent
+
+        if not force_rich and not force_plain and is_agent():
             self.print_agent_help()
             return
         from rich.markup import escape
@@ -167,7 +169,9 @@ class Command:
         self, *, force_rich: bool = False, force_plain: bool = False
     ) -> None:
         """Print the full help page (including the long description) to stdout."""
-        if not force_rich and not force_plain and not _get_console().is_terminal:
+        from .agents import is_agent
+
+        if not force_rich and not force_plain and is_agent():
             self.print_agent_help()
             return
         from rich.markdown import Markdown
@@ -572,13 +576,22 @@ def extract_parameters(
     return arguments, options
 
 
-def command(*names: str) -> Callable[[Callable], Command]:
+def command(
+    *names: str,
+    show_no_description: bool | None = None,
+) -> Callable[[Callable], Command]:
     """Convert a function into an `xclif.Command`.
 
     Names are optional. The first name is the canonical command name; any
     additional names become aliases (alternative names that resolve to the
     same command). When no names are given, the function name is used
     (or the module name when the function is called ``_``).
+
+    Args:
+        show_no_description:
+            When ``False``, suppress the "No description" placeholder in help
+            output when no docstring is provided. When ``None`` (the default),
+            uses the framework default (``True`` for backward compatibility).
     """
 
     def _decorator(func: Callable) -> Command:
@@ -592,6 +605,9 @@ def command(*names: str) -> Callable[[Callable], Command]:
             command_name = func.__name__
             aliases = []
         arguments, options = extract_parameters(func)
-        return Command(command_name, func, arguments, options, aliases=aliases)
+        kwargs = dict(aliases=aliases)
+        if show_no_description is not None:
+            kwargs["show_no_description"] = show_no_description
+        return Command(command_name, func, arguments, options, **kwargs)
 
     return _decorator

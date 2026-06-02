@@ -42,6 +42,13 @@ def test_bool_flag_repeated():
     assert opts["verbose"] == [True, True]
 
 
+def test_short_bool_flag_cluster_repeats_flag():
+    opts_def = {"verbose": _opt("verbose", bool, aliases=["-v"])}
+    _, opts, idx = _parse_token_stream(opts_def, {}, ["-vvv"])
+    assert opts["verbose"] == [True, True, True]
+    assert idx is None
+
+
 def test_bool_flag_empty():
     pos, opts, idx = _parse_token_stream(_bool_opts("verbose"), {}, [])
     assert pos == []
@@ -568,6 +575,7 @@ def test_alias_help_shows_aliases_in_usage(capsys, monkeypatch):
     import sys
     from rich.console import Console
     monkeypatch.setattr(sys.modules["xclif.command"], "_get_console", lambda **kw: Console(force_terminal=True))
+    monkeypatch.setattr("xclif.agents.is_agent", lambda: False)
 
     child = Command("greet", lambda: 0, aliases=["g", "gr"])
     child.print_short_help()
@@ -579,6 +587,7 @@ def test_alias_not_shown_in_parent_subcommand_list(capsys, monkeypatch):
     import sys
     from rich.console import Console
     monkeypatch.setattr(sys.modules["xclif.command"], "_get_console", lambda **kw: Console(force_terminal=True))
+    monkeypatch.setattr("xclif.agents.is_agent", lambda: False)
 
     child = Command("greet", lambda: 0, aliases=["g"])
     parent = Command("parent", lambda: 0, subcommands={"greet": child, "g": child})
