@@ -382,7 +382,10 @@ class TestCliFromSwagger:
         spec_file = tmp_path / "spec.json"
         spec_file.write_text(json.dumps(SAMPLE_SPEC), encoding="utf-8")
         cli = Cli.from_swagger(str(spec_file))
-        cli.root_command.execute(["--help"])
+        # Force agent help so the full command tree (including nested leaf
+        # commands) is rendered deterministically, independent of TTY/agent
+        # auto-detection.
+        cli.root_command.execute(["--help=agent"])
         captured = capsys.readouterr()
         assert "list_pets" in captured.out
         assert "create_pet" in captured.out
