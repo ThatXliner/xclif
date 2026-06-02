@@ -1,4 +1,4 @@
-"""Build an xclif CLI from an OpenAPI/Swagger spec."""
+"""Build an xclif CLI from an OpenAPI spec."""
 
 from __future__ import annotations
 
@@ -276,14 +276,14 @@ def _build_command_tree(spec: dict) -> Command:
     """Build a complete :class:`~xclif.command.Command` tree from an OpenAPI spec.
 
     The returned root command can be passed directly to ``Cli(root_command=...)``
-    or used with ``Cli.from_swagger()``.
+    or used with ``Cli.from_openapi()``.
     """
     info = spec.get("info", {})
     title = info.get("title", "api")
     root_name = title.lower().replace(" ", "-").replace("_", "-")
 
     def _root_help() -> int:
-        """Swagger-generated CLI. Use subcommands to interact with the API."""
+        """OpenAPI-generated CLI. Use subcommands to interact with the API."""
         return 0
 
     root_description = info.get("description", "")

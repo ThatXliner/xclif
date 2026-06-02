@@ -380,7 +380,7 @@ class Cli:
         return build_fn(version=version, env_prefix=env_prefix, config_name=config_name, local_config=local_config, show_no_description=show_no_description)
 
     @classmethod
-    def from_swagger(
+    def from_openapi(
         cls,
         spec: str | Path,
         *,
@@ -391,7 +391,7 @@ class Cli:
         local_config: str | None = None,
         show_no_description: bool | None = None,
     ) -> Self:
-        """Build a :class:`Cli` from an OpenAPI/Swagger JSON spec.
+        """Build a :class:`Cli` from an OpenAPI JSON spec.
 
         Each API endpoint becomes a subcommand: path parameters become
         positional arguments, query parameters become CLI options, and
@@ -426,7 +426,7 @@ class Cli:
             App name for config directory resolution. Defaults to the root
             command name.
         """
-        from xclif.from_swagger import _build_command_tree, load_spec
+        from xclif.from_openapi import _build_command_tree, load_spec
 
         spec_data = load_spec(spec)
         root = _build_command_tree(spec_data)

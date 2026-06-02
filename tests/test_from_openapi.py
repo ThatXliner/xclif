@@ -1,4 +1,4 @@
-"""Tests for ``xclif.from_swagger``."""
+"""Tests for ``xclif.from_openapi``."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ import pytest
 
 from xclif.command import Command
 from xclif.errors import UsageError
-from xclif.from_swagger import (
+from xclif.from_openapi import (
     _build_command_tree,
     _collect_path_params,
     _has_request_body,
@@ -334,16 +334,16 @@ class TestBuildCommandTree:
         assert len(root.subcommands) == 0
 
 
-# ---- Cli.from_swagger integration ----
+# ---- Cli.from_openapi integration ----
 
 
-class TestCliFromSwagger:
+class TestCliFromOpenapi:
     def test_builds_cli(self, tmp_path: Path) -> None:
         from xclif import Cli
 
         spec_file = tmp_path / "spec.json"
         spec_file.write_text(json.dumps(SAMPLE_SPEC), encoding="utf-8")
-        cli = Cli.from_swagger(str(spec_file))
+        cli = Cli.from_openapi(str(spec_file))
         assert cli.root_command.name == "pet-store"
         assert "pets" in cli.root_command.subcommands
 
@@ -352,7 +352,7 @@ class TestCliFromSwagger:
 
         spec_file = tmp_path / "spec.json"
         spec_file.write_text(json.dumps(SAMPLE_SPEC), encoding="utf-8")
-        cli = Cli.from_swagger(str(spec_file))
+        cli = Cli.from_openapi(str(spec_file))
         root_opts = cli.root_command.options
         assert "api_key" in root_opts
         assert "base_url" in root_opts
@@ -365,7 +365,7 @@ class TestCliFromSwagger:
 
         spec_file = tmp_path / "spec.json"
         spec_file.write_text(json.dumps(SAMPLE_SPEC), encoding="utf-8")
-        cli = Cli.from_swagger(str(spec_file), base_url="https://custom.example.com")
+        cli = Cli.from_openapi(str(spec_file), base_url="https://custom.example.com")
         assert cli.root_command.options["base_url"].default == "https://custom.example.com"
 
     def test_show_no_description(self, tmp_path: Path) -> None:
@@ -373,7 +373,7 @@ class TestCliFromSwagger:
 
         spec_file = tmp_path / "spec.json"
         spec_file.write_text(json.dumps(SAMPLE_SPEC), encoding="utf-8")
-        cli = Cli.from_swagger(str(spec_file), show_no_description=False)
+        cli = Cli.from_openapi(str(spec_file), show_no_description=False)
         assert cli.root_command.show_no_description is False
 
     def test_help_shows_tree(self, tmp_path: Path, capsys) -> None:
@@ -381,7 +381,7 @@ class TestCliFromSwagger:
 
         spec_file = tmp_path / "spec.json"
         spec_file.write_text(json.dumps(SAMPLE_SPEC), encoding="utf-8")
-        cli = Cli.from_swagger(str(spec_file))
+        cli = Cli.from_openapi(str(spec_file))
         # Force agent help so the full command tree (including nested leaf
         # commands) is rendered deterministically, independent of TTY/agent
         # auto-detection.

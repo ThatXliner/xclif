@@ -1,5 +1,5 @@
-Swagger/OpenAPI
-===============
+OpenAPI
+=======
 
 Xclif can generate a fully functional CLI from any `OpenAPI 3.0`_ (formerly Swagger) specification.
 Each API endpoint becomes a subcommand, path parameters become positional arguments, query
@@ -12,7 +12,7 @@ Entry point
 
    from xclif import Cli
 
-   cli = Cli.from_swagger("petstore.json")
+   cli = Cli.from_openapi("petstore.json")
    cli()
 
 This parses the spec, builds the command tree, and lets you interact with the API from your
@@ -99,14 +99,14 @@ You can inspect the generated command tree without writing any code:
 
 .. code-block:: bash
 
-   xclif from-swagger petstore.json
+   xclif from-openapi petstore.json
 
 This prints the hierarchy of commands, subcommands, and options. Pass ``--output <file>`` to
 generate a standalone Python script:
 
 .. code-block:: bash
 
-   xclif from-swagger petstore.json --output mycli.py
+   xclif from-openapi petstore.json --output mycli.py
    python mycli.py --help
 
 API reference
@@ -115,6 +115,6 @@ API reference
 .. autoclass:: xclif.Cli
    :no-undoc-members:
 
-   .. automethod:: from_swagger
+   .. automethod:: from_openapi
 
 .. _OpenAPI 3.0: https://spec.openapis.org/oas/v3.0.3
