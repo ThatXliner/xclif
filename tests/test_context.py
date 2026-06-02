@@ -1,5 +1,7 @@
 """Unit tests for xclif.context."""
 
+import logging
+
 import pytest
 
 from xclif.context import Context
@@ -23,6 +25,11 @@ def test_colors_default():
 def test_colors_from_data():
     ctx = Context({"colors": "never"})
     assert ctx.colors == "never"
+
+
+def test_log_level_from_verbosity():
+    ctx = Context({"verbose": 2})
+    assert ctx.log_level == logging.DEBUG
 
 
 def test_getitem():

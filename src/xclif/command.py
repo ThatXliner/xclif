@@ -88,7 +88,9 @@ class Command:
         self, *, force_rich: bool = False, force_plain: bool = False
     ) -> None:
         """Print a compact one-screen help summary to stdout."""
-        if not force_rich and not force_plain and not _get_console().is_terminal:
+        from .agents import is_agent
+
+        if not force_rich and not force_plain and is_agent():
             self.print_agent_help()
             return
         from rich.markup import escape
@@ -167,7 +169,9 @@ class Command:
         self, *, force_rich: bool = False, force_plain: bool = False
     ) -> None:
         """Print the full help page (including the long description) to stdout."""
-        if not force_rich and not force_plain and not _get_console().is_terminal:
+        from .agents import is_agent
+
+        if not force_rich and not force_plain and is_agent():
             self.print_agent_help()
             return
         from rich.markdown import Markdown

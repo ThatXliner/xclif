@@ -1,0 +1,30 @@
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Xclif logo">
+  <title>Xclif</title>
+  <defs>
+    <linearGradient id="xc-bg" x1="0" y1="0" x2="200" y2="200" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1E293B"/>
+      <stop offset="1" stop-color="#0F172A"/>
+    </linearGradient>
+  </defs>
+  <rect width="200" height="200" rx="44" fill="url(#xc-bg)"/>
+  <!-- terminal prompt: directory structure IS the command tree -->
+  <g stroke="#22D3A5" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <!-- prompt chevron > -->
+    <path d="M40 64 L66 84 L40 104"/>
+  </g>
+  <!-- command tree branching from the prompt -->
+  <g stroke="#22D3A5" stroke-width="7" stroke-linecap="round" fill="none">
+    <path d="M92 84 H120"/>
+    <path d="M120 84 V124 H148"/>
+    <path d="M120 84 V52 H148"/>
+    <path d="M120 124 V152 H148"/>
+  </g>
+  <g fill="#5EEAD4">
+    <circle cx="120" cy="84" r="8"/>
+    <circle cx="152" cy="52" r="8"/>
+    <circle cx="152" cy="124" r="8"/>
+    <circle cx="152" cy="152" r="8"/>
+  </g>
+  <!-- blinking cursor block under prompt -->
+  <rect x="40" y="120" width="22" height="14" rx="3" fill="#22D3A5"/>
+</svg>
