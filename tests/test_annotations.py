@@ -1,8 +1,8 @@
 """Unit tests for xclif.annotations."""
 import pytest
 from pathlib import Path
-from typing import Literal
-from xclif.annotations import annotation2converter
+from typing import Literal, Optional, Union
+from xclif.annotations import annotation2converter, unwrap_list
 
 
 def test_literal_converter_accepts_valid_value():
@@ -33,6 +33,29 @@ def test_non_literal_unchanged():
     assert annotation2converter(int) is int
 
 
+def test_unwraps_optional_pep604():
+    assert annotation2converter(str | None) is str
+    assert annotation2converter(int | None) is int
+
+
+def test_unwraps_optional_typing():
+    assert annotation2converter(Optional[str]) is str
+    assert annotation2converter(Optional[int]) is int
+
+
+def test_unwraps_optional_around_literal():
+    conv = annotation2converter(Optional[Literal["a", "b"]])
+    assert conv("a") == "a"
+    with pytest.raises(ValueError, match="a.*b"):
+        conv("c")
+
+
+def test_ambiguous_union_unsupported():
+    # More than one non-None member → cannot pick a converter.
+    assert annotation2converter(int | str) is None
+    assert annotation2converter(Union[int, str, None]) is None
+
+
 def test_path_converter():
     conv = annotation2converter(Path)
     assert conv("/tmp/x") == Path("/tmp/x")
@@ -40,3 +63,18 @@ def test_path_converter():
 
 def test_list_path_converter():
     assert annotation2converter(list[Path]) is Path
+
+
+def test_unwrap_list_element_type():
+    assert unwrap_list(list[str]) is str
+    assert unwrap_list(list[int]) is int
+    assert unwrap_list(list[Path]) is Path
+
+
+def test_unwrap_list_non_list_unchanged():
+    assert unwrap_list(str) is str
+    assert unwrap_list(int) is int
+
+
+def test_unwrap_list_bare_list_unchanged():
+    assert unwrap_list(list) is list
