@@ -256,6 +256,25 @@ def parse_and_execute_impl(
     if context is None:
         context = {}
 
+    # Lazy PATH-based plugin discovery (Git-style): when the first arg isn't
+    # a known subcommand, check for ``{root}-{name}`` in PATH and delegate.
+    if (
+        args
+        and context.get("_discover_path_plugins")
+        and context.get("_root_name")
+        and args[0] not in command.subcommands
+    ):
+        from xclif.plugins import find_path_plugin
+
+        exe = find_path_plugin(context["_root_name"], args[0])
+        if exe is not None:
+            import subprocess
+            import sys
+
+            # On Windows, .bat/.cmd files require shell=True (WinError 193 otherwise)
+            shell = sys.platform == "win32" and exe.lower().endswith((".bat", ".cmd"))
+            return subprocess.call([exe, *args[1:]], shell=shell)
+
     # Merge all option namespaces for scanning: user options + implicit options.
     # We keep them logically separate (implicit_options vs options on Command)
     # but the scanner needs to see both so it knows the arity of every token.

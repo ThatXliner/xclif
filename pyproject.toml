@@ -28,6 +28,8 @@ classifiers = [
 [project.scripts]
 xclif = "xclif.__main__:cli"
 
+[project.entry-points."xclif.subcommands"]
+
 [project.urls]
 Homepage = "https://github.com/ThatXliner/xclif"
 Documentation = "https://xclif.readthedocs.io/en/latest/index.html"

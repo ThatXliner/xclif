@@ -3,7 +3,7 @@
 import importlib
 import types
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -285,3 +285,100 @@ def test_cli_missing_config_file_is_empty(tmp_path):
     with patch("platformdirs.user_config_dir", return_value=str(tmp_path)):
         cli = Cli(root_command=root)
     assert cli._config_data == {}
+
+
+# ---------------------------------------------------------------------------
+# Plugin discovery — entry points
+# ---------------------------------------------------------------------------
+
+
+def test_cli_discovers_plugin_subcommands():
+    """Plugin subcommands discovered via entry points are mounted on root."""
+    mock_cmd = Command("myplugin", lambda: 0)
+    mock_ep = MagicMock()
+    mock_ep.name = "myplugin"
+    mock_ep.load.return_value = mock_cmd
+
+    root = Command("myapp", lambda: 0)
+    cli = Cli(root_command=root)
+    with patch("importlib.metadata.entry_points", return_value=[mock_ep]):
+        cli._finalize()
+
+    assert "myplugin" in cli.root_command.subcommands
+    assert cli.root_command.subcommands["myplugin"] is mock_cmd
+
+
+def test_cli_plugin_does_not_override_user_subcommand():
+    """A plugin with the same name as a user subcommand is silently skipped."""
+    mock_cmd = Command("greet", lambda: 0)
+    mock_ep = MagicMock()
+    mock_ep.name = "greet"
+    mock_ep.load.return_value = mock_cmd
+
+    user_cmd = Command("greet", lambda: 0)
+    root = Command("myapp", lambda: 0, subcommands={"greet": user_cmd})
+    cli = Cli(root_command=root)
+    with patch("importlib.metadata.entry_points", return_value=[mock_ep]):
+        cli._finalize()
+
+    assert cli.root_command.subcommands["greet"] is user_cmd
+
+
+def test_cli_discover_plugins_false_suppresses_discovery():
+    """Setting discover_plugins=False prevents entry point scanning."""
+    mock_cmd = Command("myplugin", lambda: 0)
+    mock_ep = MagicMock()
+    mock_ep.name = "myplugin"
+    mock_ep.load.return_value = mock_cmd
+
+    root = Command("myapp", lambda: 0)
+    cli = Cli(root_command=root, discover_plugins=False)
+    with patch("importlib.metadata.entry_points", return_value=[mock_ep]):
+        cli._finalize()
+
+    assert "myplugin" not in cli.root_command.subcommands
+
+
+# ---------------------------------------------------------------------------
+# Plugin discovery — PATH-based (Git-style, lazy)
+# ---------------------------------------------------------------------------
+
+
+def test_cli_path_plugin_delegates_to_external_exe(tmp_path, make_plugin_exe):
+    """An unknown root subcommand triggers PATH-based plugin lookup."""
+    make_plugin_exe("myapp", "deploy")
+
+    sub = Command("status", lambda: 0)
+    root = Command("myapp", lambda: 0, subcommands={"status": sub})
+    with patch.dict("os.environ", {"PATH": str(tmp_path)}):
+        result = root.execute(["deploy"], context={
+            "env_prefix": "MYAPP", "config_data": {},
+            "_discover_path_plugins": True, "_root_name": "myapp",
+        })
+    assert result == 0
+
+
+def test_cli_path_plugin_does_not_interfere_with_known_subcommand(tmp_path, make_plugin_exe):
+    """A known subcommand is dispatched normally, not overridden by PATH plugins."""
+    make_plugin_exe("myapp", "greet")
+
+    received = []
+    root = Command("myapp", lambda: 0, subcommands={
+        "greet": Command("greet", lambda: (received.append("ran"), 0)[1]),
+    })
+    with patch.dict("os.environ", {"PATH": str(tmp_path)}):
+        result = root.execute(["greet"])
+
+    assert result == 0
+    assert received == ["ran"]
+
+
+def test_cli_discover_path_plugins_false_suppresses_discovery(tmp_path, make_plugin_exe):
+    """discover_path_plugins=False prevents PATH lookup for unknown commands."""
+    make_plugin_exe("myapp", "deploy")
+
+    sub = Command("status", lambda: 0)
+    root = Command("myapp", lambda: 0, subcommands={"status": sub})
+    with patch.dict("os.environ", {"PATH": str(tmp_path)}):
+        result = root.execute(["deploy"])
+    assert result == 2  # UsageError caught → exit code 2
