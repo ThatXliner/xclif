@@ -67,6 +67,12 @@ def test_implicit_option_name_raises():
         extract_parameters(f)
 
 
+def test_implicit_option_cli_name_override_raises():
+    def f(foo: Annotated[str, OptionMeta(name="help")] = "bar") -> None: ...
+    with pytest.raises(ValueError, match="implicit option"):
+        extract_parameters(f)
+
+
 def test_keyword_only_param_raises():
     def f(*, name: str) -> None: ...
     with pytest.raises(TypeError, match="unsupported"):
@@ -230,6 +236,7 @@ def test_print_long_help_renders_markdown(capsys, monkeypatch):
     import sys
     from rich.console import Console
     monkeypatch.setattr(sys.modules["xclif.command"], "_get_console", lambda **kw: Console(force_terminal=True))
+    monkeypatch.setattr("xclif.agents.is_agent", lambda: False)
 
     @command()
     def greet(name: str) -> None:
@@ -549,40 +556,41 @@ def test_extract_params_with_config_int():
 
 
 def test_unwrap_param_metadata_plain_type():
-    inner, arg_meta, opt_meta, with_config = unwrap_param_metadata(str)
+    inner, arg_meta, opt_meta, with_config, cascade = unwrap_param_metadata(str)
     assert inner is str
     assert arg_meta is None
     assert opt_meta is None
     assert with_config is None
+    assert cascade is False
 
 def test_unwrap_param_metadata_with_arg():
     a = Arg(description="A file", name="FILE")
-    inner, arg_meta, opt_meta, with_config = unwrap_param_metadata(Annotated[str, a])
-    assert inner is str and arg_meta is a and opt_meta is None and with_config is None
+    inner, arg_meta, opt_meta, with_config, cascade = unwrap_param_metadata(Annotated[str, a])
+    assert inner is str and arg_meta is a and opt_meta is None and with_config is None and cascade is False
 
 def test_unwrap_param_metadata_with_option():
     o = OptionMeta(description="Dry run", name="dry-run")
-    inner, arg_meta, opt_meta, with_config = unwrap_param_metadata(Annotated[bool, o])
-    assert inner is bool and arg_meta is None and opt_meta is o and with_config is None
+    inner, arg_meta, opt_meta, with_config, cascade = unwrap_param_metadata(Annotated[bool, o])
+    assert inner is bool and arg_meta is None and opt_meta is o and with_config is None and cascade is False
 
 def test_unwrap_param_metadata_with_config():
     from xclif import WithConfig
-    inner, arg_meta, opt_meta, with_config = unwrap_param_metadata(Annotated[str, WithConfig()])
-    assert inner is str and isinstance(with_config, WithConfig) and arg_meta is None and opt_meta is None
+    inner, arg_meta, opt_meta, with_config, cascade = unwrap_param_metadata(Annotated[str, WithConfig()])
+    assert inner is str and isinstance(with_config, WithConfig) and arg_meta is None and opt_meta is None and cascade is False
 
 def test_unwrap_param_metadata_combined():
     from xclif import WithConfig
     a = Arg(description="desc")
     wc = WithConfig()
-    inner, arg_meta, opt_meta, with_config = unwrap_param_metadata(Annotated[str, a, wc])
-    assert inner is str and arg_meta is a and opt_meta is None and with_config is wc
+    inner, arg_meta, opt_meta, with_config, cascade = unwrap_param_metadata(Annotated[str, a, wc])
+    assert inner is str and arg_meta is a and opt_meta is None and with_config is wc and cascade is False
 
 def test_unwrap_param_metadata_option_and_withconfig():
     from xclif import WithConfig
     o = OptionMeta(description="desc")
     wc = WithConfig()
-    inner, arg_meta, opt_meta, with_config = unwrap_param_metadata(Annotated[str, o, wc])
-    assert inner is str and arg_meta is None and opt_meta is o and with_config is wc
+    inner, arg_meta, opt_meta, with_config, cascade = unwrap_param_metadata(Annotated[str, o, wc])
+    assert inner is str and arg_meta is None and opt_meta is o and with_config is wc and cascade is False
 
 
 # ---------------------------------------------------------------------------
@@ -815,14 +823,9 @@ def test_agent_help_subcommand_with_arguments(capsys):
 
 def _patch_console_non_tty(monkeypatch):
     """Patch _get_console to report non-TTY."""
-    import sys
-    _cmd_module = sys.modules["xclif.command"]
-    monkeypatch.setattr(_cmd_module, "_get_console", lambda **kw: type("C", (), {"is_terminal": False})())
-
-
-def test_print_short_help_dispatches_agent_when_not_tty(capsys, monkeypatch):
-    """print_short_help uses agent format when Console reports non-TTY."""
-    _patch_console_non_tty(monkeypatch)
+def test_print_short_help_dispatches_agent_when_detected(capsys, monkeypatch):
+    """print_short_help uses agent format when is_agent() returns True."""
+    monkeypatch.setattr("xclif.agents.is_agent", lambda: True)
     root = Command("app", lambda: 0)
     root.run.__doc__ = "My app."
 
@@ -838,9 +841,9 @@ def test_print_short_help_dispatches_agent_when_not_tty(capsys, monkeypatch):
     assert "[b]" not in out
 
 
-def test_print_long_help_dispatches_agent_when_not_tty(capsys, monkeypatch):
-    """print_long_help uses agent format when Console reports non-TTY."""
-    _patch_console_non_tty(monkeypatch)
+def test_print_long_help_dispatches_agent_when_detected(capsys, monkeypatch):
+    """print_long_help uses agent format when is_agent() returns True."""
+    monkeypatch.setattr("xclif.agents.is_agent", lambda: True)
 
     @command()
     def mytool(name: str) -> None:

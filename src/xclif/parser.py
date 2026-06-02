@@ -56,6 +56,7 @@ Single occurrences still produce a one-element list (never unwrapped).
 """
 from __future__ import annotations
 
+import inspect
 import os
 from collections import defaultdict
 from difflib import get_close_matches
@@ -64,6 +65,8 @@ from typing import TYPE_CHECKING
 from xclif.config import resolve_key
 from xclif.definition import Argument, _DefinitionOption
 from xclif.errors import UsageError
+from xclif.context import Context, _reset_context, _set_context
+from xclif.logging import configure_logging
 
 if TYPE_CHECKING:
     from xclif.command import Command
@@ -94,6 +97,22 @@ def _build_flag_map(options: dict[str, _DefinitionOption]) -> dict[str, str]:
 def _type_name(converter: type) -> str:
     """Return a human-readable name for a type converter."""
     return getattr(converter, "__name__", str(converter))
+
+
+def _convert_option_value(option: _DefinitionOption, raw: str) -> object:
+    """Convert and validate a raw option value."""
+    try:
+        value = option.converter(raw)
+    except (ValueError, TypeError):
+        raise UsageError(
+            f"Invalid value {raw!r} for option '--{option.name.replace('_', '-')}': expected {_type_name(option.converter)}"
+        )
+    if option.choices is not None and value not in option.choices:
+        raise UsageError(
+            f"Invalid value {raw!r} for option '--{option.name.replace('_', '-')}': "
+            f"expected one of: {', '.join(option.choices)}"
+        )
+    return value
 
 
 def _suggest_option(name: str, options: dict[str, _DefinitionOption]) -> str | None:
@@ -147,12 +166,7 @@ def _parse_token_stream(
                 option = options[name]
                 if option.converter is bool:
                     raise UsageError(f"Boolean flag {name_part!r} does not take a value")
-                try:
-                    parsed_opts[name].append(option.converter(value))
-                except (ValueError, TypeError):
-                    raise UsageError(
-                        f"Invalid value {value!r} for option '--{option.name.replace('_', '-')}': expected {_type_name(option.converter)}"
-                    )
+                parsed_opts[name].append(_convert_option_value(option, value))
             else:
                 flag = token.removeprefix("--").replace("-", "_")
                 name = flag_map.get(flag)
@@ -163,35 +177,32 @@ def _parse_token_stream(
                 option = options[name]
                 if option.converter is bool:
                     parsed_opts[name].append(True)
+                elif option.optional_value is not None:
+                    parsed_opts[name].append(option.optional_value)
                 else:
                     if i + 1 >= len(args):
                         raise UsageError(f"Option {token!r} requires a value")
                     i += 1
-                    try:
-                        parsed_opts[name].append(option.converter(args[i]))
-                    except (ValueError, TypeError):
-                        raise UsageError(
-                            f"Invalid value {args[i]!r} for option '--{option.name.replace('_', '-')}': expected {_type_name(option.converter)}"
-                        )
+                    parsed_opts[name].append(_convert_option_value(option, args[i]))
 
         elif token.startswith("-") and len(token) > 1:
             # Short option: -v  or  -n value
             if token not in alias_map:
+                if _parse_short_bool_cluster(token, alias_map, options, parsed_opts):
+                    i += 1
+                    continue
                 raise UsageError(f"Unknown option {token!r}")
             long_name = alias_map[token]
             option = options[long_name]
             if option.converter is bool:
                 parsed_opts[long_name].append(True)
+            elif option.optional_value is not None:
+                parsed_opts[long_name].append(option.optional_value)
             else:
                 if i + 1 >= len(args):
                     raise UsageError(f"Option {token!r} requires a value")
                 i += 1
-                try:
-                    parsed_opts[long_name].append(option.converter(args[i]))
-                except (ValueError, TypeError):
-                    raise UsageError(
-                        f"Invalid value {args[i]!r} for option '--{long_name.replace('_', '-')}': expected {_type_name(option.converter)}"
-                    )
+                parsed_opts[long_name].append(_convert_option_value(option, args[i]))
 
         elif token in subcommands:
             # Subcommand name — stop scanning, hand off tail
@@ -203,6 +214,33 @@ def _parse_token_stream(
         i += 1
 
     return positionals, parsed_opts, None
+
+
+def _parse_short_bool_cluster(
+    token: str,
+    alias_map: dict[str, str],
+    options: dict[str, _DefinitionOption],
+    parsed_opts: dict[str, list],
+) -> bool:
+    """Parse clustered boolean flags such as ``-vvv``.
+
+    Value-taking options are intentionally excluded because ``-abc value`` is
+    ambiguous without a larger short-option grammar.
+    """
+    if len(token) <= 2:
+        return False
+
+    names: list[str] = []
+    for char in token[1:]:
+        alias = f"-{char}"
+        name = alias_map.get(alias)
+        if name is None or options[name].converter is not bool:
+            return False
+        names.append(name)
+
+    for name in names:
+        parsed_opts[name].append(True)
+    return True
 
 
 def parse_and_execute_impl(
@@ -221,7 +259,7 @@ def parse_and_execute_impl(
     # Merge all option namespaces for scanning: user options + implicit options.
     # We keep them logically separate (implicit_options vs options on Command)
     # but the scanner needs to see both so it knows the arity of every token.
-    all_options = {**command.implicit_options, **command.options}
+    all_options = {**command.options, **command.implicit_options}
 
     positionals, parsed_opts, subcmd_index = _parse_token_stream(
         all_options, command.subcommands, args
@@ -230,12 +268,23 @@ def parse_and_execute_impl(
     # --- Act on implicit options first, before any dispatch ---
 
     # --help / -h: print help and exit immediately
+    # Supports --help (auto-detect), --help=plain, --help=rich, --help=agent
     if parsed_opts.get("help"):
-        if subcmd_index is not None:
-            subcommand = command.subcommands[args[subcmd_index]]
-            subcommand.print_long_help()
+        help_mode = parsed_opts["help"][-1]  # last wins
+        if help_mode not in ("auto", "plain", "rich", "agent"):
+            raise UsageError(
+                f"Invalid help mode {help_mode!r}",
+                hint="Valid modes: plain, rich, agent",
+            )
+        target = command.subcommands[args[subcmd_index]] if subcmd_index is not None else command
+        if help_mode == "agent":
+            target.print_agent_help()
+        elif help_mode == "rich":
+            target.print_long_help(force_rich=True)
+        elif help_mode == "plain":
+            target.print_long_help(force_rich=True, force_plain=True)
         else:
-            command.print_long_help()
+            target.print_long_help()
         return 0
 
     # --version: only present on root command (injected by Cli)
@@ -254,6 +303,19 @@ def parse_and_execute_impl(
                 new_context[name] = existing + len(values)
             else:
                 new_context[name] = values[-1]  # last wins
+
+    # Cascade user-defined options marked with Cascade()
+    for name, option in command.options.items():
+        if option.cascading:
+            if name in parsed_opts:
+                values = parsed_opts[name]
+                new_context[name] = values[-1]  # last wins
+            else:
+                resolved = _resolve_with_config(name, option, new_context)
+                if resolved is not _CONFIG_MISSING:
+                    new_context[name] = resolved
+                elif option.default is not None:
+                    new_context[name] = option.default
 
     # --- Dispatch ---
 
@@ -301,11 +363,12 @@ def parse_and_execute_impl(
         raise UsageError(f"Missing required argument(s): {', '.join(missing)}")
 
     # Convert variadic remainder
+    variadic_items: list = []
     if variadic_arg:
         remaining = positionals[len(fixed_args) :]
         for raw in remaining:
             try:
-                converted_args.append(variadic_arg.converter(raw))
+                variadic_items.append(variadic_arg.converter(raw))
             except (ValueError, TypeError):
                 raise UsageError(
                     f"Invalid value {raw!r} for argument '{variadic_arg.name}': expected {_type_name(variadic_arg.converter)}"
@@ -330,7 +393,37 @@ def parse_and_execute_impl(
             elif option.default is not None:
                 user_kwargs[name] = option.default
 
-    return command.run(*converted_args, **user_kwargs) or 0
+    configure_logging(
+        verbosity=new_context.get("verbose", 0),
+        colors=new_context.get("colors", "auto"),
+    )
+
+    token = _set_context(Context(new_context))
+    try:
+        if variadic_arg:
+            # When a variadic *args parameter exists, interleave fixed args and
+            # options in signature order, then append variadic items positionally.
+            # Passing options as **kwargs alongside extra positionals causes
+            # "got multiple values" if option parameters sit between fixed args
+            # and *args in the function signature.
+            sig = inspect.signature(command.run)
+            positional_call: list = []
+            remaining_kwargs: dict = dict(user_kwargs)
+            fixed_iter = iter(converted_args)
+            arg_names = {a.name for a in fixed_args}
+            for param_name, param in sig.parameters.items():
+                if param.kind == param.VAR_POSITIONAL:
+                    break
+                if param.kind == param.VAR_KEYWORD:
+                    break
+                if param_name in arg_names:
+                    positional_call.append(next(fixed_iter))
+                elif param_name in remaining_kwargs:
+                    positional_call.append(remaining_kwargs.pop(param_name))
+            return command.run(*positional_call, *variadic_items, **remaining_kwargs) or 0
+        return command.run(*converted_args, **user_kwargs) or 0
+    finally:
+        _reset_context(token)
 
 
 def _user_opts(parsed_opts: dict, command: "Command") -> bool:
@@ -373,9 +466,9 @@ def _resolve_with_config(
     env_prefix = context.get("env_prefix")
     config_data = context.get("config_data", {})
 
-    # Try env var
-    env_var = f"{env_prefix}_{name.upper()}" if env_prefix else None
-    if env_var:
+    # Try env var (prefixed takes priority)
+    if env_prefix:
+        env_var = f"{env_prefix}_{name.upper()}"
         raw = os.environ.get(env_var)
         if raw is not None:
             if option_or_arg.converter is bool:
@@ -387,6 +480,20 @@ def _resolve_with_config(
                     f"Invalid value {raw!r} from env var '{env_var}': "
                     f"expected {_type_name(option_or_arg.converter)}"
                 )
+
+    # Try unprefixed env var (lower priority than prefixed)
+    unprefixed = name.upper()
+    raw = os.environ.get(unprefixed)
+    if raw is not None:
+        if option_or_arg.converter is bool:
+            return _parse_bool_string(raw, f"env var '{unprefixed}'")
+        try:
+            return option_or_arg.converter(raw)
+        except (ValueError, TypeError):
+            raise UsageError(
+                f"Invalid value {raw!r} from env var '{unprefixed}': "
+                f"expected {_type_name(option_or_arg.converter)}"
+            )
 
     # Try config file
     config_key = name

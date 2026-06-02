@@ -28,6 +28,7 @@ import types
 from pathlib import Path
 
 from xclif.command import Command
+from xclif.importer import is_private_route_module
 
 __all__ = ["compile_routes"]
 
@@ -89,6 +90,8 @@ def compile_routes(routes: types.ModuleType, output_dir: Path | None = None) -> 
         routes.__path__,
         routes.__name__ + ".",
     ):
+        if is_private_route_module(mod_name.removeprefix(routes.__name__ + ".")):
+            continue
         mod = importlib.import_module(mod_name)
         attr = _find_command_attr(mod)
         if attr is not None:
@@ -115,7 +118,7 @@ def compile_routes(routes: types.ModuleType, output_dir: Path | None = None) -> 
         "from xclif import Cli, _copy_root_command",
         "",
         "",
-        "def _build_cli(version: str | None = None, env_prefix: str | None = None, config_name: str | None = None, local_config: str | None = None) -> Cli:",
+        "def _build_cli(version: str | None = None, env_prefix: str | None = None, config_name: str | None = None, local_config: str | None = None, show_no_description: bool | None = None) -> Cli:",
     ]
 
     # Import lines (inside the function so they remain lazy at module-load time
@@ -147,7 +150,7 @@ def compile_routes(routes: types.ModuleType, output_dir: Path | None = None) -> 
     sub_entries.sort(key=lambda x: (len(x[0]), x[0]))
 
     lines.append("")
-    lines.append("    cli = Cli(root_command=root, version=version, env_prefix=env_prefix, config_name=config_name, local_config=local_config)")
+    lines.append("    cli = Cli(root_command=root, version=version, env_prefix=env_prefix, config_name=config_name, local_config=local_config, show_no_description=show_no_description)")
     for path, alias in sub_entries:
         path_repr = repr(path)
         lines.append(f"    cli.add_command({path_repr}, {alias})")

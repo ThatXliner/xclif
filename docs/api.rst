@@ -23,6 +23,20 @@ xclif.definition
    :members:
    :show-inheritance:
 
+xclif.context
+-------------
+
+.. automodule:: xclif.context
+   :members:
+   :show-inheritance:
+
+xclif.logging
+-------------
+
+.. automodule:: xclif.logging
+   :members:
+   :show-inheritance:
+
 xclif.errors
 ------------
 

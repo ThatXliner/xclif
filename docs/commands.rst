@@ -26,10 +26,33 @@ This produces::
      [name]        No description
 
    Options:
-     --help, -h     Show this help message and exit
+     --help, -h     Show this help message and exit (=plain|rich|agent)
      --verbose, -v  Increase log verbosity (repeatable up to 3 times)
      --colors       Control color output (always|never|auto)
      --loud, -l     No description
+
+To suppress **"No description"** placeholders in help output, pass
+``show_no_description=False`` to the :func:`~xclif.command.command` decorator:
+
+.. code-block:: python
+
+   from xclif import command
+
+   @command(show_no_description=False)
+   def greet(name: str) -> None:
+       ...
+
+Or when constructing :class:`~xclif.command.Command` directly:
+
+.. code-block:: python
+
+   from xclif.command import Command
+
+   cmd = Command("foo", lambda: 0, show_no_description=False)
+
+This omits the description line entirely from help, subcommand listings, and agent output
+when no docstring or description was provided. The default is ``True`` for backward
+compatibility.
 
 Markdown descriptions
 ---------------------
@@ -159,7 +182,7 @@ Implicit options
 
 Every command automatically gets:
 
-- ``--help`` / ``-h`` — print help and exit
+- ``--help`` / ``-h`` — print help and exit (supports ``--help=plain``, ``--help=rich``, and ``--help=agent`` to override auto-detection)
 - ``--verbose`` / ``-v`` — increase verbosity; repeatable up to 3 times (``-vvv``)
 - ``--colors`` — control color output (``always``, ``never``, or ``auto``)
 
@@ -169,6 +192,155 @@ Both ``--verbose`` and ``--colors`` **cascade**: if set at any level, the value 
 automatically inherited by all subcommands. So ``myapp --verbose subcommand`` and
 ``myapp subcommand --verbose`` are equivalent, and ``myapp -vv subcommand`` gives
 the subcommand a verbosity level of 2.
+
+Logging and verbosity
+~~~~~~~~~~~~~~~~~~~~~
+
+Xclif configures Python's standard ``logging`` system before command handlers
+run. Use ordinary loggers in your command modules:
+
+.. code-block:: python
+
+   from xclif import command, get_logger
+
+   log = get_logger(__name__)
+
+   @command()
+   def deploy(target: str) -> None:
+       log.info("Connecting to %s", target)
+       log.debug("Resolved deployment plan")
+       ...
+
+By default, warnings and errors are shown. ``-v`` enables ``INFO`` logs,
+``-vv`` enables ``DEBUG`` logs, and ``-vvv`` enables every record that reaches
+the configured logger. Log output uses Rich on stderr and follows
+``--colors=always|never|auto``.
+
+If your application has already configured logging handlers, Xclif respects
+them and only updates the logger level. Call
+:func:`~xclif.logging.configure_logging` directly with ``force=True`` if you
+want to replace existing handlers with Xclif's Rich handler.
+
+Accessing context
+~~~~~~~~~~~~~~~~~
+
+Use :func:`~xclif.context.get_context` to access the current verbosity level,
+color mode, and other cascading state from anywhere in your code — no need to
+thread values through function calls:
+
+.. code-block:: python
+
+   from xclif import get_context
+
+   def deploy(target: str) -> None:
+       ctx = get_context()
+       if ctx.verbosity >= 2:
+           print(f"Debug: deploying to {target}")
+       run_deploy(target)
+
+   def run_deploy(target: str) -> None:
+       # Works in nested calls too — no need to pass verbosity around
+       ctx = get_context()
+       if ctx.verbosity >= 1:
+           print(f"Connecting to {target}...")
+       ...
+
+The :class:`~xclif.context.Context` object provides typed properties for
+built-in options:
+
+- ``ctx.verbosity`` — ``int`` (0–3), from ``-v`` / ``-vv`` / ``-vvv``
+- ``ctx.log_level`` — standard ``logging`` level implied by ``ctx.verbosity``
+- ``ctx.colors`` — ``str`` (``"always"`` / ``"never"`` / ``"auto"``)
+
+.. note::
+
+   ``get_context()`` can only be called during command dispatch (inside a
+   command's ``run()`` function or code called from it). Calling it at module
+   level or outside dispatch raises ``RuntimeError``.
+
+User-defined cascading options
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+You can declare your own cascading options by annotating a parameter with
+:class:`~xclif.Cascade`. Cascading options set on ancestor commands are
+propagated to all subcommands and accessible via
+:func:`~xclif.context.get_context`.
+
+Mark a root-level option with ``Cascade()`` to share it across the entire
+command tree:
+
+.. code-block:: python
+
+   from xclif import Cascade, command, get_context
+
+   @command()
+   def root(base_url: str = "https://api.example.com") -> None:
+       """Root command."""
+       # base_url cascades to all subcommands
+
+   @command()
+   def deploy() -> None:
+       """Deploy to the environment."""
+       ctx = get_context()
+       print(f"Deploying to {ctx['base_url']}")
+
+Now ``myapp --base-url https://prod.example.com deploy`` sets ``base_url``
+for the ``deploy`` subcommand.
+
+Cascade type-wrapper syntax
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+``Cascade`` also works as a type wrapper, which is especially useful when
+combined with :class:`~xclif.WithConfig`:
+
+.. code-block:: python
+
+   from xclif import Cascade, WithConfig, command, get_context
+
+   @command()
+   def root(
+       base_url: Cascade[WithConfig[str]] = "https://api.example.com",
+   ) -> None:
+       ...
+
+Here ``Cascade[WithConfig[str]]`` is sugar for
+``Annotated[str, WithConfig(), Cascade()]`` — the option is both config-backed
+and cascading.
+
+You can also combine ``Cascade`` with ``Arg`` and ``Option`` annotations via
+the full ``Annotated`` form:
+
+.. code-block:: python
+
+   from typing import Annotated
+   from xclif import Cascade, Option, command, get_context
+
+   @command()
+   def root(
+       base_url: Annotated[
+           str,
+           Option(description="API base URL"),
+           Cascade(),
+       ] = "https://api.example.com",
+   ) -> None:
+       """Root command with a cascading option."""
+       ...
+
+Accessing cascaded values
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Use dict-style access on the :class:`~xclif.context.Context` object:
+
+.. code-block:: python
+
+   ctx = get_context()
+   ctx["base_url"]          # raises KeyError if not set
+   ctx.get("base_url")      # returns None if not set
+   ctx.get("base_url", "https://default.example.com")  # with default
+
+``get_context()`` returns the same :class:`~xclif.context.Context` instance
+regardless of which command in the tree accesses it, so cascaded values set
+by an ancestor are always visible to descendant commands.
 
 Agent-optimized help
 --------------------
@@ -193,9 +365,22 @@ produces::
    config get - Print the current config.
    config set KEY VALUE - Set config values.
 
-Detection uses Rich's ``Console.is_terminal``, which respects ``FORCE_COLOR``,
-``TTY_COMPATIBLE``, and other standard environment variables. To force Rich output
-in a non-TTY context (e.g. benchmarks), set ``FORCE_COLOR=1``.
+Overriding the format
+~~~~~~~~~~~~~~~~~~~~~
+
+By default, format detection uses Rich's ``Console.is_terminal``, which respects
+``FORCE_COLOR``, ``TTY_COMPATIBLE``, and other standard environment variables.
+
+You can also override the format explicitly:
+
+- ``--help=plain`` — same layout as rich, but with no colors or ANSI codes
+- ``--help=rich`` — full Rich-formatted help with colors, even when piped
+- ``--help=agent`` — compact token-efficient format, even in a TTY
+- ``--help`` (bare) — auto-detect based on whether stdout is a TTY (rich in TTY, agent when piped)
+
+This is useful when you want to pipe rich help through a pager (``--help=rich | less -R``),
+get plain output in an interactive terminal for scripting, or force agent format for
+LLM consumption.
 
 Building subcommand trees imperatively
 ---------------------------------------

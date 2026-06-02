@@ -88,12 +88,33 @@ def test_config_set_writes_json_if_json_exists(tmp_path):
     assert data["name"] == "Alice"
 
 
-def test_config_path(tmp_path, capsys):
+def test_config_path_default(tmp_path, capsys):
+    """Shows default TOML path when no config file exists."""
     cmd = make_config_command(tmp_path)
     result = cmd.subcommands["path"].execute([])
     assert result == 0
-    out = capsys.readouterr().out
-    assert str(tmp_path) in out
+    out = capsys.readouterr().out.strip()
+    assert out == str(tmp_path / "config.toml")
+
+
+def test_config_path_toml(tmp_path, capsys):
+    """Shows existing TOML path."""
+    (tmp_path / "config.toml").write_text('greeting = "hello"\n')
+    cmd = make_config_command(tmp_path)
+    result = cmd.subcommands["path"].execute([])
+    assert result == 0
+    out = capsys.readouterr().out.strip()
+    assert out == str(tmp_path / "config.toml")
+
+
+def test_config_path_json(tmp_path, capsys):
+    """Shows existing JSON path."""
+    (tmp_path / "config.json").write_text('{"greeting": "hello"}')
+    cmd = make_config_command(tmp_path)
+    result = cmd.subcommands["path"].execute([])
+    assert result == 0
+    out = capsys.readouterr().out.strip()
+    assert out == str(tmp_path / "config.json")
 
 
 def test_cli_auto_injects_config_when_with_config_exists(tmp_path):

@@ -2,6 +2,59 @@
 
 ## Unreleased
 
+### Added
+- Logging mini-library: `get_logger()`, `configure_logging()`, `RichLogHandler`, and `level_from_verbosity()` provide standard `logging` integration with Rich stderr output wired to Xclif verbosity and color options.
+- Parser support for clustered repeated boolean short flags, including `-vv` and `-vvv` for verbosity.
+
+## 0.5.1 — Configurations for MCP (2026-05-05)
+
+### Added
+- `show_no_description` option on `@command()` decorator and `Cli` class: suppress "No description" placeholder per-command or globally
+- `Cli(mcp_command=False)` option to suppress auto-injected `mcp` subcommand even when `mcp` package is installed
+- Documentation for `Cascade` annotation (user-defined cascading options) and MCP server mode
+
+## 0.5.0 — Cascade, MCP server mode, and error UX polish (2026-05-05)
+
+### Added
+- `Cascade` annotation: mark options with `Cascade()` to propagate their values to subcommands, accessible via `get_context()["option_name"]`. Designed for configurable multi-level CLIs — declare on the root command and read in any subcommand.
+- MCP server mode: auto-expose CLI commands as MCP tools. Calling `xclif.mcp.serve(app)` serves your CLI as Model Context Protocol tools for AI agents. (#56)
+- `show_no_description` option on `@command()`: set to `False` to suppress the default "No description provided" placeholder. (#62)
+- Config `path` command now prints the config file path (not just its parent directory). New `--dir` flag returns the config directory instead.
+- Validation of `--colors` option values: invalid values now raise a clear error instead of being silently accepted. (#52)
+- Detection of implicit option collisions: user-defined options that shadow framework-owned implicit options (`--help`, `--verbose`, `--colors`) are now caught with an actionable error at command construction. (#58)
+- Private route modules (names starting with `_`) are now filtered out during route discovery. (#53)
+- Error messages now include `"For more information, try --help"` on usage errors, using the command name with bold cyan formatting for the copy-pasteable hint.
+
+## 0.4.3 — Fixed positional args crash (2026-04-10)
+
+### Fixed
+- Parser crash when variadic args appear after options in function signature. Options are now interleaved with fixed positional args in signature order before appending variadic items, preventing positional/keyword argument conflicts.
+
+## 0.4.2 — Terminal soft wrap behavior changes (2026-04-10)
+
+## 0.4.1 — Minor adjustments in help text system (2026-04-08)
+
+### Added
+- `--help=plain`, `--help=rich`, and `--help=agent` modes: explicitly override help format auto-detection. Bare `--help` still auto-detects based on TTY. `plain` gives the same layout as `rich` but with no ANSI/color; `agent` gives the compact token-efficient format.
+- `optional_value` field on `_DefinitionOption`: options can now be used as bare flags with a default value, or with `=value` syntax.
+
+### Changed
+- Help section headers (`Usage:`, `Subcommands:`, `Arguments:`, `Options:`) are now bold white instead of bold cyan. Only subcommand/option names remain cyan.
+
+## 0.4.0 — Agent help text and Options Cascade (2026-04-08)
+
+### Added
+- `get_context()` API: access cascading framework state (`Context` class) from within command handlers. Exported from `xclif`. (#51)
+- Agent-optimized help: `print_agent_help()` emits token-efficient plain-text help for LLM consumers; auto-detected when stdout is not a TTY. Positional arguments are now shown in agent help output.
+- Colorized help output: cyan accents and dimmed descriptions in `--help` via Rich.
+
+### Changed
+- Renamed internal `definition.Option` to `_DefinitionOption` to avoid confusion with the public `Option` annotation marker.
+- Refactored `_set_context` into separate `set`/`reset` methods for type safety.
+
+### Fixed
+- Benchmarks now set `FORCE_COLOR=1` so `--help` benchmarks measure Rich output correctly.
+
 ## 0.3.0 — Aliases! (2026-04-08)
 
 ### Added

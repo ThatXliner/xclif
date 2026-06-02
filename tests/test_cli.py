@@ -1,5 +1,6 @@
 """Unit tests for xclif.Cli and the from_routes routing system."""
 
+import importlib
 import types
 from pathlib import Path
 from unittest.mock import patch
@@ -41,6 +42,32 @@ def test_cli_completions_is_single_command_with_shell_arg():
     assert comp.subcommands == {}
     assert len(comp.arguments) == 1
     assert comp.arguments[0].choices == ["bash", "zsh", "fish"]
+
+
+def test_cli_does_not_overwrite_user_completions_command(capsys):
+    """A user-defined 'completions' subcommand is preserved (issue #61)."""
+    root = Command("myapp", lambda: 0)
+    user_completions = Command("completions", lambda: 42)
+    root.subcommands["completions"] = user_completions
+
+    cli = Cli(root_command=root)
+    assert cli.root_command.subcommands["completions"] is user_completions
+
+
+def test_cli_does_not_overwrite_user_mcp_command():
+    """A user-defined 'mcp' subcommand is preserved (issue #61)."""
+    root = Command("myapp", lambda: 0)
+    user_mcp = Command("mcp", lambda: 7)
+    root.subcommands["mcp"] = user_mcp
+
+    cli = Cli(root_command=root)
+    assert cli.root_command.subcommands["mcp"] is user_mcp
+
+
+def test_cli_completions_command_flag_suppresses_injection():
+    root = Command("myapp", lambda: 0)
+    cli = Cli(root_command=root, completions_command=False)
+    assert "completions" not in cli.root_command.subcommands
 
 
 def test_cli_add_command_single_level():
@@ -95,12 +122,18 @@ def test_cli_add_command_direct_to_root_with_arguments_raises():
         cli.add_command(["sub"], Command("sub", lambda: 0))
 
 
-def test_cli_construction_with_root_having_arguments_raises():
+def test_cli_construction_with_positional_root_skips_injection():
+    """A root command with positional args is expressible; framework
+    subcommands are silently skipped rather than raising (issue #61)."""
+
     @command()
     def root(name: str) -> None: ...
 
-    with pytest.raises(ValueError, match="Cannot add subcommand"):
-        Cli(root_command=root)
+    cli = Cli(root_command=root)
+    assert "completions" not in cli.root_command.subcommands
+    assert "mcp" not in cli.root_command.subcommands
+    # --version implicit option is still injected
+    assert "version" in cli.root_command.implicit_options
 
 
 # ---------------------------------------------------------------------------
@@ -170,6 +203,48 @@ def test_from_routes_greeter_config_has_set_and_get():
     config = cli.root_command.subcommands["config"]
     assert "set" in config.subcommands
     assert "get" in config.subcommands
+
+
+def test_from_routes_skips_private_modules(tmp_path, monkeypatch):
+    pkg = tmp_path / "private_routes_fixture"
+    pkg.mkdir()
+    (pkg / "__init__.py").write_text(
+        "from xclif import command\n\n"
+        "@command('app')\n"
+        "def app() -> None: ...\n",
+        encoding="utf-8",
+    )
+    (pkg / "public.py").write_text(
+        "from xclif import command\n\n"
+        "@command()\n"
+        "def public() -> None: ...\n",
+        encoding="utf-8",
+    )
+    (pkg / "_private.py").write_text(
+        "from xclif import command\n\n"
+        "@command()\n"
+        "def private() -> None: ...\n",
+        encoding="utf-8",
+    )
+    private_group = pkg / "_internal"
+    private_group.mkdir()
+    (private_group / "__init__.py").write_text("", encoding="utf-8")
+    (private_group / "hidden.py").write_text(
+        "from xclif import command\n\n"
+        "@command()\n"
+        "def hidden() -> None: ...\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.syspath_prepend(str(tmp_path))
+    importlib.invalidate_caches()
+    routes = importlib.import_module("private_routes_fixture")
+
+    cli = Cli.from_routes(routes)
+
+    assert "public" in cli.root_command.subcommands
+    assert "_private" not in cli.root_command.subcommands
+    assert "_internal" not in cli.root_command.subcommands
 
 
 def test_cli_default_env_prefix():
