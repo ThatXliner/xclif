@@ -2,7 +2,7 @@
 import pytest
 from pathlib import Path
 from typing import Literal, Optional, Union
-from xclif.annotations import annotation2converter
+from xclif.annotations import annotation2converter, unwrap_list
 
 
 def test_literal_converter_accepts_valid_value():
@@ -63,3 +63,18 @@ def test_path_converter():
 
 def test_list_path_converter():
     assert annotation2converter(list[Path]) is Path
+
+
+def test_unwrap_list_element_type():
+    assert unwrap_list(list[str]) is str
+    assert unwrap_list(list[int]) is int
+    assert unwrap_list(list[Path]) is Path
+
+
+def test_unwrap_list_non_list_unchanged():
+    assert unwrap_list(str) is str
+    assert unwrap_list(int) is int
+
+
+def test_unwrap_list_bare_list_unchanged():
+    assert unwrap_list(list) is list
