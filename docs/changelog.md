@@ -2,9 +2,23 @@
 
 ## Unreleased
 
+## 0.6.0 — Logging! (2026-06-14)
+
 ### Added
-- Logging mini-library: `get_logger()`, `configure_logging()`, `RichLogHandler`, and `level_from_verbosity()` provide standard `logging` integration with Rich stderr output wired to Xclif verbosity and color options.
+- Logging mini-library: `get_logger()`, `configure_logging()`, `RichLogHandler`, and `level_from_verbosity()` provide standard `logging` integration with Rich stderr output wired to Xclif verbosity and color options. A ready-to-use `log` logger and `f` formatting namespace are bundled and exported from `xclif`. (#50)
 - Parser support for clustered repeated boolean short flags, including `-vv` and `-vvv` for verbosity.
+- `Cli(logging=False)` (also on `from_routes` and `from_manifest`): leave logging entirely to your application. Xclif no longer touches the root logger on dispatch, but the verbosity count remains available via `get_context().verbosity`.
+- `Cli(completions_command=False)`: suppress the auto-injected `completions` subcommand, parallel to the existing `config_command` and `mcp_command` flags.
+- Unprefixed environment-variable fallback for `WithConfig` parameters: `API_KEY` is consulted when `MYAPP_API_KEY` is unset. Priority is unchanged — CLI > prefixed env > unprefixed env > config > default.
+- `xclif.Path` is now a first-class parameter type. It is registered as a converter and exported in `__all__`, so `script: Path` is a usable, documented contract.
+
+### Changed
+- AI-agent detection no longer keys off "stdout is not a TTY". Xclif now detects 14 specific AI coding agents (Claude Code, Cursor, Gemini CLI, and others) via environment variables. Piping `--help` to `grep` no longer triggers the agent-optimized format, while real agents still get it.
+
+### Fixed
+- `Optional[X]` / `X | None` options no longer crash at decorator time. The single non-None Union member is unwrapped and its converter applied, so an option with a `None` default works. (#68)
+- `xclif.Path` parameters no longer crash with "Unsupported type" — `Path` was documented but missing from the converter table. (#70)
+- Auto-injected `completions` and `mcp` subcommands no longer silently overwrite a user-defined subcommand of the same name, and are skipped (rather than raising) when the root command declares positional arguments — making a single root command with a positional expressible. (#61, #73)
 
 ## 0.5.1 — Configurations for MCP (2026-05-05)
 
