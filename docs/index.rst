@@ -27,6 +27,7 @@ file-based routing and a decorator-based API.
    commands
    options
    config
+   logging
    flat-api
    compiler
    mcp
