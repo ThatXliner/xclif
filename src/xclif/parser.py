@@ -393,10 +393,11 @@ def parse_and_execute_impl(
             elif option.default is not None:
                 user_kwargs[name] = option.default
 
-    configure_logging(
-        verbosity=new_context.get("verbose", 0),
-        colors=new_context.get("colors", "auto"),
-    )
+    if new_context.get("configure_logging", True):
+        configure_logging(
+            verbosity=new_context.get("verbose", 0),
+            colors=new_context.get("colors", "auto"),
+        )
 
     token = _set_context(Context(new_context))
     try:

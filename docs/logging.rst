@@ -217,6 +217,31 @@ Rich handler to replace existing handlers, call
 
    configure_logging(verbosity=2, colors="never", force=True)
 
+Note that even when existing handlers are respected, Xclif still **sets the root
+logger level** from ``--verbose`` on every dispatch. If you want to own the level
+too, opt out entirely (below) and set it yourself.
+
+Turning Xclif logging off entirely
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+To stop Xclif from configuring logging at all — no level changes, no Rich
+handler — pass ``logging=False`` to :meth:`~xclif.Cli.from_routes` (or the
+``Cli`` constructor). Logging is then 100% yours; the verbosity count is still
+available through :func:`~xclif.get_context`:
+
+.. code-block:: python
+
+   import logging
+   from xclif import Cli, get_context
+
+   cli = Cli.from_routes(routes, logging=False)
+
+   # In a command, wire up logging however you like:
+   def run() -> None:
+       level = logging.DEBUG if get_context().verbosity >= 2 else logging.INFO
+       logging.getLogger().setLevel(level)
+       ...
+
 Manual configuration
 ---------------------
 

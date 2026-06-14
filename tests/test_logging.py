@@ -292,3 +292,30 @@ def test_parser_does_not_configure_logging_for_help(monkeypatch):
 
     assert cmd.execute(["--help"]) == 0
     assert calls == []
+
+
+def test_parser_skips_logging_when_disabled_in_context(monkeypatch):
+    calls = []
+
+    def fake_configure_logging(*, verbosity: int, colors: str) -> None:
+        calls.append((verbosity, colors))
+
+    monkeypatch.setattr("xclif.parser.configure_logging", fake_configure_logging)
+    cmd = Command("test", lambda: 0)
+
+    assert cmd.execute(["-vv"], context={"configure_logging": False}) == 0
+    assert calls == []
+
+
+def test_disabled_logging_still_exposes_verbosity():
+    from xclif.context import get_context
+
+    seen = {}
+
+    def run() -> int:
+        seen["verbosity"] = get_context().verbosity
+        return 0
+
+    cmd = Command("test", run)
+    assert cmd.execute(["-vv"], context={"configure_logging": False}) == 0
+    assert seen["verbosity"] == 2
