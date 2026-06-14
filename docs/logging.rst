@@ -48,7 +48,8 @@ Modern-style logging
 The standard library's ``%``-style placeholders date back to 2003, before
 ``str.format`` (Python 2.6) and long before f-strings (3.6) existed — the
 ``logging`` API was simply built around the only formatting Python had at the
-time. They are also **lazy**: the message is only interpolated if the record
+time. An advantage of this approach over f-strings is that string formatting
+becomes lazy: the message is only interpolated if the record
 clears the active level, so a filtered-out ``log.debug("%s", value)`` costs
 nothing to format.
 
@@ -56,11 +57,12 @@ nothing to format.
 
    log.info("connecting to %s on port %d", host, port)   # stdlib, lazy
 
-If you prefer modern brace formatting, ``log`` offers ``f``-prefixed variants —
+But because ``str.format`` exists now, if you prefer modern brace formatting,
+``log`` offers ``f``-prefixed variants —
 ``fdebug``, ``finfo``, ``fwarning``, ``ferror``, ``fcritical``, ``fexception``,
-and ``flog``. They take ``str.format`` (``{}`` / ``{name}``) placeholders and,
-as a bonus, **call any callable argument**. Both the formatting and the call
-are deferred until the record is actually emitted:
+and ``flog``. They take ``str.format`` (``{}`` / ``{name}``)
+placeholders and, as a bonus, **call any callable argument**. Both the formatting
+and the call are deferred until the record is actually emitted:
 
 .. code-block:: python
 
@@ -71,10 +73,11 @@ are deferred until the record is actually emitted:
 
 The callable support solves a problem ``%``-style cannot: ``%`` defers the
 *formatting* but not the *arguments*, so ``log.debug("%s", expensive_dump())``
-runs ``expensive_dump()`` every time, even when filtered out. With the
-f-variants you pass the callable itself (``expensive_dump``) — never its result
-(``expensive_dump()``) — and it is invoked only when needed. To log a callable's
-own repr, stringify it at the call site: ``log.fdebug("fn is {}", repr(fn))``.
+runs ``expensive_dump()`` every time, even when filtered out.
+
+With the ``f``-variants you pass the callable itself (``expensive_dump``) — never
+its result (``expensive_dump()``) — and it is invoked only when needed. To log a
+callable's own repr, stringify it at the call site: ``log.fdebug("fn is {}", repr(fn))``.
 
 The same functions are available as :data:`~xclif.f` for code that prefers a
 free function over the ``log`` object — ``f.debug(...)`` is exactly
