@@ -5,6 +5,17 @@ Xclif wires Python's standard :mod:`logging` to its built-in ``-v`` /
 ``--verbose`` flag. You write ordinary log calls; Xclif decides which records
 are shown and renders them with `Rich <https://rich.readthedocs.io/>`_.
 
+.. note::
+
+   Xclif's logging is **not a separate logging system** — it is a thin
+   convenience layer over Python's standard :mod:`logging`. ``log`` forwards to
+   ``logging.getLogger``, ``configure_logging`` attaches a handler to the
+   ordinary root logger, and every record flows through the normal ``logging``
+   tree. Anything you already know about the standard library — levels,
+   handlers, filters, propagation, ``logging.getLogger(__name__)`` — applies
+   unchanged. Xclif only adds the verbosity mapping, a Rich handler, and a
+   couple of ergonomic helpers on top.
+
 Basic usage
 -----------
 
