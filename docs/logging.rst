@@ -32,61 +32,49 @@ Run it:
 
 ``log`` provides the usual methods — ``debug``, ``info``, ``warning``,
 ``error``, ``critical``, ``exception``, and ``log`` — accepting the same
-``%``-style arguments as the standard library.
+``%``-style arguments as the standard library. For a more modern, brace-style
+API see :ref:`modern-style logging <modern-logging>` below.
 
 It is not a logger of its own: on each call it resolves the **calling module's**
 ``__name__`` and forwards to ``logging.getLogger(<that module>)``. So records
 carry the right source name and ``file:line`` no matter which module imported
 ``log``, and everything still flows through the standard :mod:`logging` tree.
 
-Message formatting
-~~~~~~~~~~~~~~~~~~
+.. _modern-logging:
 
-The ``%``-style placeholders above are the standard-library convention, and
-they are **lazy**: the message is only interpolated if the record actually
-clears the active verbosity level. A filtered-out ``log.debug("%s", value)``
-costs nothing to format.
+Modern-style logging
+~~~~~~~~~~~~~~~~~~~~~
 
-.. code-block:: python
-
-   log.info("connecting to %s on port %d", host, port)   # lazy
-
-If you dislike C-style formatting, f-strings work just as well — Python builds
-the string before the call, so there is nothing special to support:
+The standard library's ``%``-style placeholders date back to 2003, before
+``str.format`` (Python 2.6) and long before f-strings (3.6) existed — the
+``logging`` API was simply built around the only formatting Python had at the
+time. They are also **lazy**: the message is only interpolated if the record
+clears the active level, so a filtered-out ``log.debug("%s", value)`` costs
+nothing to format.
 
 .. code-block:: python
 
-   log.info(f"connecting to {host} on port {port}")      # eager
+   log.info("connecting to %s on port %d", host, port)   # stdlib, lazy
 
-Beware the trade-off: an f-string is formatted **eagerly**, every time the line
-runs, even when the message would be discarded. For hot paths or expensive
-interpolations under ``-vv`` / ``-vvv`` gating, prefer ``%``-style so the work
-is skipped when the level is too low.
-
-Lazy values and ``str.format``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-``%``-style defers the *formatting*, but not the *arguments*. If a value is
-itself expensive to compute, it still runs every time::
-
-   log.debug("state: %s", expensive_dump())   # expensive_dump() always runs
-
-For this case ``log`` adds ``f``-prefixed variants — ``fdebug``, ``finfo``,
-``fwarning``, ``ferror``, ``fcritical``, ``fexception``, and ``flog``. They use
-``str.format`` (``{}`` / ``{name}``) placeholders and, crucially, **call any
-callable argument** — both the formatting and the call are deferred until the
-record is actually emitted:
+If you prefer modern brace formatting, ``log`` offers ``f``-prefixed variants —
+``fdebug``, ``finfo``, ``fwarning``, ``ferror``, ``fcritical``, ``fexception``,
+and ``flog``. They take ``str.format`` (``{}`` / ``{name}``) placeholders and,
+as a bonus, **call any callable argument**. Both the formatting and the call
+are deferred until the record is actually emitted:
 
 .. code-block:: python
 
+   log.finfo("connecting to {} on port {}", host, port)
    log.fdebug("state: {}", expensive_dump)            # called only at -vv
    log.fdebug("state: {}", lambda: obj.to_json())     # lambda, same deal
    log.finfo("{user} from {host}", user=u, host=get_host)
 
-Pass the callable itself (``expensive_dump``), not its result
-(``expensive_dump()``) — the variant invokes it for you, and only when needed.
-To log a callable's own repr, stringify it at the call site:
-``log.fdebug("fn is {}", repr(some_func))``.
+The callable support solves a problem ``%``-style cannot: ``%`` defers the
+*formatting* but not the *arguments*, so ``log.debug("%s", expensive_dump())``
+runs ``expensive_dump()`` every time, even when filtered out. With the
+f-variants you pass the callable itself (``expensive_dump``) — never its result
+(``expensive_dump()``) — and it is invoked only when needed. To log a callable's
+own repr, stringify it at the call site: ``log.fdebug("fn is {}", repr(fn))``.
 
 The same functions are available as :data:`~xclif.f` for code that prefers a
 free function over the ``log`` object — ``f.debug(...)`` is exactly
@@ -98,9 +86,21 @@ free function over the ``log`` object — ``f.debug(...)`` is exactly
 
    f.debug("state: {}", expensive_dump)
 
-The plain ``debug`` / ``info`` / ... methods are left untouched: they remain
-byte-for-byte compatible with the standard library so existing code and logging
-linters keep working.
+.. tip::
+
+   f-strings work too — ``log.info(f"port {port}")`` — but they format
+   **eagerly**, every time the line runs, even when the message is discarded.
+   The f-variants keep brace syntax *and* stay lazy.
+
+When to use which
++++++++++++++++++
+
+- ``log.info`` / ``log.debug`` / ... — the default. Byte-for-byte compatible
+  with the standard library, so existing code and ``logging`` linters keep
+  working. Reach for these unless you have a reason not to.
+- ``log.finfo`` / ``log.fdebug`` / ... — when you want brace formatting, or when
+  an argument is expensive to compute and should only run if the record is
+  emitted.
 
 Named loggers (escape hatch)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
