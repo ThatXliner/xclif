@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 import logging
 
 import pytest
@@ -10,8 +11,10 @@ from xclif.command import Command
 from xclif.logging import (
     RichLogHandler,
     configure_logging,
+    f,
     get_logger,
     level_from_verbosity,
+    log,
 )
 
 
@@ -35,6 +38,123 @@ def restore_root_logging():
 def test_get_logger_returns_standard_logger():
     logger = get_logger("xclif.tests.logging")
     assert logger is logging.getLogger("xclif.tests.logging")
+
+
+def _capture_records():
+    captured: list[logging.LogRecord] = []
+
+    class _Capture(logging.Handler):
+        def emit(self, record: logging.LogRecord) -> None:
+            captured.append(record)
+
+    logging.getLogger().addHandler(_Capture())
+    return captured
+
+
+def test_log_proxy_uses_caller_module_name_and_call_site():
+    configure_logging(verbosity=2, colors="never", force=True)
+    records = _capture_records()
+
+    log.info("hello")
+    expected_line = inspect.currentframe().f_lineno - 1
+
+    assert len(records) == 1
+    record = records[0]
+    assert record.name == __name__
+    assert record.pathname == __file__
+    assert record.lineno == expected_line
+    assert record.getMessage() == "hello"
+
+
+def test_log_proxy_respects_verbosity_level():
+    configure_logging(verbosity=0, colors="never", force=True)
+    records = _capture_records()
+
+    log.info("hidden")
+    log.warning("shown")
+
+    messages = [record.getMessage() for record in records]
+    assert messages == ["shown"]
+
+
+def test_log_proxy_formats_args_and_captures_exceptions():
+    configure_logging(verbosity=2, colors="never", force=True)
+    records = _capture_records()
+
+    log.info("value=%s", 42)
+    try:
+        raise ValueError("boom")
+    except ValueError:
+        log.exception("failed")
+
+    assert records[0].getMessage() == "value=42"
+    assert records[1].levelno == logging.ERROR
+    assert records[1].exc_info is not None
+
+
+def test_fvariant_uses_str_format_and_calls_callables():
+    configure_logging(verbosity=2, colors="never", force=True)
+    records = _capture_records()
+
+    log.fdebug("{} on port {port}", "host", port=lambda: 8080)
+
+    assert records[0].getMessage() == "host on port 8080"
+
+
+def test_fvariant_defers_callable_until_record_is_emitted():
+    configure_logging(verbosity=0, colors="never", force=True)
+    _capture_records()
+    calls = []
+
+    def expensive() -> str:
+        calls.append(1)
+        return "dump"
+
+    log.fdebug("state: {}", expensive)  # filtered out at verbosity 0
+    assert calls == []
+
+    configure_logging(verbosity=2, colors="never", force=True)
+    records = _capture_records()
+    log.fdebug("state: {}", expensive)  # now emitted
+
+    assert calls == [1]
+    assert records[0].getMessage() == "state: dump"
+
+
+def test_fvariant_reports_caller_call_site():
+    configure_logging(verbosity=2, colors="never", force=True)
+    records = _capture_records()
+
+    log.finfo("hi {}", "there")
+    expected_line = inspect.currentframe().f_lineno - 1
+
+    assert records[0].name == __name__
+    assert records[0].pathname == __file__
+    assert records[0].lineno == expected_line
+
+
+def test_f_namespace_matches_log_fvariants():
+    configure_logging(verbosity=2, colors="never", force=True)
+    records = _capture_records()
+
+    f.info("user {user}", user="alice")
+    expected_line = inspect.currentframe().f_lineno - 1
+
+    assert records[0].getMessage() == "user alice"
+    assert records[0].lineno == expected_line
+
+
+def test_fvariant_reserves_logging_kwargs():
+    configure_logging(verbosity=2, colors="never", force=True)
+    records = _capture_records()
+
+    try:
+        raise ValueError("boom")
+    except ValueError:
+        f.error("failed for {who}", who="bob", exc_info=True)
+
+    assert records[0].getMessage() == "failed for bob"
+    assert records[0].exc_info is not None
 
 
 def test_level_from_verbosity_maps_to_standard_levels():
@@ -65,6 +185,24 @@ def test_configure_logging_installs_lazy_rich_handler_without_importing_rich():
     assert handler._inner is None
     assert root.level == logging.INFO
     assert root.handlers == [handler]
+
+
+def test_configure_logging_enables_timestamps_at_max_verbosity():
+    below = configure_logging(verbosity=2, colors="never", force=True)
+    assert isinstance(below, RichLogHandler)
+    assert below.show_time is False
+
+    at_max = configure_logging(verbosity=3, colors="never", force=True)
+    assert isinstance(at_max, RichLogHandler)
+    assert at_max.show_time is True
+
+
+def test_configure_logging_show_time_override_wins_over_verbosity():
+    handler = configure_logging(
+        verbosity=3, colors="never", force=True, show_time=False
+    )
+    assert isinstance(handler, RichLogHandler)
+    assert handler.show_time is False
 
 
 def test_configure_logging_reuses_single_managed_handler():
@@ -154,3 +292,30 @@ def test_parser_does_not_configure_logging_for_help(monkeypatch):
 
     assert cmd.execute(["--help"]) == 0
     assert calls == []
+
+
+def test_parser_skips_logging_when_disabled_in_context(monkeypatch):
+    calls = []
+
+    def fake_configure_logging(*, verbosity: int, colors: str) -> None:
+        calls.append((verbosity, colors))
+
+    monkeypatch.setattr("xclif.parser.configure_logging", fake_configure_logging)
+    cmd = Command("test", lambda: 0)
+
+    assert cmd.execute(["-vv"], context={"configure_logging": False}) == 0
+    assert calls == []
+
+
+def test_disabled_logging_still_exposes_verbosity():
+    from xclif.context import get_context
+
+    seen = {}
+
+    def run() -> int:
+        seen["verbosity"] = get_context().verbosity
+        return 0
+
+    cmd = Command("test", run)
+    assert cmd.execute(["-vv"], context={"configure_logging": False}) == 0
+    assert seen["verbosity"] == 2

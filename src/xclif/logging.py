@@ -8,7 +8,8 @@ Xclif's built-in ``-v`` / ``--verbose`` flag.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+import sys
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from rich.console import Console
@@ -16,8 +17,10 @@ if TYPE_CHECKING:
 __all__ = [
     "RichLogHandler",
     "configure_logging",
+    "f",
     "get_logger",
     "level_from_verbosity",
+    "log",
 ]
 
 _MANAGED_HANDLER_ATTR = "_xclif_managed_handler"
@@ -38,6 +41,201 @@ def get_logger(name: str | None = None) -> logging.Logger:
     """
 
     return logging.getLogger(name)
+
+
+# Standard-library kwargs accepted by Logger._log; they must never be treated
+# as ``str.format`` fields by the f-variants.
+_LOG_RESERVED_KWARGS = frozenset({"exc_info", "stack_info", "stacklevel", "extra"})
+
+
+def _resolve(value: object) -> object:
+    """Call *value* if it is callable, otherwise return it unchanged."""
+    return value() if callable(value) else value
+
+
+class _DeferredFormat:
+    """Lazily ``str.format`` a message, calling any callable arguments.
+
+    The work happens in :meth:`__str__`, which the standard library only
+    invokes inside ``LogRecord.getMessage()`` — i.e. after the record clears
+    the active level. Callable arguments are invoked there too, so expensive
+    values are never computed for a filtered-out record.
+    """
+
+    __slots__ = ("msg", "args", "kwargs")
+
+    def __init__(self, msg: object, args: tuple, kwargs: dict) -> None:
+        self.msg = msg
+        self.args = args
+        self.kwargs = kwargs
+
+    def __str__(self) -> str:
+        args = [_resolve(a) for a in self.args]
+        kwargs = {k: _resolve(v) for k, v in self.kwargs.items()}
+        return str(self.msg).format(*args, **kwargs)
+
+
+# Why an instance (`log = _LogProxy()`) rather than a plain module whose own
+# functions are `log.info`, `log.debug`, ...?
+#
+# Honestly: this is collapsible. A module would work — that is exactly how stdlib
+# exposes `logging.info` / `logging.debug`. Frame counting is NOT a reason to keep
+# the class: `sys._getframe(_depth)` counts call frames, and a bound method and a
+# module-level function produce the same stack shape, so the same `_depth` works
+# either way.
+#
+# The instance only buys conveniences, not necessities:
+#   - A clean public/private split via `__slots__` + `_`-prefixed methods, instead
+#     of every helper (`_log`, `_flog`, `_DeferredFormat`) being a module global.
+#   - `log` and the `f` namespace as two handles sharing one impl in one file
+#     (`f.debug` just calls `log._flog(...)`).
+#
+# We considered collapsing `log` into its own module and deliberately did NOT.
+# A module named `log` (or an `xclif/log/` package) living next to this
+# `xclif/logging.py` would put two near-identical import paths one character
+# apart — `from xclif.log import f` vs `from xclif import logging` — which is
+# more confusing than the class, not less. So `log` stays an instance defined
+# here, beside the rest of the logging story. Don't re-open this without a plan
+# for the `log`/`logging` name collision.
+class _LogProxy:
+    """A ready-to-use logger that adopts the calling module's name.
+
+    Unlike a logger captured at import time, this proxy resolves the caller's
+    module on every call and forwards to ``logging.getLogger(<that module>)``.
+    Records therefore carry the right source name (and ``file:line``) no matter
+    which module imported ``log``, while still flowing through whatever
+    :func:`configure_logging` installed on the root logger::
+
+        from xclif import log
+
+        log.info("Connecting...")   # logged as the calling module
+
+    The ``debug``/``info``/... methods are byte-for-byte compatible with the
+    standard library (``%``-style, lazy formatting). The ``f``-prefixed
+    variants (:meth:`fdebug`, :meth:`finfo`, ...) instead use ``str.format``
+    placeholders and *call any callable argument*, deferring both until the
+    record is actually emitted::
+
+        log.fdebug("state: {}", lambda: dump())   # dump() runs only at -vv
+    """
+
+    __slots__ = ()
+
+    def _log(
+        self, level: int, msg: object, args: tuple, _depth: int = 2, **kwargs: Any
+    ) -> None:
+        # Caller stack (default): user -> debug()/info()/... -> _log() (here).
+        frame = sys._getframe(_depth)
+        logger = logging.getLogger(frame.f_globals.get("__name__", "__main__"))
+        if not logger.isEnabledFor(level):
+            return
+        # Skip the wrapper frames so file:line points at the user's call site.
+        kwargs["stacklevel"] = kwargs.get("stacklevel", 1) + _depth
+        logger.log(level, msg, *args, **kwargs)
+
+    def _flog(self, level: int, msg: object, args: tuple, kwargs: dict) -> None:
+        log_kwargs = {
+            k: kwargs.pop(k) for k in list(kwargs) if k in _LOG_RESERVED_KWARGS
+        }
+        deferred = _DeferredFormat(msg, args, kwargs)
+        # +1 for this extra hop (user -> fdebug() -> _flog() -> _log()).
+        self._log(level, deferred, (), _depth=3, **log_kwargs)
+
+    def debug(self, msg: object, *args: Any, **kwargs: Any) -> None:
+        self._log(logging.DEBUG, msg, args, **kwargs)
+
+    def info(self, msg: object, *args: Any, **kwargs: Any) -> None:
+        self._log(logging.INFO, msg, args, **kwargs)
+
+    def warning(self, msg: object, *args: Any, **kwargs: Any) -> None:
+        self._log(logging.WARNING, msg, args, **kwargs)
+
+    def error(self, msg: object, *args: Any, **kwargs: Any) -> None:
+        self._log(logging.ERROR, msg, args, **kwargs)
+
+    def critical(self, msg: object, *args: Any, **kwargs: Any) -> None:
+        self._log(logging.CRITICAL, msg, args, **kwargs)
+
+    def exception(self, msg: object, *args: Any, **kwargs: Any) -> None:
+        kwargs.setdefault("exc_info", True)
+        self._log(logging.ERROR, msg, args, **kwargs)
+
+    def log(self, level: int, msg: object, *args: Any, **kwargs: Any) -> None:
+        self._log(level, msg, args, **kwargs)
+
+    # ``str.format``-style variants that also evaluate callable arguments.
+
+    def fdebug(self, msg: object, *args: Any, **kwargs: Any) -> None:
+        self._flog(logging.DEBUG, msg, args, kwargs)
+
+    def finfo(self, msg: object, *args: Any, **kwargs: Any) -> None:
+        self._flog(logging.INFO, msg, args, kwargs)
+
+    def fwarning(self, msg: object, *args: Any, **kwargs: Any) -> None:
+        self._flog(logging.WARNING, msg, args, kwargs)
+
+    def ferror(self, msg: object, *args: Any, **kwargs: Any) -> None:
+        self._flog(logging.ERROR, msg, args, kwargs)
+
+    def fcritical(self, msg: object, *args: Any, **kwargs: Any) -> None:
+        self._flog(logging.CRITICAL, msg, args, kwargs)
+
+    def fexception(self, msg: object, *args: Any, **kwargs: Any) -> None:
+        kwargs.setdefault("exc_info", True)
+        self._flog(logging.ERROR, msg, args, kwargs)
+
+    def flog(self, level: int, msg: object, *args: Any, **kwargs: Any) -> None:
+        self._flog(level, msg, args, kwargs)
+
+
+log = _LogProxy()
+"""The bundled Xclif logger.
+
+Import and use it directly — ``from xclif import log`` then ``log.info(...)``.
+On each call it logs under the calling module's name, flowing through whatever
+:func:`configure_logging` installed on the root logger.
+
+``log.fdebug`` / ``log.finfo`` / ... are ``str.format``-style variants that also
+call any callable argument, deferring both formatting and evaluation until the
+record is emitted. They are also exposed as :data:`f` (``f.debug == log.fdebug``).
+"""
+
+
+class _FNamespace:
+    """``str.format``-style, callable-aware logging functions.
+
+    ``f.debug(...)`` is equivalent to ``log.fdebug(...)`` — a separate handle
+    for code that prefers ``from xclif.logging import f`` over the ``log``
+    object.
+    """
+
+    __slots__ = ()
+
+    def debug(self, msg: object, *args: Any, **kwargs: Any) -> None:
+        log._flog(logging.DEBUG, msg, args, kwargs)
+
+    def info(self, msg: object, *args: Any, **kwargs: Any) -> None:
+        log._flog(logging.INFO, msg, args, kwargs)
+
+    def warning(self, msg: object, *args: Any, **kwargs: Any) -> None:
+        log._flog(logging.WARNING, msg, args, kwargs)
+
+    def error(self, msg: object, *args: Any, **kwargs: Any) -> None:
+        log._flog(logging.ERROR, msg, args, kwargs)
+
+    def critical(self, msg: object, *args: Any, **kwargs: Any) -> None:
+        log._flog(logging.CRITICAL, msg, args, kwargs)
+
+    def exception(self, msg: object, *args: Any, **kwargs: Any) -> None:
+        kwargs.setdefault("exc_info", True)
+        log._flog(logging.ERROR, msg, args, kwargs)
+
+    def log(self, level: int, msg: object, *args: Any, **kwargs: Any) -> None:
+        log._flog(level, msg, args, kwargs)
+
+
+f = _FNamespace()
+"""``str.format``-style logging functions; see :data:`log`. ``f.debug == log.fdebug``."""
 
 
 def level_from_verbosity(verbosity: int) -> int:
@@ -139,7 +337,7 @@ def configure_logging(
     level: int | str | None = None,
     force: bool = False,
     console: "Console | None" = None,
-    show_time: bool = False,
+    show_time: bool | None = None,
     show_level: bool = True,
     show_path: bool | None = None,
     markup: bool = False,
@@ -155,6 +353,11 @@ def configure_logging(
 
     Returns the installed handler, or ``None`` when existing non-Xclif handlers
     were respected.
+
+    The Rich handler grows more detailed as *verbosity* rises: file/line
+    locations appear at ``2`` (``-vv``) and timestamps at ``3`` (``-vvv``),
+    matching Xclif's verbose-formatter behavior. The ``show_time`` and
+    ``show_path`` arguments override that derivation when set explicitly.
     """
 
     _validate_colors(colors)
@@ -183,7 +386,7 @@ def configure_logging(
         resolved_level,
         colors=colors,
         console=console,
-        show_time=show_time,
+        show_time=verbosity >= 3 if show_time is None else show_time,
         show_level=show_level,
         show_path=verbosity >= 2 if show_path is None else show_path,
         markup=markup,

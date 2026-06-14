@@ -9,7 +9,13 @@ from xclif.command import Command, command
 from xclif.context import Context, get_context
 from xclif.definition import _DefinitionOption
 from xclif.importer import get_modules
-from xclif.logging import configure_logging, get_logger, level_from_verbosity
+from xclif.logging import (
+    configure_logging,
+    f,
+    get_logger,
+    level_from_verbosity,
+    log,
+)
 
 __version__ = "0.5.1"
 
@@ -24,9 +30,11 @@ __all__ = [
     "__version__",
     "command",
     "configure_logging",
+    "f",
     "get_context",
     "get_logger",
     "level_from_verbosity",
+    "log",
 ]
 
 
@@ -185,6 +193,12 @@ class Cli:
         current behaviour; set to *False* to suppress it.  Injection is also
         skipped when the root command already defines an ``mcp`` subcommand
         or declares positional arguments.
+    logging:
+        Whether Xclif configures standard logging on each dispatch (setting
+        the root logger level from ``--verbose`` and installing its Rich
+        handler).  *True* (the default) keeps the built-in behaviour; set to
+        *False* to leave logging entirely to your application — the verbosity
+        count is still available via ``get_context().verbosity``.
     show_no_description:
         Default value for ``show_no_description`` on all commands in the
         tree.  When ``False``, suppress the "No description" placeholder in
@@ -202,6 +216,7 @@ class Cli:
     config_command: bool = True
     completions_command: bool = True
     mcp_command: bool = True
+    logging: bool = True
     show_no_description: bool | None = None
     _config_data: dict = field(default_factory=dict, init=False, repr=False)
     _config_dir: "Path | None" = field(default=None, init=False, repr=False)
@@ -318,7 +333,11 @@ class Cli:
                 cli()
         """
         self._finalize()
-        context = {"env_prefix": self.env_prefix, "config_data": self._config_data}
+        context = {
+            "env_prefix": self.env_prefix,
+            "config_data": self._config_data,
+            "configure_logging": self.logging,
+        }
         sys.exit(self.root_command.execute(context=context))
 
     def add_command(self, path: list[str], command: Command) -> None:
@@ -349,6 +368,7 @@ class Cli:
         env_prefix: str | None = None,
         config_name: str | None = None,
         local_config: str | None = None,
+        logging: bool = True,
         show_no_description: bool | None = None,
     ) -> Self:
         """Load a pre-compiled manifest produced by ``xclif compile``.
@@ -367,6 +387,11 @@ class Cli:
             :meth:`from_routes`).
         local_config:
             Filename for cwd-based local config.  See :class:`Cli`.
+        logging:
+            Whether Xclif configures standard logging on each dispatch.  *True*
+            (the default) sets the root logger level from ``--verbose`` and
+            installs a Rich handler; *False* leaves logging entirely to your
+            application (verbosity is still readable via ``get_context()``).
         """
         build_fn = getattr(manifest, "_build_cli", None)
         if build_fn is None:
@@ -377,7 +402,25 @@ class Cli:
         if version is None and manifest.__package__:
             package_name = manifest.__package__.split(".")[0]
             version = _detect_version(package_name)
-        return build_fn(version=version, env_prefix=env_prefix, config_name=config_name, local_config=local_config, show_no_description=show_no_description)
+        kwargs = dict(
+            version=version,
+            env_prefix=env_prefix,
+            config_name=config_name,
+            local_config=local_config,
+            show_no_description=show_no_description,
+        )
+        # `logging` was added to the generated _build_cli later; a manifest built
+        # by an older xclif won't accept it. Only forward it when supported, and
+        # fail loudly if the caller explicitly asked to disable logging.
+        if "logging" in inspect.signature(build_fn).parameters:
+            kwargs["logging"] = logging
+        elif not logging:
+            raise TypeError(
+                f"Manifest module {manifest.__name__!r} predates the 'logging' "
+                "option. Re-run `python -m xclif compile <routes_module>` to "
+                "regenerate it."
+            )
+        return build_fn(**kwargs)
 
     @classmethod
     def from_routes(
@@ -388,6 +431,7 @@ class Cli:
         env_prefix: str | None = None,
         config_name: str | None = None,
         local_config: str | None = None,
+        logging: bool = True,
         show_no_description: bool | None = None,
     ) -> Self:
         """Build a :class:`Cli` by walking a routes package at runtime.
@@ -409,6 +453,11 @@ class Cli:
         config_name:
             App name for config directory resolution.  Defaults to the root
             command name.
+        logging:
+            Whether Xclif configures standard logging on each dispatch.  *True*
+            (the default) sets the root logger level from ``--verbose`` and
+            installs a Rich handler; *False* leaves logging entirely to your
+            application (verbosity is still readable via ``get_context()``).
 
         .. note::
             For production CLIs, prefer :meth:`from_manifest` to avoid the
@@ -442,6 +491,7 @@ class Cli:
             env_prefix=env_prefix,
             config_name=config_name,
             local_config=local_config,
+            logging=logging,
             show_no_description=show_no_description,
         )
         for path, module in get_modules(routes):
