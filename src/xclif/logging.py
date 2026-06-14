@@ -90,9 +90,13 @@ class _DeferredFormat:
 #   - `log` and the `f` namespace as two handles sharing one impl in one file
 #     (`f.debug` just calls `log._flog(...)`).
 #
-# So: kept as an instance for encapsulation, not because a module can't do it.
-# Collapsing into an `xclif/log.py` module is a legitimate future simplification
-# (and would also kill the "is `log` the proxy or the stdlib Logger?" confusion).
+# We considered collapsing `log` into its own module and deliberately did NOT.
+# A module named `log` (or an `xclif/log/` package) living next to this
+# `xclif/logging.py` would put two near-identical import paths one character
+# apart — `from xclif.log import f` vs `from xclif import logging` — which is
+# more confusing than the class, not less. So `log` stays an instance defined
+# here, beside the rest of the logging story. Don't re-open this without a plan
+# for the `log`/`logging` name collision.
 class _LogProxy:
     """A ready-to-use logger that adopts the calling module's name.
 
