@@ -78,24 +78,21 @@ class _DeferredFormat:
 # Why an instance (`log = _LogProxy()`) rather than a plain module whose own
 # functions are `log.info`, `log.debug`, ...?
 #
-# A module genuinely WOULD work for the simple case — that is exactly how stdlib
-# exposes `logging.info` / `logging.debug`. It is tempting to collapse this into
-# an `xclif/log.py` module to avoid the "is `log` the _LogProxy or the stdlib
-# Logger?" confusion. Two requirements keep the instance:
+# Honestly: this is collapsible. A module would work — that is exactly how stdlib
+# exposes `logging.info` / `logging.debug`. Frame counting is NOT a reason to keep
+# the class: `sys._getframe(_depth)` counts call frames, and a bound method and a
+# module-level function produce the same stack shape, so the same `_depth` works
+# either way.
 #
-#   1. Frame counting. Every call walks `sys._getframe(_depth)` to recover the
-#      caller's module name and sets `stacklevel` so file:line points at the
-#      user. That depth is a fixed count of wrapper frames; it must stay exact.
-#      A module wouldn't remove the indirection (you'd still hop through a shared
-#      `_log`), so it's no simpler — just harder to keep the depth consistent.
-#   2. One implementation, two surfaces. `log.fdebug(...)` and `f.debug(...)`
-#      both route through `_flog`. With an instance, `f` simply calls
-#      `log._flog(...)`; private helpers (`_log`, `_flog`, `_DeferredFormat`)
-#      stay off the public surface via `__slots__`. As a module, every helper
-#      would be a module global unless underscore-prefixed by hand.
+# The instance only buys conveniences, not necessities:
+#   - A clean public/private split via `__slots__` + `_`-prefixed methods, instead
+#     of every helper (`_log`, `_flog`, `_DeferredFormat`) being a module global.
+#   - `log` and the `f` namespace as two handles sharing one impl in one file
+#     (`f.debug` just calls `log._flog(...)`).
 #
-# So the instance is not "singletons are nice" — strip those two requirements and
-# the module wins. If a future change removes them, collapsing this is fair game.
+# So: kept as an instance for encapsulation, not because a module can't do it.
+# Collapsing into an `xclif/log.py` module is a legitimate future simplification
+# (and would also kill the "is `log` the proxy or the stdlib Logger?" confusion).
 class _LogProxy:
     """A ready-to-use logger that adopts the calling module's name.
 
