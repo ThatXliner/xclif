@@ -15,7 +15,6 @@ if TYPE_CHECKING:
     from rich.console import Console
 
 __all__ = [
-    "LogProxy",
     "RichLogHandler",
     "configure_logging",
     "get_logger",
@@ -43,7 +42,7 @@ def get_logger(name: str | None = None) -> logging.Logger:
     return logging.getLogger(name)
 
 
-class LogProxy:
+class _LogProxy:
     """A ready-to-use logger that adopts the calling module's name.
 
     Unlike a logger captured at import time, this proxy resolves the caller's
@@ -93,8 +92,13 @@ class LogProxy:
         self._log(level, msg, args, **kwargs)
 
 
-log = LogProxy()
-"""The bundled Xclif logger. See :class:`LogProxy`."""
+log = _LogProxy()
+"""The bundled Xclif logger.
+
+Import and use it directly — ``from xclif import log`` then ``log.info(...)``.
+On each call it logs under the calling module's name, flowing through whatever
+:func:`configure_logging` installed on the root logger.
+"""
 
 
 def level_from_verbosity(verbosity: int) -> int:
