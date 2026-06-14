@@ -11,6 +11,7 @@ from xclif.command import Command
 from xclif.logging import (
     RichLogHandler,
     configure_logging,
+    f,
     get_logger,
     level_from_verbosity,
     log,
@@ -89,6 +90,71 @@ def test_log_proxy_formats_args_and_captures_exceptions():
     assert records[0].getMessage() == "value=42"
     assert records[1].levelno == logging.ERROR
     assert records[1].exc_info is not None
+
+
+def test_fvariant_uses_str_format_and_calls_callables():
+    configure_logging(verbosity=2, colors="never", force=True)
+    records = _capture_records()
+
+    log.fdebug("{} on port {port}", "host", port=lambda: 8080)
+
+    assert records[0].getMessage() == "host on port 8080"
+
+
+def test_fvariant_defers_callable_until_record_is_emitted():
+    configure_logging(verbosity=0, colors="never", force=True)
+    _capture_records()
+    calls = []
+
+    def expensive() -> str:
+        calls.append(1)
+        return "dump"
+
+    log.fdebug("state: {}", expensive)  # filtered out at verbosity 0
+    assert calls == []
+
+    configure_logging(verbosity=2, colors="never", force=True)
+    records = _capture_records()
+    log.fdebug("state: {}", expensive)  # now emitted
+
+    assert calls == [1]
+    assert records[0].getMessage() == "state: dump"
+
+
+def test_fvariant_reports_caller_call_site():
+    configure_logging(verbosity=2, colors="never", force=True)
+    records = _capture_records()
+
+    log.finfo("hi {}", "there")
+    expected_line = inspect.currentframe().f_lineno - 1
+
+    assert records[0].name == __name__
+    assert records[0].pathname == __file__
+    assert records[0].lineno == expected_line
+
+
+def test_f_namespace_matches_log_fvariants():
+    configure_logging(verbosity=2, colors="never", force=True)
+    records = _capture_records()
+
+    f.info("user {user}", user="alice")
+    expected_line = inspect.currentframe().f_lineno - 1
+
+    assert records[0].getMessage() == "user alice"
+    assert records[0].lineno == expected_line
+
+
+def test_fvariant_reserves_logging_kwargs():
+    configure_logging(verbosity=2, colors="never", force=True)
+    records = _capture_records()
+
+    try:
+        raise ValueError("boom")
+    except ValueError:
+        f.error("failed for {who}", who="bob", exc_info=True)
+
+    assert records[0].getMessage() == "failed for bob"
+    assert records[0].exc_info is not None
 
 
 def test_level_from_verbosity_maps_to_standard_levels():

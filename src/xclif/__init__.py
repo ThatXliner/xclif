@@ -11,6 +11,7 @@ from xclif.definition import _DefinitionOption
 from xclif.importer import get_modules
 from xclif.logging import (
     configure_logging,
+    f,
     get_logger,
     level_from_verbosity,
     log,
@@ -29,6 +30,7 @@ __all__ = [
     "__version__",
     "command",
     "configure_logging",
+    "f",
     "get_context",
     "get_logger",
     "level_from_verbosity",

@@ -63,6 +63,45 @@ runs, even when the message would be discarded. For hot paths or expensive
 interpolations under ``-vv`` / ``-vvv`` gating, prefer ``%``-style so the work
 is skipped when the level is too low.
 
+Lazy values and ``str.format``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``%``-style defers the *formatting*, but not the *arguments*. If a value is
+itself expensive to compute, it still runs every time::
+
+   log.debug("state: %s", expensive_dump())   # expensive_dump() always runs
+
+For this case ``log`` adds ``f``-prefixed variants — ``fdebug``, ``finfo``,
+``fwarning``, ``ferror``, ``fcritical``, ``fexception``, and ``flog``. They use
+``str.format`` (``{}`` / ``{name}``) placeholders and, crucially, **call any
+callable argument** — both the formatting and the call are deferred until the
+record is actually emitted:
+
+.. code-block:: python
+
+   log.fdebug("state: {}", expensive_dump)            # called only at -vv
+   log.fdebug("state: {}", lambda: obj.to_json())     # lambda, same deal
+   log.finfo("{user} from {host}", user=u, host=get_host)
+
+Pass the callable itself (``expensive_dump``), not its result
+(``expensive_dump()``) — the variant invokes it for you, and only when needed.
+To log a callable's own repr, stringify it at the call site:
+``log.fdebug("fn is {}", repr(some_func))``.
+
+The same functions are available as :data:`~xclif.f` for code that prefers a
+free function over the ``log`` object — ``f.debug(...)`` is exactly
+``log.fdebug(...)``:
+
+.. code-block:: python
+
+   from xclif import f
+
+   f.debug("state: {}", expensive_dump)
+
+The plain ``debug`` / ``info`` / ... methods are left untouched: they remain
+byte-for-byte compatible with the standard library so existing code and logging
+linters keep working.
+
 Named loggers (escape hatch)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
