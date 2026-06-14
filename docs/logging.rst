@@ -39,6 +39,30 @@ It is not a logger of its own: on each call it resolves the **calling module's**
 carry the right source name and ``file:line`` no matter which module imported
 ``log``, and everything still flows through the standard :mod:`logging` tree.
 
+Message formatting
+~~~~~~~~~~~~~~~~~~
+
+The ``%``-style placeholders above are the standard-library convention, and
+they are **lazy**: the message is only interpolated if the record actually
+clears the active verbosity level. A filtered-out ``log.debug("%s", value)``
+costs nothing to format.
+
+.. code-block:: python
+
+   log.info("connecting to %s on port %d", host, port)   # lazy
+
+If you dislike C-style formatting, f-strings work just as well — Python builds
+the string before the call, so there is nothing special to support:
+
+.. code-block:: python
+
+   log.info(f"connecting to {host} on port {port}")      # eager
+
+Beware the trade-off: an f-string is formatted **eagerly**, every time the line
+runs, even when the message would be discarded. For hot paths or expensive
+interpolations under ``-vv`` / ``-vvv`` gating, prefer ``%``-style so the work
+is skipped when the level is too low.
+
 Named loggers (escape hatch)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
