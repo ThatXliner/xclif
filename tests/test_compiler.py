@@ -310,3 +310,31 @@ def test_from_manifest_missing_build_fn_raises(tmp_path):
     bad = types.ModuleType("bad_manifest")
     with pytest.raises(ImportError, match="_build_cli"):
         Cli.from_manifest(bad)
+
+
+def test_from_manifest_threads_logging_flag(tmp_path):
+    from greeter import routes
+
+    manifest_path = compile_routes(routes, output_dir=tmp_path)
+    manifest = _load_manifest_from_path(manifest_path)
+
+    assert Cli.from_manifest(manifest).logging is True
+    assert Cli.from_manifest(manifest, logging=False).logging is False
+
+
+def test_from_manifest_rejects_logging_off_on_legacy_manifest():
+    import types
+
+    def _build_cli(version=None, env_prefix=None, config_name=None,
+                   local_config=None, show_no_description=None):
+        return Cli(root_command=Command("legacy", lambda: 0))
+
+    legacy = types.ModuleType("legacy_manifest")
+    legacy.__package__ = ""
+    legacy._build_cli = _build_cli
+
+    # Default (logging=True) still works against an old manifest.
+    assert Cli.from_manifest(legacy).logging is True
+    # Explicitly disabling logging fails loudly rather than silently ignoring.
+    with pytest.raises(TypeError, match="predates the 'logging' option"):
+        Cli.from_manifest(legacy, logging=False)
