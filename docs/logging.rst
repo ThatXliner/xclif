@@ -116,23 +116,41 @@ When to use which
   an argument is expensive to compute and should only run if the record is
   emitted.
 
-Named loggers (escape hatch)
+Skipping the ergonomic layer
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-When you want an explicitly named logger — for instance to set a per-component
-level — reach for the standard library directly. ``get_logger`` is a thin
-wrapper for readers who prefer to import everything from ``xclif``:
+You do not have to use ``log`` or ``f`` at all. If you prefer plain standard
+loggers — for an explicitly named logger, a per-component level, or simply to
+avoid Xclif-specific imports — just use :func:`logging.getLogger` directly:
 
 .. code-block:: python
 
    import logging
    logger = logging.getLogger(__name__)   # the standard way
 
-   from xclif import get_logger
-   logger = get_logger(__name__)          # identical, single import
+   logger.info("Connecting to %s...", target)
+   logger.debug("Resolving %s...", target)
 
-Both compose with ``log``: they share the same handler and level that Xclif
-installs on the root logger.
+This still gets Xclif's verbosity level and Rich rendering for free: your named
+logger propagates up to the **root** logger, which is where
+:func:`~xclif.configure_logging` sets the level and installs the handler. There
+is no extra wiring to do.
+
+``get_logger`` is a thin convenience wrapper for readers who would rather import
+everything from ``xclif``; it returns the exact same standard logger:
+
+.. code-block:: python
+
+   from xclif import get_logger
+   logger = get_logger(__name__)          # identical to logging.getLogger
+
+.. note::
+
+   This is also the path with the least overhead. The ``log`` object inspects
+   the call stack on every call (via ``sys._getframe``) to recover the calling
+   module's name and keep ``file:line`` accurate — the cost of being a single
+   shared object. A logger you name yourself with ``getLogger(__name__)``
+   already knows its module, so it skips that work entirely.
 
 Verbosity-to-level mapping
 --------------------------
