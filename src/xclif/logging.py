@@ -139,7 +139,7 @@ def configure_logging(
     level: int | str | None = None,
     force: bool = False,
     console: "Console | None" = None,
-    show_time: bool = False,
+    show_time: bool | None = None,
     show_level: bool = True,
     show_path: bool | None = None,
     markup: bool = False,
@@ -155,6 +155,11 @@ def configure_logging(
 
     Returns the installed handler, or ``None`` when existing non-Xclif handlers
     were respected.
+
+    The Rich handler grows more detailed as *verbosity* rises: file/line
+    locations appear at ``2`` (``-vv``) and timestamps at ``3`` (``-vvv``),
+    matching Xclif's verbose-formatter behavior. The ``show_time`` and
+    ``show_path`` arguments override that derivation when set explicitly.
     """
 
     _validate_colors(colors)
@@ -183,7 +188,7 @@ def configure_logging(
         resolved_level,
         colors=colors,
         console=console,
-        show_time=show_time,
+        show_time=verbosity >= 3 if show_time is None else show_time,
         show_level=show_level,
         show_path=verbosity >= 2 if show_path is None else show_path,
         markup=markup,

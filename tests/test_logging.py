@@ -67,6 +67,24 @@ def test_configure_logging_installs_lazy_rich_handler_without_importing_rich():
     assert root.handlers == [handler]
 
 
+def test_configure_logging_enables_timestamps_at_max_verbosity():
+    below = configure_logging(verbosity=2, colors="never", force=True)
+    assert isinstance(below, RichLogHandler)
+    assert below.show_time is False
+
+    at_max = configure_logging(verbosity=3, colors="never", force=True)
+    assert isinstance(at_max, RichLogHandler)
+    assert at_max.show_time is True
+
+
+def test_configure_logging_show_time_override_wins_over_verbosity():
+    handler = configure_logging(
+        verbosity=3, colors="never", force=True, show_time=False
+    )
+    assert isinstance(handler, RichLogHandler)
+    assert handler.show_time is False
+
+
 def test_configure_logging_reuses_single_managed_handler():
     root = logging.getLogger()
 
