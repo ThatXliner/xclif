@@ -5,21 +5,15 @@ Xclif wires Python's standard :mod:`logging` to its built-in ``-v`` /
 ``--verbose`` flag. You write ordinary log calls; Xclif decides which records
 are shown and renders them with `Rich <https://rich.readthedocs.io/>`_.
 
-The key idea: **Xclif does not introduce a logger of its own.** It configures
-the standard library's root logger during command dispatch, so plain
-``logging.getLogger(__name__)`` calls work without any Xclif-specific import.
-
 Basic usage
 -----------
 
-Log as you normally would. During a command run, Xclif has already set the
-logger's level from ``--verbose`` and attached a Rich handler:
+Import the bundled ``log`` and call it. During a command run, Xclif has already
+set the level from ``--verbose`` and attached a Rich handler:
 
 .. code-block:: python
 
-   import logging
-
-   log = logging.getLogger(__name__)
+   from xclif import command, log
 
    @command()
    def _(target: str) -> None:
@@ -36,15 +30,32 @@ Run it:
    myapp deploy prod -vv      # + debug, with file:line locations
    myapp deploy prod -vvv     # + timestamps (verbose formatter)
 
-``get_logger`` is a convenience wrapper around :func:`logging.getLogger` for
-readers who prefer to import everything from ``xclif``; it returns the same
-standard logger:
+``log`` provides the usual methods — ``debug``, ``info``, ``warning``,
+``error``, ``critical``, ``exception``, and ``log`` — accepting the same
+``%``-style arguments as the standard library.
+
+It is not a logger of its own: on each call it resolves the **calling module's**
+``__name__`` and forwards to ``logging.getLogger(<that module>)``. So records
+carry the right source name and ``file:line`` no matter which module imported
+``log``, and everything still flows through the standard :mod:`logging` tree.
+
+Named loggers (escape hatch)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+When you want an explicitly named logger — for instance to set a per-component
+level — reach for the standard library directly. ``get_logger`` is a thin
+wrapper for readers who prefer to import everything from ``xclif``:
 
 .. code-block:: python
 
-   from xclif import get_logger
+   import logging
+   logger = logging.getLogger(__name__)   # the standard way
 
-   log = get_logger(__name__)   # identical to logging.getLogger(__name__)
+   from xclif import get_logger
+   logger = get_logger(__name__)          # identical, single import
+
+Both compose with ``log``: they share the same handler and level that Xclif
+installs on the root logger.
 
 Verbosity-to-level mapping
 --------------------------
@@ -89,9 +100,9 @@ Integrating with Rich and the standard library
 Because Xclif only attaches a *handler* to the root logger, the two systems
 compose rather than compete:
 
-- **Any** standard-library logger flows through Rich — you do not have to use
-  ``xclif.get_logger``. Third-party libraries that log via ``logging`` are
-  rendered through the same handler.
+- **Any** standard-library logger flows through Rich — ``log`` is built on top
+  of ``logging``, not beside it. Third-party libraries that log via ``logging``
+  are rendered through the same handler.
 - The handler is **lazy**: Rich is only imported the first time a record
   actually passes the level filter, keeping the startup hot path cheap.
 - Output goes to **stderr**, so it never pollutes a command's stdout.

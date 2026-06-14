@@ -9,7 +9,12 @@ from xclif.command import Command, command
 from xclif.context import Context, get_context
 from xclif.definition import _DefinitionOption
 from xclif.importer import get_modules
-from xclif.logging import configure_logging, get_logger, level_from_verbosity
+from xclif.logging import (
+    configure_logging,
+    get_logger,
+    level_from_verbosity,
+    log,
+)
 
 __version__ = "0.5.1"
 
@@ -27,6 +32,7 @@ __all__ = [
     "get_context",
     "get_logger",
     "level_from_verbosity",
+    "log",
 ]
 
 

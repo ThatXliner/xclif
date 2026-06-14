@@ -8,16 +8,19 @@ Xclif's built-in ``-v`` / ``--verbose`` flag.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+import sys
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from rich.console import Console
 
 __all__ = [
+    "LogProxy",
     "RichLogHandler",
     "configure_logging",
     "get_logger",
     "level_from_verbosity",
+    "log",
 ]
 
 _MANAGED_HANDLER_ATTR = "_xclif_managed_handler"
@@ -38,6 +41,60 @@ def get_logger(name: str | None = None) -> logging.Logger:
     """
 
     return logging.getLogger(name)
+
+
+class LogProxy:
+    """A ready-to-use logger that adopts the calling module's name.
+
+    Unlike a logger captured at import time, this proxy resolves the caller's
+    module on every call and forwards to ``logging.getLogger(<that module>)``.
+    Records therefore carry the right source name (and ``file:line``) no matter
+    which module imported ``log``, while still flowing through whatever
+    :func:`configure_logging` installed on the root logger::
+
+        from xclif import log
+
+        log.info("Connecting...")   # logged as the calling module
+    """
+
+    __slots__ = ()
+
+    def _log(self, level: int, msg: object, args: tuple, **kwargs: Any) -> None:
+        # Caller stack: user -> debug()/info()/... -> _log() (here).
+        # Frame 2 above this one is the user's call site.
+        frame = sys._getframe(2)
+        logger = logging.getLogger(frame.f_globals.get("__name__", "__main__"))
+        if not logger.isEnabledFor(level):
+            return
+        # Skip both wrapper frames so file:line points at the user's call site.
+        kwargs["stacklevel"] = kwargs.get("stacklevel", 1) + 2
+        logger.log(level, msg, *args, **kwargs)
+
+    def debug(self, msg: object, *args: Any, **kwargs: Any) -> None:
+        self._log(logging.DEBUG, msg, args, **kwargs)
+
+    def info(self, msg: object, *args: Any, **kwargs: Any) -> None:
+        self._log(logging.INFO, msg, args, **kwargs)
+
+    def warning(self, msg: object, *args: Any, **kwargs: Any) -> None:
+        self._log(logging.WARNING, msg, args, **kwargs)
+
+    def error(self, msg: object, *args: Any, **kwargs: Any) -> None:
+        self._log(logging.ERROR, msg, args, **kwargs)
+
+    def critical(self, msg: object, *args: Any, **kwargs: Any) -> None:
+        self._log(logging.CRITICAL, msg, args, **kwargs)
+
+    def exception(self, msg: object, *args: Any, **kwargs: Any) -> None:
+        kwargs.setdefault("exc_info", True)
+        self._log(logging.ERROR, msg, args, **kwargs)
+
+    def log(self, level: int, msg: object, *args: Any, **kwargs: Any) -> None:
+        self._log(level, msg, args, **kwargs)
+
+
+log = LogProxy()
+"""The bundled Xclif logger. See :class:`LogProxy`."""
 
 
 def level_from_verbosity(verbosity: int) -> int:

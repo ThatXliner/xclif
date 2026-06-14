@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 import logging
 
 import pytest
@@ -12,6 +13,7 @@ from xclif.logging import (
     configure_logging,
     get_logger,
     level_from_verbosity,
+    log,
 )
 
 
@@ -35,6 +37,58 @@ def restore_root_logging():
 def test_get_logger_returns_standard_logger():
     logger = get_logger("xclif.tests.logging")
     assert logger is logging.getLogger("xclif.tests.logging")
+
+
+def _capture_records():
+    captured: list[logging.LogRecord] = []
+
+    class _Capture(logging.Handler):
+        def emit(self, record: logging.LogRecord) -> None:
+            captured.append(record)
+
+    logging.getLogger().addHandler(_Capture())
+    return captured
+
+
+def test_log_proxy_uses_caller_module_name_and_call_site():
+    configure_logging(verbosity=2, colors="never", force=True)
+    records = _capture_records()
+
+    log.info("hello")
+    expected_line = inspect.currentframe().f_lineno - 1
+
+    assert len(records) == 1
+    record = records[0]
+    assert record.name == __name__
+    assert record.pathname == __file__
+    assert record.lineno == expected_line
+    assert record.getMessage() == "hello"
+
+
+def test_log_proxy_respects_verbosity_level():
+    configure_logging(verbosity=0, colors="never", force=True)
+    records = _capture_records()
+
+    log.info("hidden")
+    log.warning("shown")
+
+    messages = [record.getMessage() for record in records]
+    assert messages == ["shown"]
+
+
+def test_log_proxy_formats_args_and_captures_exceptions():
+    configure_logging(verbosity=2, colors="never", force=True)
+    records = _capture_records()
+
+    log.info("value=%s", 42)
+    try:
+        raise ValueError("boom")
+    except ValueError:
+        log.exception("failed")
+
+    assert records[0].getMessage() == "value=42"
+    assert records[1].levelno == logging.ERROR
+    assert records[1].exc_info is not None
 
 
 def test_level_from_verbosity_maps_to_standard_levels():
