@@ -3,7 +3,10 @@ import sys
 import types
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import NoReturn, Self
+from typing import TYPE_CHECKING, NoReturn, Self
+
+if TYPE_CHECKING:
+    from rich.console import Console
 
 from xclif.command import Command, command
 from xclif.context import Context, get_context
@@ -17,7 +20,7 @@ from xclif.logging import (
     log,
 )
 
-__version__ = "0.6.0"
+__version__ = "0.6.1"
 
 __all__ = [
     "Arg",
@@ -30,12 +33,34 @@ __all__ = [
     "__version__",
     "command",
     "configure_logging",
+    "console",
     "f",
     "get_context",
     "get_logger",
     "level_from_verbosity",
     "log",
 ]
+
+# A shared Rich console for CLI output. ``soft_wrap=True`` stops Rich from
+# inserting its own hard line breaks into long strings (e.g. file paths) — it
+# emits each logical line in one piece and lets the terminal wrap at the edge,
+# so paths stay selectable and copyable. Use ``console.print(...)`` instead of
+# ``rich.print(...)`` for command output.
+#
+# Built lazily via module ``__getattr__`` so that merely importing ``xclif``
+# does not import Rich on the hot path (matching ``logging._make_console``).
+_console: "Console | None" = None
+
+
+def __getattr__(name: str) -> object:
+    if name == "console":
+        global _console
+        if _console is None:
+            from rich.console import Console
+
+            _console = Console(soft_wrap=True)
+        return _console
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 @dataclass(frozen=True)
