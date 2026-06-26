@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 0.6.1 — Shared soft-wrap console (2026-06-25)
+
+### Added
+- A shared `console` is now exported from `xclif`: a `rich.console.Console` configured with `soft_wrap=True`. Use `console.print(...)` for command output instead of `rich.print(...)` so long strings (e.g. file paths) are emitted as single logical lines and wrapped by the terminal rather than hard-broken mid-line by Rich. The console is built lazily on first access, so `import xclif` does not import Rich on the hot path.
+
 ## 0.6.0 — Logging! (2026-06-14)
 
 ### Added
