@@ -6,7 +6,7 @@ test *args:
 
 # Run tests with coverage report
 cov:
-    uv run pytest --cov=src/xclif --cov-report=term-missing
+    uv run pytest --cov=src/xclif --cov-report=term-missing --cov-report=xml
 
 # Build the HTML docs
 docs:
