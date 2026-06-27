@@ -330,6 +330,60 @@ def test_auto_alias_avoids_implicit_collision():
         assert alias != "-h"
 
 
+def test_explicit_option_aliases_skip_auto_alias():
+    def f(
+        dry_run: Annotated[bool, OptionMeta(aliases=["-n", "--dryrun"])] = False,
+    ) -> None: ...
+
+    args, opts = extract_parameters(f)
+
+    assert args == []
+    assert opts["dry_run"].aliases == ["-n", "--dryrun"]
+
+
+def test_explicit_empty_option_aliases_skip_auto_alias():
+    def f(name: Annotated[str, OptionMeta(aliases=[])] = "default") -> None: ...
+
+    args, opts = extract_parameters(f)
+
+    assert args == []
+    assert opts["name"].aliases == []
+
+
+def test_explicit_option_alias_conflicts_with_implicit_alias():
+    def f(name: Annotated[str, OptionMeta(aliases=["-h"])] = "") -> None: ...
+
+    with pytest.raises(ValueError, match="conflicts"):
+        extract_parameters(f)
+
+
+def test_explicit_option_alias_conflicts_with_auto_alias():
+    def f(
+        name: str = "",
+        dry_run: Annotated[bool, OptionMeta(aliases=["-n"])] = False,
+    ) -> None: ...
+
+    with pytest.raises(ValueError, match="conflicts"):
+        extract_parameters(f)
+
+
+def test_explicit_option_alias_conflicts_with_canonical_flag():
+    def f(
+        dry_run: bool = False,
+        force: Annotated[bool, OptionMeta(aliases=["--dry-run"])] = False,
+    ) -> None: ...
+
+    with pytest.raises(ValueError, match="conflicts"):
+        extract_parameters(f)
+
+
+def test_explicit_option_alias_requires_flag_syntax():
+    def f(name: Annotated[str, OptionMeta(aliases=["name"])] = "") -> None: ...
+
+    with pytest.raises(ValueError, match="must start with '-'"):
+        extract_parameters(f)
+
+
 # ---------------------------------------------------------------------------
 # extract_parameters — int/float/bool types now work
 # ---------------------------------------------------------------------------

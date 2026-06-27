@@ -78,15 +78,31 @@ Usage::
    myapp publish --tag latest --tag stable
    # tag = ["latest", "stable"]
 
-Short aliases
--------------
+Option aliases
+--------------
 
 Xclif auto-generates a single-char short alias for each option using the first available
 character of the option name. ``--template`` → ``-t``, ``--release`` → ``-r``, etc.
 
 If the first character is taken by an implicit option (``-h``, ``-v``), Xclif tries subsequent
-characters. Use ``Option(name=...)`` inside ``Annotated`` to override the flag name explicitly —
-see :ref:`per-parameter metadata <per-param-metadata>` below.
+characters.
+
+To specify explicit aliases instead of relying on auto-generation, use
+``Option(aliases=[...])`` inside ``Annotated``:
+
+.. code-block:: python
+
+   from typing import Annotated
+   from xclif import Option, command
+
+   @command()
+   def build(
+       dry_run: Annotated[bool, Option(aliases=["-n", "--dryrun"])] = False,
+   ) -> int:
+       ...
+
+Explicit aliases bypass auto-generation entirely. Conflicts with implicit options or other
+option aliases are detected at definition time and raise ``ValueError``.
 
 Interspersed options
 --------------------
@@ -148,6 +164,8 @@ display names and flag names:
 - ``description`` — text shown next to the flag in help output
 - ``name`` — overrides the CLI flag name (e.g. ``dry-run`` → ``--dry-run``). The Python
   kwarg name passed to the function is unchanged.
+- ``aliases`` — explicit short or long aliases (e.g. ``["-n", "--dryrun"]``). When
+  provided, auto-generation is skipped. Conflicts are caught at definition time.
 
 Both can be combined with ``WithConfig``. Note that ``WithConfig[str]`` is sugar for
 ``Annotated[str, WithConfig()]`` — when combining with ``Arg`` or ``Option`` you must
