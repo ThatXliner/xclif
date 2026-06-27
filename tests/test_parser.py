@@ -155,6 +155,24 @@ def test_short_value_missing_raises():
         _parse_token_stream(opts, {}, ["-n"])
 
 
+def test_long_bool_alias():
+    opts = {"dry_run": _opt("dry_run", bool, aliases=["--dryrun"])}
+    _, parsed, _ = _parse_token_stream(opts, {}, ["--dryrun"])
+    assert parsed["dry_run"] == [True]
+
+
+def test_long_value_alias_space_form():
+    opts = {"name": _opt("name", str, aliases=["--username"])}
+    _, parsed, _ = _parse_token_stream(opts, {}, ["--username", "Alice"])
+    assert parsed["name"] == ["Alice"]
+
+
+def test_long_value_alias_equals_form():
+    opts = {"name": _opt("name", str, aliases=["--username"])}
+    _, parsed, _ = _parse_token_stream(opts, {}, ["--username=Alice"])
+    assert parsed["name"] == ["Alice"]
+
+
 # ---------------------------------------------------------------------------
 # _parse_token_stream — -- separator
 # ---------------------------------------------------------------------------

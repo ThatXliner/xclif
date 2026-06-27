@@ -16,14 +16,15 @@ This document defines the option/argument parsing model for Xclif: what syntax i
 
 Long option names use `kebab-case` on the CLI; they map to `snake_case` in Python. `--dry-run` → `dry_run`.
 
-### Short aliases
+### Option aliases
 
 ```
 -v                   # single-char boolean flag
 -n value             # single-char value option
+--dryrun             # explicit long alias
 ```
 
-Short aliases are either auto-generated (first char of the long name, falling back on subsequent chars to avoid collisions) or explicitly declared via `Annotated` metadata. Short options do **not** support bundling (`-abc` ≠ `-a -b -c`) — this is intentional. Bundling is a source of subtle bugs and is rarely needed in modern CLIs.
+Short aliases are either auto-generated (first char of the long name, falling back on subsequent chars to avoid collisions) or explicitly declared via `Annotated` metadata. Explicit aliases may also be long forms such as `--dryrun`. Short options do **not** support bundling (`-abc` ≠ `-a -b -c`) — this is intentional. Bundling is a source of subtle bugs and is rarely needed in modern CLIs.
 
 ### Positional arguments
 

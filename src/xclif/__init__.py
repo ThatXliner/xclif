@@ -131,6 +131,7 @@ class Option:
 
     description: str | None = None
     name: str | None = None  # CLI flag name override (e.g. "dry-run" → --dry-run)
+    aliases: list[str] | None = None  # explicit short/long aliases (e.g. ["-n", "--dry"])
 
 
 def _deep_merge(base: dict, override: dict) -> dict:
