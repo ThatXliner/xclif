@@ -1,6 +1,7 @@
 """Unit tests for xclif.Cli and the from_routes routing system."""
 
 import importlib
+import sys
 import types
 from pathlib import Path
 from unittest.mock import patch
@@ -257,6 +258,33 @@ def test_cli_custom_env_prefix():
     root = Command("myapp", lambda: 0)
     cli = Cli(root_command=root, env_prefix="CUSTOM")
     assert cli.env_prefix == "CUSTOM"
+
+
+def test_cli_call_uses_sys_argv_context_and_exits(monkeypatch):
+    from xclif.context import get_context
+
+    seen = {}
+
+    def run() -> int:
+        ctx = get_context()
+        seen["env_prefix"] = ctx["env_prefix"]
+        seen["configure_logging"] = ctx["configure_logging"]
+        return 7
+
+    root = Command("myapp", run)
+    cli = Cli(
+        root_command=root,
+        completions_command=False,
+        mcp_command=False,
+        logging=False,
+    )
+    monkeypatch.setattr(sys, "argv", ["myapp"])
+
+    with pytest.raises(SystemExit) as exc_info:
+        cli()
+
+    assert exc_info.value.code == 7
+    assert seen == {"env_prefix": "MYAPP", "configure_logging": False}
 
 
 def test_cli_default_config_name():
