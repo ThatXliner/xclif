@@ -175,6 +175,17 @@ def _detect_version(package_name: str) -> str | None:
         return None
 
 
+def _copy_root_command(cmd: Command) -> Command:
+    """Shallow-copy a root Command so that ``__post_init__`` mutations don't
+    contaminate the original module-level singleton."""
+    import copy
+
+    clone = copy.copy(cmd)
+    clone.subcommands = dict(cmd.subcommands)
+    clone.implicit_options = dict(cmd.implicit_options)
+    return clone
+
+
 @dataclass
 class Cli:
     """Entry point for an Xclif-powered CLI application.
@@ -506,7 +517,7 @@ class Cli:
             version = _detect_version(package_name)
 
         root_path = routes.__package__ + "."
-        root_command = members[0][1]
+        root_command = _copy_root_command(members[0][1])
         if root_command.name is None:
             msg = "Root command must have a name (it will determine the program name)"
             raise ValueError(msg)

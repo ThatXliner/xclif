@@ -672,6 +672,7 @@ def test_literal_option_has_choices():
     assert opts["shell"].choices == ["bash", "zsh"]
 
 
+
 # ---------------------------------------------------------------------------
 # Command.print_agent_help — agent-optimized output
 # ---------------------------------------------------------------------------

@@ -313,3 +313,59 @@ def test_cli_missing_config_file_is_empty(tmp_path):
     with patch("platformdirs.user_config_dir", return_value=str(tmp_path)):
         cli = Cli(root_command=root)
     assert cli._config_data == {}
+
+
+# ---------------------------------------------------------------------------
+# Cross-instance isolation (regression test for issue #40)
+# ---------------------------------------------------------------------------
+
+
+def _copy_root(cmd):
+    """Replicate the shallow-copy logic used by from_routes/from_manifest."""
+    import copy
+    clone = copy.copy(cmd)
+    clone.subcommands = dict(cmd.subcommands)
+    clone.implicit_options = dict(cmd.implicit_options)
+    return clone
+
+
+def test_shallow_copy_isolates_subcommands():
+    """Shallow-copying a Command creates independent subcommands/implicit_options dicts."""
+    original = Command("myapp", lambda: 0)
+    clone = _copy_root(original)
+
+    assert clone is not original
+    assert clone.subcommands is not original.subcommands
+    assert clone.implicit_options is not original.implicit_options
+
+    # Mutations on clone don't affect original
+    clone.subcommands["test"] = Command("test", lambda: 0)
+    assert "test" not in original.subcommands
+
+    clone.version = "1.0.0"
+    assert original.version is None
+
+
+def test_multiple_cli_instances_do_not_share_root_command():
+    """Two Cli instances from copies of the same Command must not share state.
+
+    Regression test for issue #40: Cli.__post_init__ used to mutate
+    root_command in-place, causing cross-instance contamination.
+    """
+    original = Command("myapp", lambda: 0)
+
+    cli1 = Cli(root_command=_copy_root(original), version="1.0.0")
+    cli2 = Cli(root_command=_copy_root(original), version="2.0.0")
+
+    assert cli1.root_command is not cli2.root_command
+    assert cli1.root_command.subcommands is not cli2.root_command.subcommands
+    assert cli1.root_command.implicit_options is not cli2.root_command.implicit_options
+
+    # Each has its own version
+    assert cli1.root_command.version == "1.0.0"
+    assert cli2.root_command.version == "2.0.0"
+
+    # Original is untouched
+    assert original.version is None
+    assert "completions" not in original.subcommands
+    assert "version" not in original.implicit_options

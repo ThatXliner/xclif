@@ -214,11 +214,34 @@ def test_from_manifest_preserves_all_command_fields(tmp_path):
     cli_routes = Cli.from_routes(routes)
     cli_manifest = Cli.from_manifest(manifest)
 
+    def _params_equal(params_r, params_m) -> bool:
+        # Compare every field except ``converter`` by value, and the converter
+        # by qualname — dynamically-generated commands (e.g. completions)
+        # produce a new converter closure per Cli instance, so identity
+        # comparison spuriously fails.
+        if len(params_r) != len(params_m):
+            return False
+        for p_r, p_m in zip(params_r, params_m):
+            rest_r = {k: v for k, v in vars(p_r).items() if k != "converter"}
+            rest_m = {k: v for k, v in vars(p_m).items() if k != "converter"}
+            if rest_r != rest_m:
+                return False
+            if p_r.converter.__qualname__ != p_m.converter.__qualname__:
+                return False
+        return True
+
     def _assert_commands_equal(cmd_r: Command, cmd_m: Command, path: str = "root"):
         assert cmd_r.name == cmd_m.name, f"{path}: name mismatch"
-        assert cmd_r.run is cmd_m.run, f"{path}: run callable differs"
-        assert cmd_r.arguments == cmd_m.arguments, f"{path}: arguments differ"
-        assert cmd_r.options == cmd_m.options, f"{path}: options differ"
+        # Use qualname comparison, not identity — dynamically-generated
+        # commands (e.g. completions) produce new closures per Cli instance.
+        assert cmd_r.run.__qualname__ == cmd_m.run.__qualname__, (
+            f"{path}: run callable differs"
+        )
+        assert _params_equal(cmd_r.arguments, cmd_m.arguments), f"{path}: arguments differ"
+        assert list(cmd_r.options) == list(cmd_m.options), f"{path}: option names differ"
+        assert _params_equal(cmd_r.options.values(), cmd_m.options.values()), (
+            f"{path}: options differ"
+        )
         assert cmd_r.implicit_options == cmd_m.implicit_options, (
             f"{path}: implicit_options differ"
         )

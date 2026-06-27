@@ -457,6 +457,7 @@ def _format_agent_args(cmd: "Command") -> str:
     return " " + " ".join(parts)
 
 
+
 def _get_choices(converter) -> list[str] | None:
     """Return choices list if converter is a Literal converter, else None."""
     return getattr(converter, "__choices__", None)
