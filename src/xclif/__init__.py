@@ -335,7 +335,7 @@ class Cli:
         # Apply Cli-level show_no_description default
         self._apply_show_no_description(self.root_command)
 
-        from xclif.config_commands import _has_with_config, make_config_command
+        from xclif.config_commands import _build_param_schema, _has_with_config, make_config_command
         from xclif.validation import check_with_config_conflicts
 
         # Auto-inject config subcommand if any WithConfig params exist
@@ -345,7 +345,8 @@ class Cli:
             and _has_with_config(self.root_command)
         ):
             self.root_command.subcommands["config"] = make_config_command(
-                self._config_dir
+                self._config_dir,
+                param_schema=_build_param_schema(self.root_command),
             )
 
         # Validate WithConfig conflicts

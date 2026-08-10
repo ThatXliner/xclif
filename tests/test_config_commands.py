@@ -127,6 +127,7 @@ def test_cli_auto_injects_config_when_with_config_exists(tmp_path):
     assert "get" in config_cmd.subcommands
     assert "set" in config_cmd.subcommands
     assert "path" in config_cmd.subcommands
+    assert "validate" in config_cmd.subcommands
 
 
 def test_cli_skips_config_injection_when_already_exists(tmp_path):
