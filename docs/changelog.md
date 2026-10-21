@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 0.6.2 — HTTP transport security (2026-10-21)
+
+### Fixed
+- Require certifi 2026.10.19 or later for MCP and documentation tools to distrust the compromised eMudhra certificate chains.
+- Require patched MCP 1.x and Starlette releases for the optional MCP integration.
+
 ## 0.6.1 — Shared soft-wrap console (2026-06-25)
 
 ### Added
