@@ -61,6 +61,8 @@ Type annotations are resolved to converter callables through
 
 Auto-generated short aliases (e.g. `-n` for `--name`) are assigned during
 extraction, skipping any letters already claimed by implicit options (`-h`, `-v`).
+Explicit aliases may be provided with `Option(aliases=[...])`; these can be short
+or long forms and skip auto-generation.
 
 ### 3. Token Parsing (`_parse_token_stream`)
 
@@ -71,6 +73,7 @@ The scanner is a single left-to-right pass over the token list. It recognises:
 
 - **Long options**: `--name value`, `--name=value`
 - **Short options**: `-n value`, `-v` (aliases resolved via `_build_alias_map`)
+- **Long aliases**: `--alias value`, `--alias=value`
 - **Boolean flags**: `--verbose`, `-v` (no value consumed)
 - **`--` separator**: everything after it becomes a raw positional
 - **Subcommand names**: scanning stops immediately; the index is returned
@@ -124,7 +127,7 @@ The central node type. Every command — root, namespace, or leaf — is a
 ### `Argument` / `Option` (definition.py)
 
 Simple dataclasses. `Argument` has a `variadic` flag. `Option` has `aliases`
-(short forms), `cascading` (propagates to children), and `default`.
+(short or long forms), `cascading` (propagates to children), and `default`.
 
 ### Implicit vs User Options
 
@@ -169,7 +172,7 @@ keeping a single source of truth for the defaults.
 1. Add it to `IMPLICIT_OPTIONS` in `definition.py`
 2. Handle it in `parse_and_execute_impl` in `parser.py` (after the help/version block)
 3. If cascading, add context accumulation logic
-4. Reserve its short alias (e.g. `-q`) in the `IMPLICIT_OPTIONS` entry
+4. Reserve its aliases (e.g. `-q`) in the `IMPLICIT_OPTIONS` entry
 
 ### New CLI-level feature (e.g. `--no-color`)
 

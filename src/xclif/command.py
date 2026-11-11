@@ -466,11 +466,52 @@ def _get_choices(converter) -> list[str] | None:
 def _auto_alias(name: str, taken: set[str]) -> list[str]:
     """Try to auto-generate a single-char short alias for an option name."""
     for char in name:
+        if char == "-":
+            continue
         alias = f"-{char}"
         if alias not in taken:
             taken.add(alias)
             return [alias]
     return []
+
+
+def _flag_label(name: str) -> str:
+    return f"--{name.replace('_', '-')}"
+
+
+def _alias_key(alias: str) -> tuple[str, str]:
+    if alias.startswith("--"):
+        return ("long", alias.removeprefix("--").replace("-", "_"))
+    return ("short", alias)
+
+
+def _validate_option_alias(alias: str) -> None:
+    if alias.startswith("--"):
+        if len(alias) <= 2:
+            raise ValueError("Option alias '--' is invalid")
+        return
+    if alias.startswith("-"):
+        if len(alias) != 2:
+            raise ValueError(
+                f"Short option alias {alias!r} must be a single-character flag"
+            )
+        return
+    raise ValueError(f"Option alias {alias!r} must start with '-'")
+
+
+def _reserve_option_alias(
+    alias: str,
+    owner: str,
+    registry: dict[tuple[str, str], str],
+) -> None:
+    key = _alias_key(alias)
+    existing = registry.get(key)
+    if existing is not None:
+        raise ValueError(
+            f"Cannot use alias {alias!r} for option {owner!r}: "
+            f"conflicts with {existing}"
+        )
+    registry[key] = owner
 
 
 def extract_parameters(
@@ -482,8 +523,14 @@ def extract_parameters(
     options = {}
     # Track taken aliases (implicit options reserve theirs)
     taken_aliases: set[str] = set()
-    for opt in IMPLICIT_OPTIONS.values():
+    alias_registry: dict[tuple[str, str], str] = {}
+    for name, opt in IMPLICIT_OPTIONS.items():
+        _reserve_option_alias(
+            _flag_label(opt.name), f"implicit option {name!r}", alias_registry
+        )
         taken_aliases.update(opt.aliases)
+        for alias in opt.aliases:
+            _reserve_option_alias(alias, f"implicit option {name!r}", alias_registry)
 
     for name, parameter in signature.parameters.items():
         if parameter.kind == parameter.VAR_POSITIONAL:
@@ -562,7 +609,16 @@ def extract_parameters(
             if cli_name.replace("-", "_") in IMPLICIT_OPTIONS:
                 msg = f"Cannot use `{cli_name}` as an option name (overrides an implicit option automatically created by Xclif)"
                 raise ValueError(msg)
-            aliases = _auto_alias(cli_name, taken_aliases)
+            _reserve_option_alias(_flag_label(cli_name), name, alias_registry)
+            if opt_meta is not None and opt_meta.aliases is not None:
+                aliases = list(opt_meta.aliases)
+            else:
+                aliases = _auto_alias(cli_name, taken_aliases)
+            for alias in aliases:
+                _validate_option_alias(alias)
+                _reserve_option_alias(alias, name, alias_registry)
+                if not alias.startswith("--"):
+                    taken_aliases.add(alias)
             options[name] = _DefinitionOption(
                 cli_name,
                 converter,

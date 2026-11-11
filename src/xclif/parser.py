@@ -16,7 +16,7 @@ At each command level the scanner classifies every token::
 
     --name value    → long option (space form)
     --name=value    → long option (equals form)
-    -x              → short alias (looked up in the alias map)
+    -x, --alias     → alias (looked up in the alias map)
     --              → sentinel; everything after is a raw positional
     <subcommand>    → stops scanning; returns the index so the caller can recurse
     <anything else> → positional argument
@@ -73,7 +73,7 @@ if TYPE_CHECKING:
 
 
 def _build_alias_map(options: dict[str, _DefinitionOption]) -> dict[str, str]:
-    """Build a mapping from short alias → param key."""
+    """Build a mapping from alias token → param key."""
     alias_map: dict[str, str] = {}
     for long_name, option in options.items():
         for alias in option.aliases:
@@ -92,6 +92,15 @@ def _build_flag_map(options: dict[str, _DefinitionOption]) -> dict[str, str]:
         cli_name = option.name.replace("-", "_")
         flag_map[cli_name] = param_key
     return flag_map
+
+
+def _resolve_long_option(
+    token: str,
+    flag_map: dict[str, str],
+    alias_map: dict[str, str],
+) -> str | None:
+    flag = token.removeprefix("--").replace("-", "_")
+    return flag_map.get(flag) or alias_map.get(token)
 
 
 def _type_name(converter: type) -> str:
@@ -118,6 +127,12 @@ def _convert_option_value(option: _DefinitionOption, raw: str) -> object:
 def _suggest_option(name: str, options: dict[str, _DefinitionOption]) -> str | None:
     """Suggest a close match for an unknown option name."""
     candidates = [f"--{opt.name.replace('_', '-')}" for opt in options.values()]
+    candidates.extend(
+        alias
+        for opt in options.values()
+        for alias in opt.aliases
+        if alias.startswith("--")
+    )
     matches = get_close_matches(name, candidates, n=1, cutoff=0.6)
     return matches[0] if matches else None
 
@@ -157,8 +172,7 @@ def _parse_token_stream(
             # Long option: --name value  or  --name=value
             if "=" in token:
                 name_part, value = token.split("=", 1)
-                flag = name_part.removeprefix("--").replace("-", "_")
-                name = flag_map.get(flag)
+                name = _resolve_long_option(name_part, flag_map, alias_map)
                 if name is None:
                     suggestion = _suggest_option(name_part, options)
                     hint = f"Did you mean '{suggestion}'?" if suggestion else None
@@ -168,8 +182,7 @@ def _parse_token_stream(
                     raise UsageError(f"Boolean flag {name_part!r} does not take a value")
                 parsed_opts[name].append(_convert_option_value(option, value))
             else:
-                flag = token.removeprefix("--").replace("-", "_")
-                name = flag_map.get(flag)
+                name = _resolve_long_option(token, flag_map, alias_map)
                 if name is None:
                     suggestion = _suggest_option(token, options)
                     hint = f"Did you mean '{suggestion}'?" if suggestion else None
