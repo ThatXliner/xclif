@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from xclif.command import Command
@@ -16,6 +16,28 @@ def _has_with_config(command: "Command") -> bool:
         if param.config is not None:
             return True
     return any(_has_with_config(sub) for sub in command.subcommands.values())
+
+
+def _build_param_schema(command: "Command") -> dict[str, dict[str, Any]]:
+    """Walk the command tree and build a schema of WithConfig params.
+
+    Returns ``{config_key: {"type": <converter>, "choices": <list>|None, "description": <str>}}``.
+    """
+    schema: dict[str, dict[str, Any]] = {}
+    for param in (*command.arguments, *command.options.values()):
+        if param.config is not None:
+            schema[param.name] = {
+                "type": param.converter,
+                "choices": param.choices,
+                "description": param.short_description,
+            }
+    for sub in command.subcommands.values():
+        schema.update(_build_param_schema(sub))
+    return schema
+
+
+def _type_name(converter: type) -> str:
+    return getattr(converter, "__name__", str(converter))
 
 
 def _print_flat(data: dict, prefix: str = "") -> None:
@@ -50,8 +72,8 @@ def _set_nested_toml(doc, key: str, value: str) -> None:
     current[parts[-1]] = value
 
 
-def make_config_command(config_dir: Path) -> "Command":
-    """Build the config subcommand tree (get, set, path)."""
+def make_config_command(config_dir: Path, param_schema: dict[str, dict[str, Any]] | None = None) -> "Command":
+    """Build the config subcommand tree (get, set, path, validate)."""
     from xclif.command import Command
     from xclif.config import load_config, resolve_key
     from xclif.definition import Argument
@@ -78,6 +100,16 @@ def make_config_command(config_dir: Path) -> "Command":
 
     def set_run(key: str, value: str) -> int:
         """Set a config value. Creates a TOML config file if none exists."""
+        if param_schema and key in param_schema:
+            info = param_schema[key]
+            try:
+                info["type"](value)
+            except (ValueError, TypeError):
+                print(f"Invalid value {value!r} for {key!r}: expected {_type_name(info['type'])}")
+                return 1
+            if info["choices"] and value not in info["choices"]:
+                print(f"Invalid value {value!r} for {key!r}: expected one of {info['choices']}")
+                return 1
         toml_path = config_dir / "config.toml"
         json_path = config_dir / "config.json"
 
@@ -115,6 +147,49 @@ def make_config_command(config_dir: Path) -> "Command":
             print(str(toml_path))  # default path if no file exists yet
         return 0
 
+    def validate_run(schema: bool = False) -> int:
+        """Validate config values (or show schema with --schema)."""
+        if schema:
+            if not param_schema:
+                print("No config schema available.")
+                return 0
+            print("Config schema:")
+            for key in sorted(param_schema):
+                info = param_schema[key]
+                tname = _type_name(info["type"])
+                choices = f" [one of {', '.join(info['choices'])}]" if info["choices"] else ""
+                desc = f"  ({info['description']})" if info["description"] else ""
+                print(f"  {key} ({tname}){choices}{desc}")
+            return 0
+
+        data = load_config(config_dir)
+        if not data:
+            print("No config file found or config is empty.")
+            return 0
+
+        errors: list[str] = []
+        _MISSING = object()
+        for key in sorted(param_schema or ()):
+            raw = resolve_key(data, key, _MISSING)
+            if raw is _MISSING:
+                continue
+            info = param_schema[key]
+            if not isinstance(raw, info["type"]):
+                try:
+                    info["type"](raw)
+                except (ValueError, TypeError):
+                    errors.append(f"  {key}: invalid value {raw!r}, expected {_type_name(info['type'])}")
+            if info["choices"] and raw not in info["choices"]:
+                errors.append(f"  {key}: invalid value {raw!r}, expected one of {info['choices']}")
+
+        if errors:
+            print("Config validation errors:")
+            for err in errors:
+                print(err)
+            return 1
+        print("Config is valid.")
+        return 0
+
     def config_run() -> int:
         """Manage configuration values."""
         return 0
@@ -131,6 +206,7 @@ def make_config_command(config_dir: Path) -> "Command":
                 Argument("value", str, "Value to set"),
             ]),
             "path": Command("path", path_run),
+            "validate": Command("validate", validate_run),
         },
     )
     return config
